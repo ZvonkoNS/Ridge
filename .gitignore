@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Default output folder of fingerprint_extract.py
+fingerprints/
+
+# Finger photos and extracted prints are biometric data: keep them out of git.
+# (The bracket patterns also match upper-case extensions such as .JPG and .HEIC.)
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
+*.[pP][nN][gG]
+*.[hH][eE][iI][cC]
+*.[hH][eE][iI][fF]
+*.[tT][iI][fF]
+*.[tT][iI][fF][fF]
+*.[bB][mM][pP]
+*.[wW][eE][bB][pP]
