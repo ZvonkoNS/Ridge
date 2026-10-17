@@ -63,3 +63,11 @@ class ExportError(RidgeError):
 
 class ExportTooLargeError(ExportError):
     """The export would exceed the pixel limit; the scale estimate is the likely cause."""
+
+
+class QualityToolError(RidgeError):
+    """The external quality tool (NFIQ 2) produced no usable score.
+
+    Expected and not a job failure: callers record the score as "not computed: <message>"
+    and carry on. The message never contains tool output or image data.
+    """
