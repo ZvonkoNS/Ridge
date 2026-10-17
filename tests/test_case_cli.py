@@ -154,3 +154,42 @@ def test_internal_errors_exit_3(
     assert "internal error (RuntimeError)" in capsys.readouterr().err
     assert main(["--verbose", "list", str(case_dir)]) == 3
     assert "Traceback" in capsys.readouterr().err
+
+
+def test_jobs_and_reports(case_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["jobs", str(case_dir)]) == 0
+    assert capsys.readouterr().out.strip() == "no jobs"
+    assert main(["import", str(case_dir), str(photo_file(tmp_path / "in"))]) == 0
+    assert main(["extract", str(case_dir), "--all"]) == 0
+    capsys.readouterr()
+
+    assert main(["jobs", str(case_dir)]) == 0
+    listing = capsys.readouterr().out
+    assert "ok      evidence" in listing
+    assert "signed report" in listing
+    job_id = listing.split()[0]
+
+    assert main(["report", str(case_dir), job_id[:8]]) == 0
+    assert f"Job report {job_id}   signature verified" in capsys.readouterr().out
+    assert main(["report", str(case_dir), job_id, "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["job_id"] == job_id
+    assert main(["report", str(case_dir), "../escape"]) == 1
+    capsys.readouterr()
+
+    dest = tmp_path / "report.json"
+    assert main(["report", str(case_dir), job_id, "--to", str(dest)]) == 0
+    assert "exported" in capsys.readouterr().out
+    assert main(["report", str(case_dir), job_id, "--to", str(dest)]) == 1  # no silent overwrite
+    assert main(["report", str(case_dir), job_id, "--to", str(dest), "--overwrite"]) == 0
+    capsys.readouterr()
+
+    assert main(["check-report", str(dest)]) == 0
+    out = capsys.readouterr().out
+    assert "signature valid" in out
+    assert "confirm it is the examiner's key" in out
+    key_id = out.split("signed by key ")[1].split(":")[0]
+    assert main(["check-report", str(dest), "--sig", f"{dest}.sig", "--key-id", key_id]) == 0
+    assert f"signed by the expected key {key_id}" in capsys.readouterr().out
+    dest.write_bytes(dest.read_bytes().replace(job_id.encode(), job_id[::-1].encode()))  # still canonical
+    assert main(["check-report", str(dest)]) == 1
+    assert "ridge-case:" in capsys.readouterr().err

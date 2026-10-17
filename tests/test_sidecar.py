@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from ridge.case.identity import create_identity
+from ridge.case.reports import check_exported_report
 from ridge.sidecar import handlers
 from ridge.sidecar.handlers import Session
 from ridge.sidecar.protocol import (
@@ -157,6 +158,18 @@ def test_full_workflow(session: Session, case_dir: Path, tmp_path: Path) -> None
 
     assert call(session, "case.verify")["result"]["ok"] is True
     assert len(call(session, "case.items")["result"]) == 4
+
+    (listed,) = call(session, "case.jobs")["result"]
+    assert (listed["job_id"], listed["result"]) == (job["job_id"], "ok")
+    shown_report = call(session, "report.get", {"job_id": job["job_id"][:8]})["result"]
+    assert shown_report["verified"] is True
+    assert shown_report["report"]["export"]["scale"]["method"] == "ruler"
+    assert error_code(call(session, "report.get", {"job_id": "../../x"})) == APPLICATION_ERROR
+    report_dest = (tmp_path / "report.json").resolve()
+    saved = call(session, "report.export", {"job_id": job["job_id"], "dest": str(report_dest)})["result"]
+    assert saved["signature"] == f"{report_dest}.sig"
+    assert check_exported_report(report_dest, expected_key_id=saved["key_id"]).job_id == job["job_id"]
+    assert error_code(call(session, "report.export", {"job_id": job["job_id"], "dest": "r.json"})) == APPLICATION_ERROR
     assert call(session, "session.lock")["result"] == {"locked": True}
     assert not (case_dir / "LOCK").exists()
 

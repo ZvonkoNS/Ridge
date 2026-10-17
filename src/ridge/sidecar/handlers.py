@@ -25,6 +25,7 @@ from ridge.case.export_step import ExportOptions
 from ridge.case.identity import Signer, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.keys import KeyringKeyStore, KeyStore
+from ridge.case.reports import export_report, list_jobs, load_report, signature_path
 from ridge.case.store import OpenCase, StoredItem, open_case
 from ridge.case.verify import verify_case
 from ridge.errors import CaseError, ParameterError
@@ -161,12 +162,16 @@ def run_job(session: Session, params: dict[str, Json]) -> Json:
     return {"job_id": outcome.job_id, "outputs": [_item(o) for o in outcome.outputs], **summary}
 
 
+def _store(session: Session) -> Path:
+    if session.store is None:  # pragma: no cover - set together with the case
+        raise CaseError("no store")
+    return session.store
+
+
 def verify(session: Session, params: dict[str, Json]) -> Json:
     """Verify the open case."""
     case, _ = session.require()
-    if session.store is None:  # pragma: no cover - set together with the case
-        raise CaseError("no store")
-    result = verify_case(case, session.store)
+    result = verify_case(case, _store(session))
     return {"ok": result.ok, "problems": result.problems, "items": result.items, "reports": result.reports}
 
 
@@ -175,6 +180,27 @@ def export_item(session: Session, params: dict[str, Json]) -> Json:
     case, _ = session.require()
     dest = case.export(params["sha256"], _absolute(params["dest"], "dest"), overwrite=params.get("overwrite", False))
     return {"exported": str(dest)}
+
+
+def jobs(session: Session, params: dict[str, Json]) -> Json:
+    """Jobs recorded in the custody log."""
+    case, _ = session.require()
+    return [job.to_json() for job in list_jobs(case.entries)]
+
+
+def report(session: Session, params: dict[str, Json]) -> Json:
+    """Return a job's report once its hash and signature verify (the read is logged)."""
+    case, _ = session.require()
+    signed = load_report(case, _store(session), params["job_id"])
+    return {"job_id": signed.job_id, "key_id": signed.key_id, "verified": True, "report": signed.report}
+
+
+def report_export(session: Session, params: dict[str, Json]) -> Json:
+    """Export a verified report and its detached signature to a native-dialog path (logged)."""
+    case, _ = session.require()
+    dest = _absolute(params["dest"], "dest")
+    signed = export_report(case, _store(session), params["job_id"], dest, overwrite=params.get("overwrite", False))
+    return {"exported": str(dest), "signature": str(signature_path(dest)), "key_id": signed.key_id}
 
 
 def preview(session: Session, params: dict[str, Json]) -> Json:
@@ -215,6 +241,9 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "case.import": (import_evidence, {"path": (str_, True)}),
     "case.verify": (verify, {}),
     "case.export": (export_item, {"sha256": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
+    "case.jobs": (jobs, {}),
+    "report.get": (report, {"job_id": (str_, True)}),
+    "report.export": (report_export, {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
     "preview.get": (preview, {"sha256": (str_, True), "max_side": ((int,), False)}),
     "job.run": (
         run_job,

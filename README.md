@@ -87,6 +87,10 @@ ridge-case list D:/ridge-store/<case-id>                # evidence, outputs, job
 ridge-case export D:/ridge-store/<case-id> <sha> --to print.png   # the only way plaintext leaves the store (logged)
 ridge-case verify D:/ridge-store/<case-id>              # hashes, custody chain, report signatures
 ridge-case log D:/ridge-store/<case-id>                 # decrypted custody log (processing record)
+ridge-case jobs D:/ridge-store/<case-id>                # jobs: started, result, signed report or not
+ridge-case report D:/ridge-store/<case-id> <job-id>     # verified report as text (--json for the signed JSON)
+ridge-case report D:/ridge-store/<case-id> <job-id> --to report.json   # + report.json.sig (logged)
+ridge-case check-report report.json --key-id <key-id>   # anyone can verify an exported report, no store needed
 ridge-case hold D:/ridge-store/<case-id> --on --reason "..."
 ridge-case dispose D:/ridge-store/<case-id> --confirm <case-id> --reason retention-expired
 ```
