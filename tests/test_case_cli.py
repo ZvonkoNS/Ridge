@@ -299,3 +299,25 @@ def test_cases_and_keep_going(
     assert "no ridge pattern" in captured.err
     monkeypatch.setattr(jobs, "extract_fingerprint", extract_fingerprint)
     assert main(["extract", str(case_dir), "--all", "--keep-going"]) == 0
+
+
+def test_keep_going_stops_on_store_errors(
+    case_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ridge.case import jobs  # noqa: PLC0415
+    from ridge.errors import IntegrityError  # noqa: PLC0415
+
+    first = photo_file(tmp_path / "a")
+    second = photo_file(tmp_path / "b", "arch_large_period", "arch.png")
+    assert main(["import", str(case_dir), str(first), str(second)]) == 0
+    capsys.readouterr()
+    calls: list[int] = []
+
+    def tampered(*args: Any, **kwargs: Any) -> Any:
+        calls.append(1)
+        raise IntegrityError("stored evidence does not match its hash")
+
+    monkeypatch.setattr(jobs, "extract_fingerprint", tampered)
+    assert main(["extract", str(case_dir), "--all", "--keep-going"]) == 1
+    assert len(calls) == 1  # the batch stopped at the integrity error
+    assert "does not match its hash" in capsys.readouterr().err
