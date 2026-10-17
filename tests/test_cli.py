@@ -47,11 +47,25 @@ def test_folder_mode_skips_own_outputs(photo_png: Path, tmp_path: Path) -> None:
     folder.mkdir()
     photo_png.rename(folder / photo_png.name)
     (folder / "notes.txt").write_text("not an image", encoding="utf-8")
-    assert main([str(folder), "-o", str(folder), "--debug"]) == 0
+    for name in ("finger_fingerprint.png", "finger_debug_gabor.png"):  # left there by a v0 run
+        write_png(folder / name, CASES_BY_NAME["whorl_default"].photo())
     before = sorted(p.name for p in folder.iterdir())
     assert main([str(folder), "-o", str(tmp_path / "second")]) == 0  # outputs in folder are not inputs
     assert sorted(p.name for p in (tmp_path / "second").iterdir()) == ["finger_fingerprint.png"]
     assert sorted(p.name for p in folder.iterdir()) == before
+
+
+@pytest.mark.parametrize("where", ["same", "inside"])
+def test_outputs_never_go_into_an_input_folder(photo_png: Path, tmp_path: Path, where: str) -> None:
+    folder = photo_png.parent
+    outdir = folder if where == "same" else folder / "out"
+    for inputs in ([str(folder)], [str(photo_png)]):
+        if where == "inside" and inputs == [str(photo_png)]:
+            continue  # a subfolder next to an input file is fine
+        with pytest.raises(SystemExit) as excinfo:
+            main([*inputs, "-o", str(outdir)])
+        assert excinfo.value.code == 2
+    assert sorted(p.name for p in folder.iterdir()) == ["finger.png"]  # nothing written, no folder created
 
 
 def test_failure_reports_and_continues(photo_png: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

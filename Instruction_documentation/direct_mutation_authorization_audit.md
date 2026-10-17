@@ -117,7 +117,7 @@ Finding: F-5 Silent skipping of inputs by name pattern (R2), early directory cre
 Risk level: Medium
 Required change: report skipped inputs; validate before creating directories
 Owner: Quality/Release Owner (TBD)
-Status: partly closed 2026-10-16 (Handoff_1): every skipped file (own-output names, symlinks, non-regular files) is reported on stderr; output folder created owner-only on POSIX. Open: the output folder is still created before inputs are validated (v0 order), and an output folder inside or equal to an input folder is not yet refused (W1).
+Status: partly closed 2026-10-16 (Handoff_1): every skipped file (own-output names, symlinks, non-regular files) is reported on stderr; output folder created owner-only on POSIX. Closed 2026-10-17 (Handoff_4): the output folder is created only after the inputs validate, and an output folder equal to or inside an input folder (or equal to an input file's folder) is refused (W1).
 ```
 
 ## Completion criteria

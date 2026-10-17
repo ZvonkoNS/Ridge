@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import logging
 import os
 import stat
 import struct
@@ -39,6 +40,7 @@ else:
     pillow_heif.register_heif_opener()
     HEIF_AVAILABLE = True
 
+LOG = logging.getLogger(__name__)
 MiB = 1024 * 1024
 DEFAULT_MAX_BYTES = 200 * MiB
 DEFAULT_MAX_PIXELS = 150_000_000  # below Pillow's own decompression-bomb error threshold (~179 MP)
@@ -96,21 +98,35 @@ def read_bounded(path: Path, max_bytes: int) -> bytes:
 
 
 def decode_image(data: bytes, limits: ReadLimits) -> ImageU8:
-    """Decode allow-listed image bytes to BGR uint8, applying the EXIF orientation."""
+    """Decode allow-listed image bytes to BGR uint8, applying the EXIF orientation.
+
+    Decoder warnings (e.g. malformed metadata) are captured and reported through
+    ``logging`` rather than escaping as uncontrolled warnings; they never stop a decode
+    that otherwise succeeds.
+    """
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        # Ridge enforces its own pixel limit; Pillow's warning threshold is lower.
+        warnings.simplefilter("ignore", Image.DecompressionBombWarning)
+        try:
+            return _decode(data, limits)
+        finally:
+            for warning in caught:
+                LOG.warning("image decoder warning: %s", warning.message)
+
+
+def _decode(data: bytes, limits: ReadLimits) -> ImageU8:
     try:
-        with warnings.catch_warnings():
-            # Ridge enforces its own pixel limit below; Pillow's warning threshold is lower.
-            warnings.simplefilter("ignore", Image.DecompressionBombWarning)
-            with Image.open(io.BytesIO(data), formats=ALLOWED_FORMATS) as im:
-                width, height = im.size
-                if width * height > limits.max_pixels:
-                    raise InputRejectedError(
-                        f"image is {width}x{height} ({width * height / 1e6:.0f} MP); "
-                        f"the limit is {limits.max_pixels / 1e6:.0f} MP"
-                    )
-                if min(width, height) < MIN_SIDE:
-                    raise InputRejectedError(f"image is {width}x{height}; at least {MIN_SIDE} px per side is needed")
-                rgb = np.asarray(ImageOps.exif_transpose(im).convert("RGB"))
+        with Image.open(io.BytesIO(data), formats=ALLOWED_FORMATS) as im:
+            width, height = im.size
+            if width * height > limits.max_pixels:
+                raise InputRejectedError(
+                    f"image is {width}x{height} ({width * height / 1e6:.0f} MP); "
+                    f"the limit is {limits.max_pixels / 1e6:.0f} MP"
+                )
+            if min(width, height) < MIN_SIDE:
+                raise InputRejectedError(f"image is {width}x{height}; at least {MIN_SIDE} px per side is needed")
+            rgb = np.asarray(ImageOps.exif_transpose(im).convert("RGB"))
     except InputRejectedError:
         raise
     except UnidentifiedImageError as exc:
