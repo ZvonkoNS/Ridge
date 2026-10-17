@@ -24,7 +24,7 @@ from ridge.sidecar.protocol import (
     PARSE_ERROR,
 )
 from ridge.sidecar.server import handle, main, serve
-from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, new_case, photo_file
+from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, future, new_case, photo_file
 
 
 def call(session: Session, method: str, params: dict[str, Any] | None = None, request_id: int = 1) -> dict[str, Any]:
@@ -216,4 +216,33 @@ def test_idle_session_locks_itself(keystore: MemoryKeyStore, case_dir: Path) -> 
     now[0] += 61
     reply = call(session, "case.items")
     assert "no case is unlocked" in reply["error"]["message"]
+    assert not (case_dir / "LOCK").exists()  # the case lock was released
+
+
+def test_first_run_creates_identity_and_case(keystore: MemoryKeyStore, tmp_path: Path) -> None:
+    session = Session(keystore_factory=lambda: keystore, kdf_params=FAST_KDF)
+    store = str((tmp_path / "new-store").resolve())
+    identity = call(session, "identity.create", {"store": store, "passphrase": PASSPHRASE})["result"]
+    assert len(identity["key_id"]) == 16
+    params = {
+        "store": store,
+        "reference": "KT-2026-9",
+        "legal_basis": "synthetic",
+        "retention_until": future().isoformat(),
+        "passphrase": PASSPHRASE,
+    }
+    case_id = call(session, "case.create", params)["result"]["case_id"]
+    unlocked = call(session, "session.unlock", {"store": store, "case_id": case_id, "passphrase": PASSPHRASE})
+    assert unlocked["result"]["reference"] == "KT-2026-9"
+    for bad in ({"retention_until": "next year"}, {"store": "relative"}, {"passphrase": "wrong passphrase 123"}):
+        assert error_code(call(session, "case.create", params | bad)) == APPLICATION_ERROR
+    assert error_code(call(session, "identity.create", {"store": store, "passphrase": PASSPHRASE})) == APPLICATION_ERROR
+
+
+def test_unreadable_metadata_leaves_nothing_unlocked(session: Session, case_dir: Path) -> None:
+    meta = case_dir / "meta.enc"
+    meta.write_bytes(meta.read_bytes()[:-1] + bytes([meta.read_bytes()[-1] ^ 1]))
+    params = {"store": str(case_dir.parent), "case_id": case_dir.name, "passphrase": PASSPHRASE}
+    assert error_code(call(session, "session.unlock", params)) == APPLICATION_ERROR
+    assert call(session, "session.status")["result"]["unlocked"] is False
     assert not (case_dir / "LOCK").exists()  # the case lock was released
