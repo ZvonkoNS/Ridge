@@ -100,6 +100,13 @@ to be validated); the report records the method and uncertainty. With `--nfiq2` 
 Passphrases (at least 15 characters) are only read interactively. There is no recovery
 key yet: losing the passphrase or the OS account makes a case unreadable (PRD OQ-12).
 
+## Desktop GUI sidecar (`ridge-sidecar`)
+
+The future Tauri desktop GUI talks to Ridge through `ridge-sidecar`. It is a child process
+that speaks JSON-RPC 2.0, one message per line, on stdin/stdout, and never opens a network
+socket. Methods and their schemas are in `docs/architecture.md` §7.3. The GUI itself is not
+built yet.
+
 ## How it works
 
 1. **Find the finger** by skin colour (Lab a\* channel plus an Otsu threshold). If skin

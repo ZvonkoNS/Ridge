@@ -73,7 +73,7 @@ flowchart TB
   end
   subgraph PY["src/ridge — Python core"]
     CLI["cli.py [Implemented]"]
-    SC["sidecar/ JSON-RPC over stdio [Planned M4]"]
+    SC["sidecar/ JSON-RPC over stdio [Implemented M4]"]
     APP["case/jobs.py + export_step.py app services [Implemented M1-M2]"]
     PIPE["pipeline/ pure extraction [Implemented]"]
     IO["image_io.py bounded decode/encode [Implemented]"]
@@ -130,6 +130,7 @@ Dependency rules (enforced by review now; an import-linter contract is planned):
 | `image_io` | `PIL`, `numpy`, `cv2` (encode only), `ridge.errors` | `pipeline`, `cli` |
 | `debug` | `image_io`, `numpy`, `cv2` | `cli` |
 | `cli` | everything above | — (nothing imports `cli`, except `__main__` and the shim) |
+| `sidecar/*` [Implemented M4] | `ridge.case`, `ridge.image_io`, `ridge.errors` | sockets or any network module (offline test), `cli` |
 | `minutiae/*` [Implemented M3] | `numpy`, `cv2`, `ridge.errors`, `ridge.pipeline.imgutil` | file I/O, `case`, `cli`; no matching of any kind |
 | `export/*`, `quality/*` [Implemented M2] | `numpy`, `cv2`, `PIL` (PNG pHYs), `ridge.errors`, `ridge.pipeline` (result type only); `quality` runs one configured external tool (absolute path, argv list, no shell, timeout) | file I/O except the NFIQ 2 temporary copy in a caller-given folder; `case`, `cli` |
 | `case/*` [Implemented M1-M2] (`crypto`, `keys`, `identity`, `custody`, `store`, `jobs`, `export_step`, `verify`, `dispose`, `cli`) | `cryptography`, `argon2-cffi`, `keyring`, `rfc8785`, `ridge.errors`, `ridge.image_io`; `jobs` also `ridge.pipeline` | `cli` modules of other packages; nothing outside `case` imports `case.cli` |
@@ -168,7 +169,24 @@ sequenceDiagram
 5. Custody entries are appended for each step: `job.start`, `evidence.read`, `artefact.write`, `report.sign`, `job.end`. The chain head is signed at `job.end`.
 6. Any failure aborts the job, writes a `job.failed` entry with its category, and leaves no partial artefacts (atomic rename).
 
-### 7.3 GUI ↔ sidecar (M4) [Planned]
+### 7.3 GUI ↔ sidecar (M4) [Sidecar implemented; Rust core and WebView planned]
+
+Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`):
+
+| Method | Params (unknown fields refused) | Result |
+| --- | --- | --- |
+| `ridge.version` | – | Ridge and protocol versions |
+| `session.unlock` | `store` (absolute), `case_id` (UUID), `passphrase` | Case reference, retention, hold. **Only the Rust core sends this**, from a native prompt, never from the WebView |
+| `identity.create` | `store` (absolute), `passphrase` | Key id and public key of the new examiner identity (first run). **Rust core only**, from a native prompt |
+| `case.create` | `store`, `reference`, `legal_basis`, `retention_until` (YYYY-MM-DD), `passphrase` | New case id; the passphrase must unlock the identity. **Rust core only** |
+| `session.lock` / `session.status` | – | Locks the case (also done at end of input and after 15 minutes without requests) / unlocked state and idle timeout |
+| `case.items` / `case.verify` | – | Stored items / verification result |
+| `case.import` | `path` (absolute, from a native file dialog) | Evidence item |
+| `job.run` | `evidence`, extraction options, `export`, `mirror`, `ppi`, `ruler`, `minutiae` | Outputs, measurements, export, quality, minutiae summary |
+| `preview.get` | `sha256`, `max_side` 16–2048 | Bounded PNG (base64) for display; the read is logged |
+| `case.export` | `sha256`, `dest` (absolute), `overwrite` | Logged plaintext export |
+
+Errors use JSON-RPC codes: -32700 parse, -32600 invalid request, -32601 unknown method, -32602 invalid params, -32000 refused by Ridge (safe message), -32603 internal (exception type only).
 
 - The Tauri Rust core spawns the frozen Python sidecar (`ridge-sidecar`, PyInstaller one-folder build, signed) as a child process. There are **no ports**.
 - The protocol is JSON-RPC 2.0, one message per line, UTF-8, ECMA-404 JSON. Each message is at most 1 MiB. Images are passed by case-store reference, never inline; previews are bounded base64 PNGs.
