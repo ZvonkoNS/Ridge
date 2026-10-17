@@ -28,7 +28,7 @@ Status after M0 (2026-10-16): W2 and W3 now go through `src/ridge/image_io.py` (
 
 Library API note: apart from W3, the pipeline functions are pure array transformations. After the refactor, `src/ridge/pipeline/` must contain no file I/O at all.
 
-## Audit inventory - planned paths (fill in when implemented)
+## Audit inventory - case-store paths (P1-P8 implemented 2026-10-17 in `src/ridge/case/`, Handoff_3)
 
 | ID | Write path | Caller | Target | Data class | Risk | Required protection | Milestone |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -111,7 +111,7 @@ Applicable standards: forensic rules sections 2, 4, 5; LED Art. 29 (to be confir
 Required change: case store, custody log, signed reports
 Compensating control: OS full-disk encryption; manual hash recording
 Owner: Security Owner (TBD)
-Status: accepted exception until M1
+Status: closed for casework 2026-10-17 (M1): `ridge-case` encrypts, hashes and logs everything; the plain `ridge` command remains labelled R&D mode (FR-27)
 
 Finding: F-5 Silent skipping of inputs by name pattern (R2), early directory creation (W1)
 Risk level: Medium

@@ -55,3 +55,27 @@ class NoRidgePatternError(ExtractionError):
 
 class WorkAreaTooLargeError(ExtractionError):
     """At this ridge spacing the finger area would need too much memory to process."""
+
+
+class CaseError(RidgeError):
+    """A case-store operation was refused or failed."""
+
+
+class IntegrityError(CaseError):
+    """Stored data, a signature or the custody chain failed verification."""
+
+
+class KeyCustodyError(CaseError):
+    """Keys could not be derived, unwrapped or found (wrong passphrase, missing keystore entry)."""
+
+
+class WeakPassphraseError(KeyCustodyError, ValueError):
+    """The passphrase does not meet the policy."""
+
+
+class CaseLockedError(CaseError):
+    """The case is already open in another process."""
+
+
+class RetentionError(CaseError):
+    """Disposal refused: legal hold, retention period, or missing confirmation."""

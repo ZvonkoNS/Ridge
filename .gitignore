@@ -34,3 +34,6 @@ fingerprints/
 *.[nN][iI][sS][tT]
 *.[aA][nN]2
 *.[eE][fF][tT]
+
+# Claude Code local state (agent worktrees)
+.claude/

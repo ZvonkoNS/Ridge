@@ -23,9 +23,10 @@ def test_single_file(photo_png: Path, tmp_path: Path, capsys: pytest.CaptureFixt
     assert main([str(photo_png), "-o", str(out)]) == 0
     result = out / "finger_fingerprint.png"
     assert result.is_file()
-    stdout = capsys.readouterr().out
-    assert f"-> {result}" in stdout
-    assert "ridge spacing 8.8px" in stdout
+    captured = capsys.readouterr()
+    assert f"-> {result}" in captured.out
+    assert "ridge spacing 8.8px" in captured.out
+    assert "not for casework" in captured.err  # PRD FR-27
 
 
 def test_debug_writes_intermediate_images(photo_png: Path, tmp_path: Path) -> None:

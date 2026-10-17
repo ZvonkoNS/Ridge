@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/prd.md` |
-| Version | 0.3 (draft for owner review; M0 implemented; reproducibility per CPU architecture, see `Instruction_documentation/Handoff/Handoff_2.md`) |
+| Version | 0.4 (draft for owner review; M0 and M1 implemented, see `Instruction_documentation/Handoff/Handoff_3.md`) |
 | Date | 2026-10-16 |
 | Status | Draft. Not approved. Not approved for casework. |
 | Product Owner | TBD (named owner required, see §17) |
@@ -112,7 +112,7 @@ The Product Owner set a one-week horizon with AI-assisted development in this re
 | Milestone | Content | Target |
 | --- | --- | --- |
 | **M0 Foundation** | Instruction pack adopted; PRD and architecture; behaviour-preserving refactor into a typed package; input hardening; quality gates and CI. | Day 1 |
-| **M1 Evidence integrity** | Encrypted case store, key custody, evidence import, hash-chained custody log, signed job reports, `verify`. | Days 2–3 |
+| **M1 Evidence integrity** | Encrypted case store, key custody, evidence import, hash-chained custody log, signed job reports, `verify`. **Implemented 2026-10-17** (`ridge-case`); recovery key open (OQ-12). | Days 2–3 |
 | **M2 Matcher-ready output** | Polarity and mirror conversion, 500 ppi normalisation with scale calibration, lossless export, JSON job report, NFIQ 2 integration. | Day 4 |
 | **M3 Minutiae & exchange** | Minutiae extraction; export in the confirmed AFIS exchange format (OQ-4). | After OQ-4 is answered |
 | **M4 Desktop GUI** | Tauri v2 + React + TypeScript GUI over the Python sidecar: case view, side-by-side review, parameter tuning, export. | Days 5–6 (skeleton); full GUI after M3 |

@@ -68,6 +68,29 @@ from ridge.image_io import load_image
 result = extract_fingerprint(load_image(path))  # result.image, result.period, result.found_finger
 ```
 
+## Casework: the encrypted case store (`ridge-case`)
+
+`ridge` on its own is R&D mode: outputs are plain files, and it says so on every run. For
+case material use `ridge-case`. Everything is stored encrypted (AES-256-GCM) under a key
+that needs **both** your passphrase **and** your OS account's keystore entry. Every action
+is recorded in a hash-chained custody log, and every job produces a signed report.
+
+```bash
+ridge-case identity init --store D:/ridge-store          # once: your Ed25519 signing identity
+ridge-case init --store D:/ridge-store --reference KT-2026-17 --legal-basis "..." --retention 2031-12-31
+ridge-case import D:/ridge-store/<case-id> photo1.jpg photo2.heic
+ridge-case extract D:/ridge-store/<case-id> --all       # same options as ridge: --period, --flip, --debug, ...
+ridge-case list D:/ridge-store/<case-id>                # evidence, outputs, jobs
+ridge-case export D:/ridge-store/<case-id> <sha> --to print.png   # the only way plaintext leaves the store (logged)
+ridge-case verify D:/ridge-store/<case-id>              # hashes, custody chain, report signatures
+ridge-case log D:/ridge-store/<case-id>                 # decrypted custody log (processing record)
+ridge-case hold D:/ridge-store/<case-id> --on --reason "..."
+ridge-case dispose D:/ridge-store/<case-id> --confirm <case-id> --reason "..."
+```
+
+Passphrases (at least 15 characters) are only read interactively. There is no recovery
+key yet: losing the passphrase or the OS account makes a case unreadable (PRD OQ-12).
+
 ## How it works
 
 1. **Find the finger** by skin colour (Lab a\* channel plus an Otsu threshold). If skin

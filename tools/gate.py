@@ -11,6 +11,7 @@ vulnerability databases; ``secrets`` needs the gitleaks binary on PATH.
 
 from __future__ import annotations
 
+import importlib.metadata
 import json
 import re
 import shutil
@@ -22,9 +23,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PY = sys.executable
 BUILD = ROOT / "build"
-RUNTIME_PACKAGES = ("numpy", "opencv-python-headless", "pillow", "pillow-heif")
 ALLOWED_LICENSES = {
     "MIT",
+    "MIT License",
+    "MIT-0",
     "MIT-CMU",
     "BSD-3-Clause",
     "BSD License",
@@ -148,10 +150,23 @@ def gate_secrets() -> bool:
     return ok
 
 
+def runtime_packages() -> list[str]:
+    """Runtime packages pinned in requirements.lock that are installed on this platform."""
+    pinned = re.findall(
+        r"^([A-Za-z0-9][A-Za-z0-9._-]*)==", (ROOT / "requirements.lock").read_text(encoding="utf-8"), re.M
+    )
+    installed = {_norm(d.metadata["Name"]) for d in importlib.metadata.distributions()}
+    return [name for name in pinned if _norm(name) in installed]
+
+
+def _norm(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
 def gate_licenses() -> bool:
-    """Runtime dependency licences against the allow-list."""
+    """Runtime dependency licences (from requirements.lock) against the allow-list."""
     out = subprocess.run(  # nosec B603
-        [PY, "-m", "piplicenses", "--format=json", "--packages", *RUNTIME_PACKAGES],
+        [PY, "-m", "piplicenses", "--format=json", "--packages", *runtime_packages()],
         cwd=ROOT,
         check=True,
         capture_output=True,
