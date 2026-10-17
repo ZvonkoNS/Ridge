@@ -107,6 +107,21 @@ that speaks JSON-RPC 2.0, one message per line, on stdin/stdout, and never opens
 socket. Methods and their schemas are in `docs/architecture.md` §7.3. The GUI itself is not
 built yet.
 
+## Validation metrics (`ridge-validate`)
+
+For the method validation study (PRD §12), run an open matcher (for example SourceAFIS or
+NIST NBIS) over the lab's consented validation set **outside this repository**. Write the
+comparison scores to a CSV with `genuine` (1 or 0) and `score` columns, plus an optional
+`group` column, then run:
+
+```bash
+ridge-validate scores.csv --fmr 0.001 --fmr 0.0001 --ftx-attempts 400 --ftx-failures 12 -o validation.json
+```
+
+The report gives FNMR at each target FMR, with Wilson 95 % intervals and a rule-of-30
+check. It also gives the DET curve, EER, the failure-to-extract rate, and the same metrics
+per group (the bias check).
+
 ## How it works
 
 1. **Find the finger** by skin colour (Lab a\* channel plus an Otsu threshold). If skin

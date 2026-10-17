@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/prd.md` |
-| Version | 0.7 (draft for owner review; M0-M3 implemented, M4 sidecar implemented, see `Instruction_documentation/Handoff/Handoff_7.md`) |
+| Version | 0.8 (draft for owner review; M0-M3 and the M4 sidecar implemented, validation metrics tool added, see `Instruction_documentation/Handoff/Handoff_8.md`) |
 | Date | 2026-10-16 |
 | Status | Draft. Not approved. Not approved for casework. |
 | Product Owner | TBD (named owner required, see §17) |
@@ -208,7 +208,7 @@ Mapped to OWASP ASVS 5.0 (applicable chapters for an offline desktop application
 
 | ID | Characteristic | Requirement | Target / measure |
 | --- | --- | --- | --- |
-| NFR-1 | Performance efficiency | Extraction time per photo on the reference workstation. | Target p95 ≤ 20 s for a 12 MP phone photo; peak memory ≤ 4 GiB at the default limits. **Not yet measured** (needs full-size synthetic fixtures and the reference workstation, OQ-11). |
+| NFR-1 | Performance efficiency | Extraction time per photo on the reference workstation. | Target p95 ≤ 20 s for a 12 MP phone photo; peak memory ≤ 4 GiB at the default limits. **Baseline 2026-10-17** (`tools/perf_benchmark.py`, development workstation: Intel x86-64, Windows 11, OpenCV 14 threads): 12 MP synthetic photo 4.6–8.5 s, peak traced memory ≈ 390 MiB; 48 MP 9.7 s, ≈ 700 MiB (traced NumPy allocations; resident size is higher). Repeat on the reference workstation (OQ-11). |
 | NFR-2 | Reliability | No partial outputs or corrupted case state after crash or power loss. | Atomic writes; crash-injection tests on import/job/export. |
 | NFR-3 | Reproducibility | Bit-identical output for identical input, release, OS and CPU architecture (x86-64, arm64). Results from different architectures legitimately differ (SIMD floating point). They must stay inside the documented cross-architecture envelope: same outcomes and finger detection, ridge spacing within 1%, output size within 2 px, and ≥ 99.8% of output pixels agreeing where the sizes match. They are reported per release and are **not interchangeable for casework** without validation of each architecture (§12). Requirement changed on 2026-10-17 at the product owner's direction (PR #1), replacing "≥ 99.9% cross-platform agreement". | Live v0 bit-identical test on every CI platform; per-architecture goldens (`tests/golden/v0-<arch>.*`); envelope test `tests/test_cross_architecture.py`; report `python tools/compare_goldens.py` in the release handoff. |
 | NFR-4 | Numerical correctness | IEEE 754 float32 pipeline; tolerances documented; no nondeterministic parallel reductions. | Golden tests; tolerance rationale in architecture §11. |
@@ -240,7 +240,7 @@ Real biometric images MUST NEVER be committed to git or used in CI (enforced by 
 ISO/IEC 17025 7.2.2 method validation, run by the Forensic Quality Manager with engineering support:
 
 1. **Dataset:** consented volunteers. Per finger: N phone photos under varied capture conditions plus contact-scanner reference prints at 500 ppi. Sample size and protocol are defined in the validation plan (OQ-6). Stored outside the repository.
-2. **Benchmark (ISO/IEC 19795 method):** compare Ridge exports to the contact references with an open matcher (SourceAFIS or NIST NBIS Bozorth3). Report the DET curve, FNMR at FMR = 0.01% and 0.1%, and the failure-to-extract rate.
+2. **Benchmark (ISO/IEC 19795 method):** compare Ridge exports to the contact references with an open matcher (SourceAFIS or NIST NBIS Bozorth3). Report the DET curve, FNMR at FMR = 0.01% and 0.1%, and the failure-to-extract rate. Metrics are computed with `ridge-validate` (Ridge ≥ 0.2: FMR/FNMR at target FMRs with Wilson 95 % intervals and a rule-of-30 check, DET curve, EER, failure-to-extract rate, per-group breakdown for the bias check).
 3. **Quality:** NFIQ 2 distribution of exports versus references.
 4. **Targets:** provisional targets are FNMR ≤ 20% at FMR = 0.1% for photos meeting the capture guidance and a failure-to-extract rate ≤ 10%. They are to be **confirmed after the baseline run** (OQ-7), because published contactless-to-contact results vary widely with capture quality.
 5. **Robustness:** compression levels, resolution, focus and lighting variation; mixed skin tones (bias check across skin tones is mandatory).
