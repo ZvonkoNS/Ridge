@@ -8,11 +8,15 @@ from ridge.image_io import save_image
 from ridge.pipeline import DebugImages
 
 DEBUG_TAG = "_debug_"  # --debug: <photo>_debug_<step>.png
+_STEPS = (("region", ".jpg"), ("normalized", ".png"), ("gabor", ".png"), ("quality", ".png"))
 
 
-def write_debug(images: DebugImages, stem: str, folder: Path) -> None:
+def debug_paths(stem: str, folder: Path) -> list[Path]:
+    """Paths the debug images for `stem` are written to."""
+    return [folder / f"{stem}{DEBUG_TAG}{step}{ext}" for step, ext in _STEPS]
+
+
+def write_debug(images: DebugImages, stem: str, folder: Path, *, overwrite: bool = False) -> None:
     """Save the debug images as <stem>_debug_<step>.(jpg|png) in `folder`."""
-    save_image(folder / f"{stem}{DEBUG_TAG}region.jpg", images.region)
-    save_image(folder / f"{stem}{DEBUG_TAG}normalized.png", images.normalized)
-    save_image(folder / f"{stem}{DEBUG_TAG}gabor.png", images.gabor)
-    save_image(folder / f"{stem}{DEBUG_TAG}quality.png", images.quality)
+    for (step, _), path in zip(_STEPS, debug_paths(stem, folder), strict=True):
+        save_image(path, getattr(images, step), overwrite=overwrite)

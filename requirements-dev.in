@@ -1,9 +1,9 @@
 # Development and quality-gate tools. Compiled with hashes into requirements-dev.lock:
-#   pip-compile --generate-hashes --allow-unsafe -o requirements-dev.lock requirements-dev.in
+#   uv pip compile requirements-dev.in --universal --python-version 3.12 --generate-hashes -o requirements-dev.lock
 # Runtime pins come from requirements.lock (constraint), so both locks agree.
 -c requirements.lock
 
-pip-tools
+uv
 pytest
 pytest-cov
 hypothesis
@@ -13,3 +13,5 @@ bandit
 pip-audit
 pip-licenses
 cyclonedx-bom
+setuptools
+wheel

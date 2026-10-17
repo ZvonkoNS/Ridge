@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import cast
 
 import cv2
@@ -15,6 +16,18 @@ PATCH = 96  # patch size in pixels after rescaling
 STEP = 24  # patch stride
 NFFT = 256  # zero-padded FFT size
 FINGER_WIDTH_PX = 640.0  # finger width the photo is rescaled to before measuring
+MAX_MEASURE_PIXELS = 16_000_000  # memory bound on the rescaled image (CWE-789)
+MIN_FINGER_WIDTH_PX = 75.0  # ~25 ridges at the smallest resolvable spacing (3 px)
+FINGER_TOO_SMALL = (
+    "the finger is too small in the photo to measure the ridge spacing (take it closer, or pass --period)"
+)
+
+
+def measure_scale(height: int, width: int, finger_width: float) -> float:
+    """Factor that rescales the photo so the finger is ~FINGER_WIDTH_PX wide, within the memory bound."""
+    if finger_width < MIN_FINGER_WIDTH_PX:
+        raise ImageTooSmallError(FINGER_TOO_SMALL)
+    return min(FINGER_WIDTH_PX / finger_width, math.sqrt(MAX_MEASURE_PIXELS / (height * width)))
 
 
 def _patch_origins(height: int, width: int) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
@@ -27,7 +40,7 @@ def estimate_period(gray: FloatImage, mask: Mask) -> float:
     # Rescale so the finger is ~640 px wide; a finger is roughly 25-60 ridges wide,
     # so one patch size and one search band then fit photos of any resolution.
     dist = cv2.distanceTransform(np.pad(mask, 1).astype(np.uint8), cv2.DIST_L2, 5)
-    s = FINGER_WIDTH_PX / max(2.0 * float(dist.max()), 1.0)
+    s = measure_scale(gray.shape[0], gray.shape[1], 2.0 * float(dist.max()))
     interp = cv2.INTER_AREA if s < 1 else cv2.INTER_CUBIC
     g = cast(FloatImage, cv2.resize(gray, None, fx=s, fy=s, interpolation=interp))
     m = cv2.resize(mask.astype(np.uint8), (g.shape[1], g.shape[0]), interpolation=cv2.INTER_NEAREST)

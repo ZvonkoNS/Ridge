@@ -21,8 +21,10 @@ from ridge.errors import (
     NoRidgePatternError,
     OutputError,
     OutputExistsError,
+    ParameterError,
     ResolutionTooLowError,
     RidgeError,
+    WorkAreaTooLargeError,
 )
 from ridge.pipeline import DebugImages, ExtractionResult, extract_fingerprint
 
@@ -39,8 +41,10 @@ __all__ = [
     "NoRidgePatternError",
     "OutputError",
     "OutputExistsError",
+    "ParameterError",
     "ResolutionTooLowError",
     "RidgeError",
+    "WorkAreaTooLargeError",
     "__version__",
     "extract_fingerprint",
 ]

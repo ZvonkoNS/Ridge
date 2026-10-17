@@ -29,5 +29,5 @@ def extract_fingerprint(  # noqa: PLR0917  # positional parameters are the v0 pu
     result = _extract(bgr, period=period, min_quality=min_quality, flip=flip, crop=crop, debug=debug is not None)
     if debug is not None and result.debug is not None:
         stem, folder = debug
-        write_debug(result.debug, stem, Path(folder))
+        write_debug(result.debug, stem, Path(folder), overwrite=True)  # v0 replaced debug files silently
     return result.image, {"period": result.period, "found_finger": result.found_finger}

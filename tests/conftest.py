@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,8 +33,13 @@ def golden() -> Golden:
     with np.load(GOLDEN_DIR / "v0.npz") as npz:
         arrays = {key: npz[key] for key in npz.files}
     env = meta["generated_with"]
-    exact = (
-        env["platform"].split("-")[0] == platform.system()
+    # Bit-identical results are expected only where the goldens were made: same OS and library
+    # versions (and, in practice, the same CPU, since OpenCV dispatches SIMD code at runtime).
+    # CI runners have other CPUs, so CI sets RIDGE_GOLDEN_MODE=tolerant; "exact" forces exactness.
+    mode = os.environ.get("RIDGE_GOLDEN_MODE", "auto")
+    exact = mode == "exact" or (
+        mode == "auto"
+        and env["platform"].split("-")[0] == platform.system()
         and env["numpy"] == np.__version__
         and env["opencv"] == cv2.__version__
         and env["pillow"] == PIL.__version__

@@ -25,6 +25,10 @@ class DecodeError(InputError):
     """The input is corrupt, truncated or otherwise undecodable."""
 
 
+class ParameterError(RidgeError, ValueError):
+    """A caller-supplied parameter is out of range or of the wrong type."""
+
+
 class OutputError(RidgeError):
     """An output cannot be written."""
 
@@ -47,3 +51,7 @@ class ResolutionTooLowError(ExtractionError):
 
 class NoRidgePatternError(ExtractionError):
     """No area with a clear, repeating ridge pattern was found."""
+
+
+class WorkAreaTooLargeError(ExtractionError):
+    """At this ridge spacing the finger area would need too much memory to process."""

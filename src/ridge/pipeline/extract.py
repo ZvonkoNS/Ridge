@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 
 from ridge.arrays import FloatImage, ImageU8, Mask
-from ridge.errors import NoRidgePatternError, ResolutionTooLowError
+from ridge.errors import NoRidgePatternError, ParameterError, ResolutionTooLowError, WorkAreaTooLargeError
 from ridge.pipeline.gabor import gabor_bank, oriented_filter, ridge_orientation
 from ridge.pipeline.imgutil import masked_blur, remove_specks
 from ridge.pipeline.mask import finger_mask
@@ -18,6 +18,7 @@ from ridge.pipeline.quality import NO_RIDGES, print_region, ridge_quality
 
 WORK_PERIOD = 12.0  # ridge spacing in pixels that the photo is rescaled to for filtering
 MIN_PERIOD = 3.0  # below this the ridges cannot be resolved
+MAX_WORK_PIXELS = 40_000_000  # memory bound for the rescaled finger area (CWE-789)
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,16 @@ class ExtractionResult:
     debug: DebugImages | None = None
 
 
+def _check_arguments(bgr: object, period: float | None, min_quality: float) -> None:
+    """Validate library-call arguments (the CLI validates too, but callers may not)."""
+    if not (isinstance(bgr, np.ndarray) and bgr.dtype == np.uint8 and bgr.ndim == 3 and bgr.shape[2] == 3):
+        raise ParameterError("bgr must be an H x W x 3 uint8 array")
+    if period is not None and not (np.isfinite(period) and period > 0):
+        raise ParameterError("period must be a positive, finite number of pixels")
+    if not (np.isfinite(min_quality) and 0.0 <= min_quality <= 1.0):
+        raise ParameterError("min_quality must be between 0 and 1")
+
+
 def _to8(a: FloatImage, lo: float, hi: float) -> ImageU8:
     return cast(ImageU8, np.clip((a - lo) / (hi - lo) * 255, 0, 255).astype(np.uint8))
 
@@ -55,8 +66,11 @@ def extract_fingerprint(
 ) -> ExtractionResult:
     """Extract the fingerprint from a BGR uint8 photo of a finger.
 
-    Raises ImageTooSmallError, ResolutionTooLowError or NoRidgePatternError (all ExtractionError).
+    Raises ParameterError for invalid arguments and ImageTooSmallError,
+    ResolutionTooLowError, WorkAreaTooLargeError or NoRidgePatternError (all
+    ExtractionError) when no fingerprint can be extracted.
     """
+    _check_arguments(bgr, period, min_quality)
     h, w = bgr.shape[:2]
     detected = finger_mask(bgr)
     found_finger = detected is not None
@@ -77,6 +91,11 @@ def extract_fingerprint(
     y0, y1 = max(by - pad, 0), min(by + bh + pad, h)
     x0, x1 = max(bx - pad, 0), min(bx + bw + pad, w)
     scale = WORK_PERIOD / period
+    if (y1 - y0) * (x1 - x0) * scale * scale > MAX_WORK_PIXELS:
+        raise WorkAreaTooLargeError(
+            f"at a ridge spacing of {period:.1f}px the finger area is too large to process; "
+            "crop the photo to the finger or check --period"
+        )
     interp = cv2.INTER_AREA if scale < 1 else cv2.INTER_CUBIC
     g = cast(FloatImage, cv2.resize(gray[y0:y1, x0:x1], None, fx=scale, fy=scale, interpolation=interp))
     m_resized = cv2.resize(
