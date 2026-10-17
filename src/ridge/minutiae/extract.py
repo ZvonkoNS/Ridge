@@ -26,7 +26,7 @@ import cv2
 import numpy as np
 
 from ridge.arrays import ImageU8, Mask
-from ridge.errors import ParameterError
+from ridge.errors import ExtractionError, ParameterError
 from ridge.minutiae.skeleton import crossing_number, thin
 from ridge.pipeline.imgutil import disk
 
@@ -38,6 +38,8 @@ BROKEN_RIDGE = 1.0  # two endings closer than this are one broken ridge
 SPUR = 0.8  # an ending this close to a bifurcation is a spur
 BRIDGE = 0.6  # two bifurcations this close are a bridge or a hole
 MAX_MINUTIAE = 1000  # sanity bound; real prints have well under 200
+WORK_PERIOD = 12.0  # ridge spacing the analysis is tuned for
+NORMALISE_ABOVE = 2 * WORK_PERIOD  # larger spacings are analysed downscaled
 
 
 @dataclass(frozen=True)
@@ -59,12 +61,13 @@ class MinutiaeResult:
     width: int
     height: int
     ridge_period_px: float
+    space: Literal["print", "export"] = "print"
 
     def to_json(self) -> dict[str, Any]:
         """Template in Ridge's own documented JSON format (not ISO/IEC 39794-2, see OQ-4)."""
         return {
             "schema": SCHEMA,
-            "image": {"width": self.width, "height": self.height, "space": "print"},
+            "image": {"width": self.width, "height": self.height, "space": self.space},
             "ridge_period_px": self.ridge_period_px,
             "conventions": {
                 "origin": "top-left, pixels",
@@ -164,12 +167,35 @@ def extract_minutiae(print_image: ImageU8, ridge_period_px: float) -> MinutiaeRe
     """Find minutiae in a white-ridges-on-black print (``ExtractionResult.image``).
 
     `ridge_period_px` is the ridge spacing in the print image's pixels
-    (``ExtractionResult.period * ExtractionResult.output_scale``).
+    (``ExtractionResult.period * ExtractionResult.output_scale``). Prints with a ridge spacing
+    above NORMALISE_ABOVE are analysed at ~WORK_PERIOD pixels per ridge and the minutiae are
+    mapped back, so any spacing the pipeline accepts works. Raises ExtractionError when the
+    print has implausibly many candidates (not a usable ridge image).
     """
     print_image = _check_print(print_image)
-    if not (math.isfinite(ridge_period_px) and 3.0 <= ridge_period_px <= 200.0):
-        raise ParameterError("ridge_period_px must be between 3 and 200 pixels")
+    if not (math.isfinite(ridge_period_px) and 3.0 <= ridge_period_px <= 10_000.0):
+        raise ParameterError("ridge_period_px must be a finite spacing of at least 3 pixels")
     period = float(ridge_period_px)
+    h, w = print_image.shape
+    if period <= NORMALISE_ABOVE:
+        return MinutiaeResult(tuple(_extract(print_image, period)), w, h, period)
+    f = WORK_PERIOD / period
+    small = cv2.resize(print_image, (max(1, round(w * f)), max(1, round(h * f))), interpolation=cv2.INTER_AREA)
+    found = _extract(cast(ImageU8, np.where(small > 127, 255, 0).astype(np.uint8)), WORK_PERIOD)
+    back = tuple(
+        Minutia(
+            min(w - 1, round((m.x + 0.5) / f - 0.5)),
+            min(h - 1, round((m.y + 0.5) / f - 0.5)),
+            m.kind,
+            m.angle_deg,
+            m.quality,
+        )
+        for m in found
+    )
+    return MinutiaeResult(back, w, h, period)
+
+
+def _extract(print_image: ImageU8, period: float) -> list[Minutia]:
     ridges = print_image > 0
     skel = thin(ridges)
     cn = crossing_number(skel)
@@ -189,14 +215,13 @@ def extract_minutiae(print_image: ImageU8, ridge_period_px: float) -> MinutiaeRe
             quality = int(np.clip(round(100 * border[y, x] / (3 * period)), 1, 100))
             found.append(Minutia(x, y, kind, angle, quality))  # type: ignore[arg-type]
             if len(found) > MAX_MINUTIAE:
-                raise ParameterError("too many minutiae candidates: the print is not a usable ridge image")
+                raise ExtractionError("too many minutiae candidates: the print is not a usable ridge image")
 
     found = _drop_close_pairs(found, ("ending", "bifurcation"), SPUR * period)
     found = _drop_close_pairs(found, ("ending", "ending"), BROKEN_RIDGE * period)
     found = _drop_close_pairs(found, ("bifurcation", "bifurcation"), BRIDGE * period)
     found.sort(key=lambda m: (m.y, m.x))
-    h, w = print_image.shape
-    return MinutiaeResult(tuple(found), w, h, period)
+    return found
 
 
 def to_export_space(result: MinutiaeResult, *, factor: float, mirrored: bool) -> MinutiaeResult:
@@ -214,5 +239,5 @@ def to_export_space(result: MinutiaeResult, *, factor: float, mirrored: bool) ->
         for m in result.minutiae
     )
     return MinutiaeResult(
-        moved, round(result.width * factor), round(result.height * factor), result.ridge_period_px * factor
+        moved, round(result.width * factor), round(result.height * factor), result.ridge_period_px * factor, "export"
     )
