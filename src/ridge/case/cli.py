@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case.dispose import REASONS, dispose_case
+from ridge.case.export_step import ExportOptions
 from ridge.case.identity import create_identity, public_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.keys import KdfParams, KeyringKeyStore, KeyStore, b64
@@ -87,15 +88,38 @@ def cmd_extract(args: argparse.Namespace) -> None:
     """Run extraction jobs on evidence."""
     passphrase, keystore = read_passphrase(), KEYSTORE_FACTORY()
     signer = unlock_identity(args.case.parent, passphrase, keystore)
-    params = JobParams(args.period, args.min_quality, args.flip, not args.no_crop, args.debug)
+    if args.ruler and (args.all or len(args.evidence) != 1):
+        raise ParameterError("--ruler describes one photo: use it with exactly one --evidence SHA")
+    export = ExportOptions(
+        enabled=not args.no_export,
+        mirror=not args.no_mirror,
+        target_ppi=args.ppi,
+        ruler=tuple(args.ruler) if args.ruler else None,
+    )
+    params = JobParams(args.period, args.min_quality, args.flip, not args.no_crop, args.debug, export)
+    nfiq2 = [str(args.nfiq2), *args.nfiq2_arg] if args.nfiq2 else None
     with open_case(args.case, passphrase, keystore) as case:
         targets = [i.sha256 for i in case.items() if i.role == "evidence"] if args.all else args.evidence
         if not targets:
             raise ParameterError("no evidence selected (use --all or --evidence SHA)")
         for sha in targets:
-            outcome = run_extraction_job(case, sha, signer, params)
-            period = outcome.report["measurements"]["ridge_period_px"]
-            _say(f"job {outcome.job_id}: {sha[:12]} -> {len(outcome.outputs)} output(s), ridge spacing {period:.1f}px")
+            outcome = run_extraction_job(case, sha, signer, params, nfiq2_command=nfiq2)
+            _say(_job_summary(sha, outcome.job_id, outcome.report, len(outcome.outputs)))
+
+
+def _job_summary(sha: str, job_id: str, report: dict[str, Any], outputs: int) -> str:
+    period = report["measurements"]["ridge_period_px"]
+    line = f"job {job_id}: {sha[:12]} -> {outputs} output(s), ridge spacing {period:.1f}px"
+    export = report.get("export")
+    if export and export["produced"]:
+        scale = export["scale"]
+        line += f"; export {export['ppi']:g} ppi (scale: {scale['method']}, +-{scale['uncertainty_pct']:.1f}%)"
+    elif export:
+        line += f"; no export: {export['reason']}"
+    nfiq2 = (report.get("quality") or {}).get("nfiq2")
+    if nfiq2 and nfiq2["computed"]:
+        line += f"; NFIQ 2 {nfiq2['score']} (indicative)"
+    return line
 
 
 def cmd_list(args: argparse.Namespace) -> None:
@@ -203,6 +227,18 @@ def _add_case_commands(sub: Any) -> None:
     p.add_argument("--flip", action="store_true")
     p.add_argument("--no-crop", action="store_true")
     p.add_argument("--debug", action="store_true")
+    p.add_argument("--no-export", action="store_true", help="skip the 500 ppi comparison export")
+    p.add_argument("--no-mirror", action="store_true", help="do not mirror the export (photo already mirrored)")
+    p.add_argument("--ppi", type=float, default=500.0, help="export resolution (default 500)")
+    p.add_argument(
+        "--ruler",
+        type=float,
+        nargs=5,
+        metavar=("X1", "Y1", "X2", "Y2", "MM"),
+        help="scale from two ruler points in the photo (pixels) MM millimetres apart",
+    )
+    p.add_argument("--nfiq2", type=Path, help="absolute path of the NIST NFIQ 2 executable (indicative score)")
+    p.add_argument("--nfiq2-arg", action="append", default=[], help="extra argument for the NFIQ 2 command")
     p.set_defaults(func=cmd_extract)
     p = sub.add_parser("export", help="export one item in plaintext")
     p.add_argument("case", type=Path)
