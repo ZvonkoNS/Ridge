@@ -22,6 +22,14 @@ Conventions:
 - Angles are degrees counter-clockwise from +x.
 - Endings point away from their ridge; bifurcations point into their fork.
 
+**Review follow-up (PR #5, automated Codex review):**
+
+| Finding | Change |
+| --- | --- |
+| P1 exported minutiae JSON not git-ignored | `.gitignore` now covers `*_minutiae.json` and `*_report.json` |
+| P2 export-space minutiae labelled "print" | `MinutiaeResult.space` is `"print"` or `"export"`; `to_export_space` sets `"export"`. Test: `test_export_space_is_labelled` |
+| P2 ridge spacings above 200 px failed the job | Spacings above 24 px are analysed downscaled to about 12 px per ridge and mapped back. Any minutiae failure is recorded as "not produced" instead of failing the job. Tests: `test_large_ridge_spacing_is_normalised`, `test_unusable_minutiae_do_not_fail_the_job` |
+
 ## 2. Evidence
 
 - Synthetic drawings with known minutiae: one ending, one bifurcation, a broken ridge (no minutiae), parallel ridges (no minutiae).

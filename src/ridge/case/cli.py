@@ -117,8 +117,10 @@ def _job_summary(sha: str, job_id: str, report: dict[str, Any], outputs: int) ->
     elif export:
         line += f"; no export: {export['reason']}"
     minutiae = report.get("minutiae")
-    if minutiae:
+    if minutiae and minutiae["produced"]:
         line += f"; {minutiae['count']} minutiae (unvalidated)"
+    elif minutiae:
+        line += f"; no minutiae: {minutiae['reason']}"
     nfiq2 = (report.get("quality") or {}).get("nfiq2")
     if nfiq2 and nfiq2["computed"]:
         line += f"; NFIQ 2 {nfiq2['score']} (indicative)"

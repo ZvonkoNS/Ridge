@@ -125,3 +125,25 @@ def test_runs_on_a_pipeline_print_quickly() -> None:
         assert 0 <= m.x < w
         assert 0 <= m.y < h
         assert m.kind in ("ending", "bifurcation")
+
+
+def test_large_ridge_spacing_is_normalised() -> None:
+    """A close-up photo (ridge spacing 240 px) works and the ending maps back to print pixels."""
+    k = 15
+    img = np.zeros((200 * k, 200 * k), np.uint8)
+    for y in ROWS:
+        if y != 100:
+            cv2.line(img, (0, y * k), (200 * k - 1, y * k), 255, thickness=5 * k)
+    cv2.line(img, (0, 100 * k), (100 * k, 100 * k), 255, thickness=5 * k)
+    found = extract_minutiae(img, SPACING * k)
+    assert [m.kind for m in found.minutiae] == ["ending"]
+    ending = found.minutiae[0]
+    assert math.hypot(ending.x - 100 * k, ending.y - 100 * k) <= 4 * k
+    assert (found.width, found.height) == (200 * k, 200 * k)
+
+
+def test_export_space_is_labelled() -> None:
+    lines = [*parallel(skip=100), ((0, 100), (100, 100))]
+    found = extract_minutiae(drawing(lines), SPACING)
+    assert found.to_json()["image"]["space"] == "print"
+    assert to_export_space(found, factor=1.5, mirrored=True).to_json()["image"]["space"] == "export"

@@ -65,3 +65,23 @@ def test_minutiae_without_export(case_dir: Path, keystore: MemoryKeyStore, tmp_p
     report, data = run(case_dir, keystore, photo_file(tmp_path / "in"), params)
     assert "export_space" not in json.loads(data)
     assert report["export"] is None
+
+
+def test_unusable_minutiae_do_not_fail_the_job(
+    case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ridge.case import export_step  # noqa: PLC0415
+    from ridge.errors import ExtractionError  # noqa: PLC0415
+
+    def too_many(*args: object, **kwargs: object) -> None:
+        raise ExtractionError("too many minutiae candidates: the print is not a usable ridge image")
+
+    monkeypatch.setattr(export_step, "extract_minutiae", too_many)
+    report, data = run(
+        case_dir, keystore, photo_file(tmp_path / "in", "arch_large_period", "arch.png"), JobParams(minutiae=True)
+    )
+    assert data == b""
+    minutiae = report["minutiae"]
+    assert isinstance(minutiae, dict)
+    assert minutiae["produced"] is False
+    assert "too many" in minutiae["reason"]
