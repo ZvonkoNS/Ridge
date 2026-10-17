@@ -96,7 +96,7 @@ def cmd_extract(args: argparse.Namespace) -> None:
         target_ppi=args.ppi,
         ruler=tuple(args.ruler) if args.ruler else None,
     )
-    params = JobParams(args.period, args.min_quality, args.flip, not args.no_crop, args.debug, export)
+    params = JobParams(args.period, args.min_quality, args.flip, not args.no_crop, args.debug, export, args.minutiae)
     nfiq2 = [str(args.nfiq2), *args.nfiq2_arg] if args.nfiq2 else None
     with open_case(args.case, passphrase, keystore) as case:
         targets = [i.sha256 for i in case.items() if i.role == "evidence"] if args.all else args.evidence
@@ -116,6 +116,11 @@ def _job_summary(sha: str, job_id: str, report: dict[str, Any], outputs: int) ->
         line += f"; export {export['ppi']:g} ppi (scale: {scale['method']}, +-{scale['uncertainty_pct']:.1f}%)"
     elif export:
         line += f"; no export: {export['reason']}"
+    minutiae = report.get("minutiae")
+    if minutiae and minutiae["produced"]:
+        line += f"; {minutiae['count']} minutiae (unvalidated)"
+    elif minutiae:
+        line += f"; no minutiae: {minutiae['reason']}"
     nfiq2 = (report.get("quality") or {}).get("nfiq2")
     if nfiq2 and nfiq2["computed"]:
         line += f"; NFIQ 2 {nfiq2['score']} (indicative)"
@@ -237,6 +242,7 @@ def _add_case_commands(sub: Any) -> None:
         metavar=("X1", "Y1", "X2", "Y2", "MM"),
         help="scale from two ruler points in the photo (pixels) MM millimetres apart",
     )
+    p.add_argument("--minutiae", action="store_true", help="also store automatic minutiae (unvalidated, M3)")
     p.add_argument("--nfiq2", type=Path, help="absolute path of the NIST NFIQ 2 executable (indicative score)")
     p.add_argument("--nfiq2-arg", action="append", default=[], help="extra argument for the NFIQ 2 command")
     p.set_defaults(func=cmd_extract)

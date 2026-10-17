@@ -35,7 +35,13 @@ from ridge.image_io import ReadLimits, decode_image, publish, read_bounded
 CASE_FILE, META_FILE, LOCK_FILE = "case.json", "meta.enc", "LOCK"
 SCHEMA = "ridge.case/1"
 ERASING_SCHEMA = "ridge.case-erasing/1"  # case.json after crypto-erasure, before deletion
-ROLES = {"evidence": "evidence", "print": "artefacts", "debug": "artefacts", "export": "artefacts"}
+ROLES = {
+    "evidence": "evidence",
+    "print": "artefacts",
+    "debug": "artefacts",
+    "export": "artefacts",
+    "minutiae": "artefacts",
+}
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 

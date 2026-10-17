@@ -18,8 +18,10 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from typing import Any
 
+import rfc8785
+
 from ridge.case.store import OpenCase, StoredItem
-from ridge.errors import ExportError, ParameterError
+from ridge.errors import ExportError, ExtractionError, ParameterError
 from ridge.export import (
     ASSUMED_RIDGE_PERIOD_MM,
     ScaleEstimate,
@@ -29,10 +31,12 @@ from ridge.export import (
     scale_from_ruler,
 )
 from ridge.export.validate import ppi_value
+from ridge.minutiae import extract_minutiae, to_export_space
 from ridge.pipeline import ExtractionResult
 from ridge.quality.nfiq2 import Nfiq2, Nfiq2NotComputed, check_command
 
 NFIQ2_LABEL = "indicative only: NFIQ 2 is defined for contact prints, this image is derived from a photo"
+MINUTIAE_LABEL = "unvalidated automatic minutiae for examiner review; not used for any matching"
 NFIQ2_PPI = 500.0
 
 
@@ -127,3 +131,33 @@ def nfiq2_score(case: OpenCase, png: bytes, ppi: float, command: Sequence[str] |
     if isinstance(outcome, Nfiq2NotComputed):
         return {"computed": False, "reason": outcome.reason}
     return {"computed": True, "score": outcome.score, "version": outcome.version, "label": NFIQ2_LABEL}
+
+
+def minutiae_step(
+    case: OpenCase,
+    result: ExtractionResult,
+    *,
+    stem: str,
+    job_id: str,
+    export: dict[str, Any] | None,
+    mirrored: bool,
+) -> tuple[list[StoredItem], dict[str, Any]]:
+    """Store minutiae (print space, and export space when an export exists) and summarise them."""
+    try:
+        found = extract_minutiae(result.image, result.period * result.output_scale)
+    except ExtractionError as exc:  # not a job failure: the print and export stand on their own
+        return [], {"minutiae": {"produced": False, "reason": str(exc), "label": MINUTIAE_LABEL}}
+    doc = found.to_json()
+    if export and export.get("produced"):
+        doc["export_space"] = to_export_space(found, factor=export["factor"], mirrored=mirrored).to_json()
+    item = case.store_artefact(bytes(rfc8785.dumps(doc)), role="minutiae", label=f"{stem}_minutiae.json", job_id=job_id)
+    kinds = [m.kind for m in found.minutiae]
+    summary = {
+        "produced": True,
+        "sha256": item.sha256,
+        "count": len(kinds),
+        "endings": kinds.count("ending"),
+        "bifurcations": kinds.count("bifurcation"),
+        "label": MINUTIAE_LABEL,
+    }
+    return [item], {"minutiae": summary}
