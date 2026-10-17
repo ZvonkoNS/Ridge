@@ -82,7 +82,7 @@ flowchart TB
     REP["case/jobs.py signed JSON report [Implemented M1]"]
     EXP["export/ 500 ppi, polarity, mirror [Implemented M2]"]
     QLT["quality/ NFIQ 2 adapter [Implemented M2]"]
-    MIN["minutiae/ [Planned M3]"]
+    MIN["minutiae/ Zhang-Suen + crossing number [Implemented M3]"]
     KEY["case/keys.py + identity.py [Implemented M1]"]
   end
   WV -- "invoke (allow-listed)" --> RC
@@ -130,6 +130,7 @@ Dependency rules (enforced by review now; an import-linter contract is planned):
 | `image_io` | `PIL`, `numpy`, `cv2` (encode only), `ridge.errors` | `pipeline`, `cli` |
 | `debug` | `image_io`, `numpy`, `cv2` | `cli` |
 | `cli` | everything above | — (nothing imports `cli`, except `__main__` and the shim) |
+| `minutiae/*` [Implemented M3] | `numpy`, `cv2`, `ridge.errors`, `ridge.pipeline.imgutil` | file I/O, `case`, `cli`; no matching of any kind |
 | `export/*`, `quality/*` [Implemented M2] | `numpy`, `cv2`, `PIL` (PNG pHYs), `ridge.errors`, `ridge.pipeline` (result type only); `quality` runs one configured external tool (absolute path, argv list, no shell, timeout) | file I/O except the NFIQ 2 temporary copy in a caller-given folder; `case`, `cli` |
 | `case/*` [Implemented M1-M2] (`crypto`, `keys`, `identity`, `custody`, `store`, `jobs`, `export_step`, `verify`, `dispose`, `cli`) | `cryptography`, `argon2-cffi`, `keyring`, `rfc8785`, `ridge.errors`, `ridge.image_io`; `jobs` also `ridge.pipeline` | `cli` modules of other packages; nothing outside `case` imports `case.cli` |
 

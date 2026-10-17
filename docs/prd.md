@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/prd.md` |
-| Version | 0.5 (draft for owner review; M0, M1 and M2 implemented, see `Instruction_documentation/Handoff/Handoff_5.md`) |
+| Version | 0.6 (draft for owner review; M0-M2 implemented, M3 minutiae implemented (exchange format open), see `Instruction_documentation/Handoff/Handoff_6.md`) |
 | Date | 2026-10-16 |
 | Status | Draft. Not approved. Not approved for casework. |
 | Product Owner | TBD (named owner required, see §17) |
@@ -114,7 +114,7 @@ The Product Owner set a one-week horizon with AI-assisted development in this re
 | **M0 Foundation** | Instruction pack adopted; PRD and architecture; behaviour-preserving refactor into a typed package; input hardening; quality gates and CI. | Day 1 |
 | **M1 Evidence integrity** | Encrypted case store, key custody, evidence import, hash-chained custody log, signed job reports, `verify`. **Implemented 2026-10-17** (`ridge-case`); recovery key open (OQ-12). | Days 2–3 |
 | **M2 Matcher-ready output** | Polarity and mirror conversion, 500 ppi normalisation with scale calibration, lossless export, JSON job report, NFIQ 2 integration. **Implemented 2026-10-17** in `ridge-case extract`; ridge-period scale assumption and NFIQ 2 output format to be validated. | Day 4 |
-| **M3 Minutiae & exchange** | Minutiae extraction; export in the confirmed AFIS exchange format (OQ-4). | After OQ-4 is answered |
+| **M3 Minutiae & exchange** | Minutiae extraction; export in the confirmed AFIS exchange format (OQ-4). **Minutiae implemented 2026-10-17** (`ridge-case extract --minutiae`, Ridge JSON format); exchange formats wait for OQ-4. | After OQ-4 is answered |
 | **M4 Desktop GUI** | Tauri v2 + React + TypeScript GUI over the Python sidecar: case view, side-by-side review, parameter tuning, export. | Days 5–6 (skeleton); full GUI after M3 |
 | **M5 Validation & approval** | Benchmark on the consented dataset, validation report, DPIA, AI Act assessment, owner sign-off, release v1.0. | Organisation timeline |
 

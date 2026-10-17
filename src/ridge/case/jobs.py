@@ -25,7 +25,7 @@ from PIL import Image
 import ridge
 from ridge.case.crypto import sha256_hex
 from ridge.case.custody import utc_now
-from ridge.case.export_step import ExportOptions, export_and_score
+from ridge.case.export_step import ExportOptions, export_and_score, minutiae_step
 from ridge.case.identity import Signer
 from ridge.case.keys import b64
 from ridge.case.store import OpenCase, StoredItem
@@ -47,6 +47,7 @@ class JobParams:
     crop: bool = True
     debug: bool = False
     export: ExportOptions = field(default_factory=ExportOptions)
+    minutiae: bool = False
 
     def to_json(self) -> dict[str, Any]:
         """JSON-friendly form for the custody log and the report."""
@@ -132,6 +133,12 @@ def run_extraction_job(
         case, result, stem=stem, job_id=job_id, options=params.export, nfiq2_command=nfiq2_command
     )
     outputs.extend(exports)
+    if params.minutiae:
+        found, minutiae_fields = minutiae_step(
+            case, result, stem=stem, job_id=job_id, export=export_fields["export"], mirrored=params.export.mirror
+        )
+        outputs.extend(found)
+        export_fields.update(minutiae_fields)
 
     report: dict[str, Any] = {
         "schema": REPORT_SCHEMA,

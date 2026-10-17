@@ -194,6 +194,7 @@ def test_job_is_reproducible_signed_and_complete(case_dir: Path, keystore: Memor
         "crop": True,
         "debug": True,
         "export": export_params,
+        "minutiae": False,
     }
     assert {o["role"] for o in report["outputs"]} == {"print", "debug", "export"}
     assert len(report["outputs"]) == 6
