@@ -279,3 +279,13 @@ def test_unreadable_metadata_leaves_nothing_unlocked(session: Session, case_dir:
     assert error_code(call(session, "session.unlock", params)) == APPLICATION_ERROR
     assert call(session, "session.status")["result"]["unlocked"] is False
     assert not (case_dir / "LOCK").exists()  # the case lock was released
+
+
+def test_job_run_checks_roi_and_records_source(session: Session, case_dir: Path, tmp_path: Path) -> None:
+    params = {"store": str(case_dir.parent), "case_id": case_dir.name, "passphrase": PASSPHRASE}
+    assert "result" in call(session, "session.unlock", params)
+    photo = photo_file(tmp_path / "in")
+    evidence = call(session, "case.import", {"path": str(photo.resolve()), "source": "Exhibit 3"})["result"]
+    assert (evidence["role"], evidence["source"]) == ("evidence", "Exhibit 3")
+    for bad in ([0, 0, 64], [0, 0, 64.5, 64], [0, 0, 8, 8], [True, 0, 64, 64]):
+        assert error_code(call(session, "job.run", {"evidence": evidence["sha256"], "roi": bad})) == APPLICATION_ERROR

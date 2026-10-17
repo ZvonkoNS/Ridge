@@ -222,7 +222,7 @@ def render_report(report: dict[str, Any], key_id: str) -> str:
     """Render a verified report as plain text for the examiner (the signed JSON stays authoritative)."""
     env, source = report.get("ridge") or {}, report.get("input") or {}
     params, meas = report.get("parameters") or {}, report.get("measurements") or {}
-    period = params.get("period")
+    period, roi = params.get("period"), params.get("roi")
     size = source.get("size_px") or ["?", "?"]
     lines = [
         f"Job report {report.get('job_id')}   signature verified (key {key_id})",
@@ -232,6 +232,8 @@ def render_report(report: dict[str, Any], key_id: str) -> str:
         f"Python {env.get('python')}",
         f"Input         {source.get('label')}   {source.get('format')} {size[0]}x{size[1]} px",
         f"              sha256 {source.get('sha256')}",
+        f"Source        {source['source']}" if source.get("source") else "",
+        f"Region        x {roi[0]}, y {roi[1]}, {roi[2]}x{roi[3]} px of the photo" if roi else "",
         f"Parameters    ridge spacing {'auto' if period is None else f'{period:g} px'}, "
         f"min quality {params.get('min_quality')}, flip {_yes(params.get('flip'))}, "
         f"crop {_yes(params.get('crop'))}, debug {_yes(params.get('debug'))}, "

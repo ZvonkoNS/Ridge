@@ -93,7 +93,7 @@ def cmd_import(args: argparse.Namespace) -> None:
     """Import evidence photos."""
     with open_case(args.case, read_passphrase(), KEYSTORE_FACTORY()) as case:
         for path in args.files:
-            item = case.import_evidence(path)
+            item = case.import_evidence(path, source=args.source)
             _say(f"{path} -> evidence {item.sha256}  ({item.size} bytes)")
 
 
@@ -137,15 +137,24 @@ def cmd_extract(args: argparse.Namespace) -> int:
     """Run extraction jobs on evidence (with --keep-going, a refused photo does not stop the batch)."""
     passphrase, keystore = read_passphrase(), KEYSTORE_FACTORY()
     signer = unlock_identity(args.case.parent, passphrase, keystore)
-    if args.ruler and (args.all or len(args.evidence) != 1):
-        raise ParameterError("--ruler describes one photo: use it with exactly one --evidence SHA")
+    if (args.ruler or args.roi) and (args.all or len(args.evidence) != 1):
+        raise ParameterError("--ruler and --roi describe one photo: use them with exactly one --evidence SHA")
     export = ExportOptions(
         enabled=not args.no_export,
         mirror=not args.no_mirror,
         target_ppi=args.ppi,
         ruler=tuple(args.ruler) if args.ruler else None,
     )
-    params = JobParams(args.period, args.min_quality, args.flip, not args.no_crop, args.debug, export, args.minutiae)
+    params = JobParams(
+        args.period,
+        args.min_quality,
+        args.flip,
+        not args.no_crop,
+        args.debug,
+        export,
+        args.minutiae,
+        tuple(args.roi) if args.roi else None,
+    )
     nfiq2 = [str(args.nfiq2), *args.nfiq2_arg] if args.nfiq2 else None
     with open_case(args.case, passphrase, keystore) as case:
         targets = [i.sha256 for i in case.items() if i.role == "evidence"] if args.all else args.evidence
@@ -194,7 +203,8 @@ def cmd_list(args: argparse.Namespace) -> None:
         _say(f"case {case.case_id}  reference {meta.case_reference}  retention until {meta.retention_until}")
         _say(f"legal hold: {'yes' if meta.legal_hold else 'no'}  custody entries: {len(case.entries)}")
         for item in case.items():
-            _say(f"{item.role:9} {item.sha256}  {item.size:>10}  {item.label}  {item.job_id or ''}")
+            note = f"  [{printable(item.source)}]" if item.source else ""
+            _say(f"{item.role:9} {item.sha256}  {item.size:>10}  {printable(item.label)}  {item.job_id or ''}{note}")
 
 
 def cmd_log(args: argparse.Namespace) -> None:
@@ -364,6 +374,7 @@ def _add_case_commands(sub: Any) -> None:
     p = sub.add_parser("import", help="import evidence photos")
     p.add_argument("case", type=Path)
     p.add_argument("files", type=Path, nargs="+")
+    p.add_argument("--source", help="where the photos came from, e.g. 'Exhibit 12, phone of suspect A'")
     p.set_defaults(func=cmd_import)
     p = sub.add_parser("extract", help="run extraction jobs")
     p.add_argument("case", type=Path)
@@ -385,6 +396,13 @@ def _add_case_commands(sub: Any) -> None:
         nargs=5,
         metavar=("X1", "Y1", "X2", "Y2", "MM"),
         help="scale from two ruler points in the photo (pixels) MM millimetres apart",
+    )
+    p.add_argument(
+        "--roi",
+        type=int,
+        nargs=4,
+        metavar=("X", "Y", "W", "H"),
+        help="process only this rectangle of the photo (pixels), e.g. one finger of several",
     )
     p.add_argument("--minutiae", action="store_true", help="also store automatic minutiae (unvalidated, M3)")
     p.add_argument("--nfiq2", type=Path, help="absolute path of the NIST NFIQ 2 executable (indicative score)")

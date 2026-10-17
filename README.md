@@ -79,10 +79,11 @@ is recorded in a hash-chained custody log, and every job produces a signed repor
 ridge-case identity init --store D:/ridge-store          # once: your Ed25519 signing identity
 ridge-case init --store D:/ridge-store --reference KT-2026-17 --legal-basis "..." --retention 2031-12-31
 ridge-case cases --store D:/ridge-store                  # case ids and states (nothing decrypted)
-ridge-case import D:/ridge-store/<case-id> photo1.jpg photo2.heic
+ridge-case import D:/ridge-store/<case-id> photo1.jpg photo2.heic --source "Exhibit 12, phone A"
 ridge-case extract D:/ridge-store/<case-id> --all       # print + 500 ppi comparison export; same options as ridge
 ridge-case extract D:/ridge-store/<case-id> --all --keep-going   # a refused photo does not stop the batch (exit 1)
 ridge-case extract D:/ridge-store/<case-id> --evidence <sha> --ruler 12 40 812 44 40   # ruler: 2 points 40 mm apart
+ridge-case extract D:/ridge-store/<case-id> --evidence <sha> --roi 900 400 700 1100     # one finger of several
 ridge-case extract D:/ridge-store/<case-id> --all --nfiq2 "C:/Program Files/NFIQ2/bin/nfiq2.exe"
 ridge-case extract D:/ridge-store/<case-id> --all --minutiae   # + automatic minutiae (unvalidated)
 ridge-case list D:/ridge-store/<case-id>                # evidence, outputs, jobs

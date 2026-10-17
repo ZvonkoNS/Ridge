@@ -290,12 +290,16 @@ class OpenCase:
             )
         )
 
-    def import_evidence(self, path: Path, limits: ReadLimits | None = None) -> StoredItem:
-        """Copy an original photo into the case: validated, hashed, encrypted; the source is only read."""
+    def import_evidence(self, path: Path, limits: ReadLimits | None = None, *, source: str | None = None) -> StoredItem:
+        """Copy an original photo into the case: validated, hashed, encrypted; the source is only read.
+
+        `source` is the examiner's note on where the photo came from (exhibit number, device), kept
+        encrypted in the custody log and repeated in every job report on this photo.
+        """
         limits = limits or ReadLimits()
         data = read_bounded(path, limits.max_bytes)
         decode_image(data, limits)  # refuse anything Ridge could not process later
-        return self._put(data, "evidence", path.name, None)
+        return self._put(data, "evidence", path.name, None, clean_text(source, "source") if source else None)
 
     def import_reference(self, path: Path, source: str, limits: ReadLimits | None = None) -> StoredItem:
         """Import a NAFIS/AFIS candidate image for viewing beside an export (FR-52); hashed and logged like evidence.
