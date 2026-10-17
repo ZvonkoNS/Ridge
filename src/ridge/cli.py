@@ -65,6 +65,24 @@ def collect_inputs(paths: Sequence[str]) -> list[Path]:
     return files
 
 
+def output_conflict(outdir: Path, inputs: Sequence[str]) -> str | None:
+    """Explain why `outdir` must not be used, or return None.
+
+    Outputs never go into an input folder (or the folder of an input file), so folders of
+    original evidence are never written to (write-path audit W1).
+    """
+    out = outdir.resolve()
+    for raw in inputs:
+        path = Path(raw)
+        if path.is_dir():
+            folder = path.resolve()
+            if out == folder or folder in out.parents:
+                return f"output folder {outdir} is inside the input folder {path}: choose a separate folder"
+        elif path.is_file() and out == path.resolve().parent:
+            return f"output folder {outdir} is the folder of the input {path}: choose a separate folder"
+    return None
+
+
 def _bounded(kind: Callable[[str], float], low: float, high: float, unit: str) -> Callable[[str], float]:
     def parse(text: str) -> float:
         try:
@@ -157,13 +175,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     _warn(RND_NOTICE)
 
     outdir = Path(args.outdir)
-    try:
-        outdir.mkdir(mode=0o700, parents=True, exist_ok=True)  # biometric outputs: owner-only on POSIX
-    except OSError as exc:
-        ap.error(f"cannot create output folder {outdir}: {exc.strerror}")
     files = collect_inputs(args.inputs)
     if not files:
         ap.error("no images found")
+    conflict = output_conflict(outdir, args.inputs)
+    if conflict:
+        ap.error(conflict)
+    try:  # created only after the inputs are validated
+        outdir.mkdir(mode=0o700, parents=True, exist_ok=True)  # biometric outputs: owner-only on POSIX
+    except OSError as exc:
+        ap.error(f"cannot create output folder {outdir}: {exc.strerror}")
 
     code = EXIT_OK
     for f in files:

@@ -81,12 +81,12 @@ class CustodyLog:
             return
         with self.path.open("rb") as fh:
             for seq, line in enumerate(fh):
-                blob = base64.b64decode(line.strip(), validate=True)
                 try:
-                    plain = open_sealed(self.key, blob, self._aad(seq))
-                except IntegrityError:
+                    plain = open_sealed(self.key, base64.b64decode(line.strip(), validate=True), self._aad(seq))
+                    entry = parse_entry(plain)
+                except (IntegrityError, ValueError):  # binascii.Error, JSON and UTF-8 errors are ValueErrors
                     raise IntegrityError(f"custody log: entry {seq} was altered, reordered or removed") from None
-                yield parse_entry(plain)
+                yield entry
 
     def append(self, action: str, *, result: str = "ok", **fields: Any) -> Entry:
         """Append one entry (fsynced) and advance the head."""
