@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -153,3 +154,22 @@ def test_file_ppi_needs_one_resolution(tmp_path: Path) -> None:
     assert file_ppi(reference_png(tmp_path / "a.png", dpi=(500, 500)).read_bytes()) == pytest.approx(500, abs=0.01)
     assert file_ppi(reference_png(tmp_path / "b.png", dpi=(500, 1000)).read_bytes()) is None
     assert file_ppi(reference_png(tmp_path / "c.png", dpi=None).read_bytes()) is None
+
+
+def test_unlogged_sheet_is_removed(
+    case_dir: Path, keystore: MemoryKeyStore, export_sha: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ref = import_reference(case_dir, keystore, reference_png(tmp_path / "c.png", dpi=(500, 500)))
+    dest = tmp_path / "sheet.png"
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        real = case.custody.append
+
+        def refuse_export(action: str, **fields: Any) -> Any:
+            if action == "comparison.export":
+                raise OSError("log unavailable")
+            return real(action, **fields)
+
+        monkeypatch.setattr(case.custody, "append", refuse_export)
+        with pytest.raises(OSError, match="log unavailable"):
+            export_sheet(case, export_sha, ref, dest)
+    assert not dest.exists()  # no plaintext sheet without its custody entry

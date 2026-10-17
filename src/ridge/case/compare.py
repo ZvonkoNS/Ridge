@@ -21,11 +21,11 @@ from PIL import Image
 
 from ridge.arrays import ImageU8
 from ridge.case.crypto import sha256_hex
-from ridge.case.store import OpenCase
+from ridge.case.store import OpenCase, publish_logged
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
 from ridge.export.png import encode_png
 from ridge.export.validate import finite
-from ridge.image_io import ALLOWED_FORMATS, ReadLimits, decode_image, publish
+from ridge.image_io import ALLOWED_FORMATS, ReadLimits, decode_image
 
 SHEET_PPI: Final = 500.0
 PLAUSIBLE_PPI: Final = (250.0, 2000.0)  # fingerprint scans and AFIS images; outside this a value is a default
@@ -116,18 +116,21 @@ def export_sheet(
     if not overwrite and dest.exists():
         raise OutputExistsError(f"{dest.name} already exists (use --overwrite to replace)")
     sheet = build_sheet(case, export_ref, reference_ref, reference_ppi=reference_ppi, ppi=ppi)
-    publish(dest, sheet.png, overwrite=overwrite)
-    case.entries.append(
-        case.custody.append(
-            "comparison.export",
-            sha256=sheet.sha256,
-            export_sha256=sheet.export_sha256,
-            reference_sha256=sheet.reference_sha256,
-            reference_ppi=sheet.reference_ppi,
-            reference_ppi_source=sheet.reference_ppi_source,
-            ppi=sheet.ppi,
-            destination=str(dest.resolve()),
-        )
+    publish_logged(
+        [(dest, sheet.png)],
+        lambda: case.entries.append(
+            case.custody.append(
+                "comparison.export",
+                sha256=sheet.sha256,
+                export_sha256=sheet.export_sha256,
+                reference_sha256=sheet.reference_sha256,
+                reference_ppi=sheet.reference_ppi,
+                reference_ppi_source=sheet.reference_ppi_source,
+                ppi=sheet.ppi,
+                destination=str(dest.resolve()),
+            )
+        ),
+        overwrite=overwrite,
     )
     return sheet
 
