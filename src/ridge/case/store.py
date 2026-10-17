@@ -101,6 +101,11 @@ def publish_logged(files: Sequence[tuple[Path, bytes]], log: Callable[[], object
         raise
 
 
+def path_label(label: str) -> str:
+    """Shorten a file label for messages (labels are already cleaned when stored)."""
+    return label if len(label) <= 60 else label[:57] + "..."
+
+
 def clean_text(value: str, what: str, limit: int = 200) -> str:
     """Validate free text: trimmed, 1..limit characters, no control characters."""
     value = value.strip()
@@ -267,7 +272,13 @@ class OpenCase:
         sha = sha256_hex(data)
         item = StoredItem(sha, role, len(data), clean_text(label, "label", 255), job_id, source)
         action = IMPORT_ACTIONS.get(role, "artefact.write")
-        if any(i.sha256 == sha for i in self.items()):
+        existing = next((i for i in self.items() if i.sha256 == sha), None)
+        if existing is not None and existing.role != role and role in IMPORT_ACTIONS:
+            raise ParameterError(  # one blob has one role; a reference must not silently resolve to evidence
+                f"{path_label(label)} is byte-identical to the stored {existing.role} {sha[:12]}; "
+                f"it cannot also be imported as {role}"
+            )
+        if existing is not None:
             self._log(action, item, result="duplicate")
             return item
         path = self.blob_path(role, sha)

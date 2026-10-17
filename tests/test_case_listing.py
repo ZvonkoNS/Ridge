@@ -73,3 +73,13 @@ def test_case_json_for_another_folder_is_invalid(store: tuple[Path, MemoryKeySto
 def test_missing_store(tmp_path: Path) -> None:
     with pytest.raises(CaseError, match="not a Ridge store"):
         list_cases(tmp_path / "missing")
+
+
+@pytest.mark.parametrize(
+    "content",
+    ["{}", '{"schema": "ridge.disposal/1", "case_id": "00000000-0000-0000-0000-000000000000"}', "not json"],
+)
+def test_damaged_disposal_records_are_invalid(tmp_path: Path, content: str) -> None:
+    case_id = "11111111-2222-3333-4444-555555555555"
+    (tmp_path / f"{case_id}.disposal.json").write_text(content, encoding="utf-8")
+    assert [(c.case_id, c.state) for c in list_cases(tmp_path)] == [(case_id, "invalid")]

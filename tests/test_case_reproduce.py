@@ -116,3 +116,26 @@ def test_parameters_round_trip() -> None:
 def test_unknown_job(case_dir: Path, keystore: MemoryKeyStore) -> None:
     with pytest.raises(ParameterError, match="no job"):
         reproduce(case_dir, keystore, "0" * 8)
+
+
+def test_a_failed_rerun_is_logged_and_linked(
+    case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ridge.errors import NoRidgePatternError  # noqa: PLC0415
+
+    job_id = first_job(case_dir, keystore, tmp_path, JobParams())
+
+    def fails(*args: Any, **kwargs: Any) -> Any:
+        raise NoRidgePatternError("no ridge pattern found")
+
+    monkeypatch.setattr(jobs, "extract_fingerprint", fails)
+    with pytest.raises(NoRidgePatternError):
+        reproduce(case_dir, keystore, job_id)
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        entry = next(e for e in reversed(case.entries) if e["action"] == "job.reproduce")
+        rerun = list_jobs(case.entries)[-1]
+        assert case.entries[-1]["action"] == "chain.sign"
+        assert verify_case(case, case_dir.parent).ok
+    assert (entry["result"], entry["original_job_id"], entry["job_id"]) == ("failed", job_id, rerun.job_id)
+    assert rerun.result == "failed"
+    assert "no ridge pattern" in entry["error"]

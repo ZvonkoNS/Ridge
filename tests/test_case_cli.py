@@ -313,3 +313,25 @@ def test_roi_and_source_from_the_cli(case_dir: Path, tmp_path: Path, capsys: pyt
     assert "exactly one --evidence" in capsys.readouterr().err
     assert main(["extract", str(case_dir), "--evidence", sha, "--roi", "0", "0", "32", "16"]) == 1
     assert "roi" in capsys.readouterr().err
+
+
+def test_keep_going_stops_on_store_errors(
+    case_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ridge.case import jobs  # noqa: PLC0415
+    from ridge.errors import IntegrityError  # noqa: PLC0415
+
+    first = photo_file(tmp_path / "a")
+    second = photo_file(tmp_path / "b", "arch_large_period", "arch.png")
+    assert main(["import", str(case_dir), str(first), str(second)]) == 0
+    capsys.readouterr()
+    calls: list[int] = []
+
+    def tampered(*args: Any, **kwargs: Any) -> Any:
+        calls.append(1)
+        raise IntegrityError("stored evidence does not match its hash")
+
+    monkeypatch.setattr(jobs, "extract_fingerprint", tampered)
+    assert main(["extract", str(case_dir), "--all", "--keep-going"]) == 1
+    assert len(calls) == 1  # the batch stopped at the integrity error
+    assert "does not match its hash" in capsys.readouterr().err

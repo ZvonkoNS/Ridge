@@ -14,6 +14,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from ridge.case.dispose import RECORD_SCHEMA
 from ridge.case.store import CASE_FILE, ERASING_SCHEMA, LOCK_FILE, SCHEMA
 from ridge.errors import CaseError
 from ridge.image_io import read_bounded
@@ -74,9 +75,13 @@ def list_cases(store: Path) -> list[CaseSummary]:
             found[path.name] = _summary(path)
     for path in store.glob(f"*{DISPOSAL_SUFFIX}"):
         case_id = path.name.removesuffix(DISPOSAL_SUFFIX)
+        if not _is_case_id(case_id) or case_id in found:
+            continue
         record = _read_json(path)
-        if _is_case_id(case_id) and record is not None and case_id not in found:
-            disposed = record.get("disposed_utc")
+        disposed = None if record is None else record.get("disposed_utc")
+        if record is None or record.get("schema") != RECORD_SCHEMA or record.get("case_id") != case_id:
+            found[case_id] = CaseSummary(case_id, "invalid")  # a damaged record is shown, never trusted
+        else:
             found[case_id] = CaseSummary(
                 case_id, "disposed", disposed_utc=disposed if isinstance(disposed, str) else None
             )

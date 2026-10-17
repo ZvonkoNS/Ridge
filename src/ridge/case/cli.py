@@ -45,10 +45,13 @@ from ridge.case.reports import check_exported_report, export_report, list_jobs, 
 from ridge.case.reproduce import reproduce_job
 from ridge.case.store import create_case, open_case
 from ridge.case.verify import verify_case
-from ridge.errors import ParameterError, RidgeError
+from ridge.errors import ExtractionError, InputError, ParameterError, RidgeError
 
 KEYSTORE_FACTORY: Callable[[], KeyStore] = KeyringKeyStore  # replaced in tests
 KDF_PARAMS = KdfParams()  # replaced in tests with the minimum allowed cost
+# What --keep-going may skip: problems with one photo or its settings. Case-store, integrity, key,
+# custody and output errors are not about one photo and always stop the batch.
+PHOTO_REFUSALS = (InputError, ExtractionError, ParameterError)
 
 
 def read_passphrase(*, confirm: bool = False) -> str:
@@ -164,7 +167,7 @@ def cmd_extract(args: argparse.Namespace) -> int:
         for sha in targets:
             try:
                 outcome = run_extraction_job(case, sha, signer, params, nfiq2_command=nfiq2)
-            except RidgeError as exc:  # logged as a failed job; internal errors still stop the batch
+            except PHOTO_REFUSALS as exc:  # logged as a failed job; store, custody and output errors stop
                 if not args.keep_going:
                     raise
                 failed += 1
