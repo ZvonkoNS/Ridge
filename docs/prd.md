@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/prd.md` |
-| Version | 0.10 (draft for owner review; M0-M3 and the M4 sidecar implemented, validation metrics tool and verified report access, the signed processing record, reference comparison and reproduction check added, see `Instruction_documentation/Handoff/Handoff_10.md`) |
+| Version | 0.11 (draft for owner review; M0-M3 and the M4 sidecar implemented, validation metrics tool and verified report access, the signed processing record, reference comparison, reproduction check, store listing and region of interest added, see `Instruction_documentation/Handoff/Handoff_12.md`) |
 | Date | 2026-10-17 |
 | Status | Draft. Not approved. Not approved for casework. |
 | Product Owner | TBD (named owner required, see §17) |
@@ -150,7 +150,7 @@ Day 7 is reserved for the security review, release candidate and handoff.
 | ID | Requirement | Pri. | MS | Acceptance criteria |
 | --- | --- | --- | --- | --- |
 | FR-20 | `ridge case init` MUST create a case with a case reference, legal-basis reference and retention date, refusing to start without them. | M | M1 | Missing fields → refusal; case metadata stored encrypted. |
-| FR-21 | `ridge case import` MUST compute SHA-256 of each original, store it encrypted and read-only, and never modify it. | M | M1 | Hash recorded before encryption; decrypt-and-rehash round-trip matches; no API path writes to originals. |
+| FR-21 | `ridge case import` MUST compute SHA-256 of each original, store it encrypted and read-only, and never modify it. | M | M1 | Hash recorded before encryption; decrypt-and-rehash round-trip matches; no API path writes to originals. An optional source note (exhibit number, device) is kept encrypted in the custody log and repeated in every job report on the photo (`ridge-case import --source`, added 2026-10-17). |
 | FR-22 | Every read, import, job, export, verification and disposal MUST append an entry to the case's hash-chained custody log (actor, action, target hashes, parameters, ISO 8601 UTC timestamp, result). | M | M1 | Any edit, deletion or reordering of entries is detected by `ridge case verify`. |
 | FR-23 | Each extraction job MUST produce a JSON job report (ECMA-404, schema-validated) and a detached Ed25519 signature. | M | M1 | Report validates against its schema; signature verifies; a one-byte change fails verification. |
 | FR-24 | `ridge case verify` MUST check all hashes, the custody chain and all signatures, and report the first failure precisely. | M | M1 | Tamper fixtures for each artefact type are detected. |
@@ -168,6 +168,7 @@ Day 7 is reserved for the security review, release candidate and handoff.
 | FR-32 | Ridge MUST export lossless 8-bit grayscale PNG (default) with the resolution recorded; other formats (e.g. WSQ, ANSI/NIST-ITL, ISO/IEC 39794-4) follow OQ-4. | M | M2 | Exported PNG carries a pHYs chunk at 500 ppi and no source metadata. |
 | FR-33 | Ridge SHOULD compute an NFIQ 2 score (ISO/IEC 29794-4) per export using the NIST reference implementation and record its version. | S | M2 | Score and version appear in the report; missing tool → recorded "not computed", not a failure. |
 | FR-34 | The job report MUST record: Ridge version and commit, dependency versions, platform, all parameters, measured ridge period, region statistics, input/output hashes, transforms and timestamps. | M | M2 | Schema test; reproduction from the report alone yields an identical output (`ridge-case reproduce` re-runs a signed job from its report and compares every output hash, implemented 2026-10-17). |
+| FR-35 | Ridge SHOULD let the examiner restrict a job to a rectangle of the photo (for example one finger of several), recorded in the report and honoured by reproduction. **Proposed 2026-10-17 by engineering from the review-and-adjust loop in §6; product-owner confirmation pending.** | S | M2 | `--roi X Y W H` / sidecar `roi`; whole-photo ROI gives identical outputs; malformed ROIs are refused before a job starts; out-of-photo ROIs fail the job with a logged reason. |
 
 ### 8.5 Minutiae and exchange (M3)
 
@@ -306,7 +307,7 @@ Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 
 | FR-1–FR-7 | ISO/IEC 25010 functional suitability; ISO/IEC 14764 (regression protection) | §6 module structure | `tests/test_characterization.py`, CLI tests |
 | FR-8–FR-13 | OWASP ASVS 5.0 file handling and input validation; CWE-20, CWE-22, CWE-59, CWE-367, CWE-400, CWE-409, CWE-434, CWE-789 | §9.1 input handling | `tests/test_image_io.py`, `tests/test_hardening.py`, `tests/test_offline.py` |
 | FR-20–FR-28 | ISO/IEC 27037/27042; ISO/IEC 17025 7.5/7.11; LED Art. 25 | §8 data architecture, §9.3 integrity | case-store, custody and verify tests (M1) |
-| FR-30–FR-34 | ISO/IEC 39794-4/19794-4; ISO/IEC 29794-4; ECMA-404; ISO 8601 | §8.4 export | export and report tests (M2) |
+| FR-30–FR-35 | ISO/IEC 39794-4/19794-4; ISO/IEC 29794-4; ECMA-404; ISO 8601 | §8.4 export | export and report tests (M2) |
 | SEC-1–SEC-10 | OWASP ASVS 5.0 L3 (applicable); CWE Top 25; NIST SSDF PW/PS/RV | §9 security architecture | `tools/gate.py all`, CI, tests |
 | PRIV-1–PRIV-3 | LED Art. 4, 10, 20, 25, 27; ISO/IEC 24745 | §8, §9.2 | retention/disposal tests (M1) |
 | NFR-1–NFR-10 | ISO/IEC 25010 | §10–§12 | benchmarks, CI matrix |

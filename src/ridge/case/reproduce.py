@@ -62,8 +62,9 @@ def params_from_report(parameters: dict[str, Any]) -> JobParams:
                 ruler=None if ruler is None else (ruler[0], ruler[1], ruler[2], ruler[3], ruler[4]),
             ),
             minutiae=parameters.get("minutiae", False),
+            roi=None if parameters.get("roi") is None else tuple(parameters["roi"]),  # older reports: none
         )
-    except (KeyError, TypeError, IndexError):
+    except (KeyError, TypeError, IndexError, ValueError):
         raise IntegrityError("the report's parameters are incomplete; the job cannot be reproduced") from None
 
 

@@ -12,6 +12,7 @@ import pytest
 from PIL import Image
 
 import ridge.case.cli as case_cli
+from ridge.case import cli_common
 from ridge.case.cli import main
 from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, future, photo_file
 
@@ -19,8 +20,8 @@ from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, future, pho
 @pytest.fixture
 def keystore(monkeypatch: pytest.MonkeyPatch) -> MemoryKeyStore:
     shared = MemoryKeyStore()
-    monkeypatch.setattr(case_cli, "KEYSTORE_FACTORY", lambda: shared)
-    monkeypatch.setattr(case_cli, "KDF_PARAMS", FAST_KDF)
+    monkeypatch.setattr(cli_common, "KEYSTORE_FACTORY", lambda: shared)
+    monkeypatch.setattr(cli_common, "KDF_PARAMS", FAST_KDF)
     monkeypatch.setattr(getpass, "getpass", lambda prompt="": PASSPHRASE)
     return shared
 
@@ -299,6 +300,20 @@ def test_cases_and_keep_going(
     assert "no ridge pattern" in captured.err
     monkeypatch.setattr(jobs, "extract_fingerprint", extract_fingerprint)
     assert main(["extract", str(case_dir), "--all", "--keep-going"]) == 0
+
+
+def test_roi_and_source_from_the_cli(case_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    photo = photo_file(tmp_path / "in")
+    assert main(["import", str(case_dir), str(photo), "--source", "Exhibit 7\x1b[2J"]) == 1  # control characters
+    assert "printable" in capsys.readouterr().err
+    assert main(["import", str(case_dir), str(photo), "--source", "Exhibit 7"]) == 0
+    sha = capsys.readouterr().out.split("evidence ")[1].split()[0]
+    assert main(["list", str(case_dir)]) == 0
+    assert "[Exhibit 7]" in capsys.readouterr().out
+    assert main(["extract", str(case_dir), "--all", "--roi", "0", "0", "64", "64"]) == 1
+    assert "exactly one --evidence" in capsys.readouterr().err
+    assert main(["extract", str(case_dir), "--evidence", sha, "--roi", "0", "0", "32", "16"]) == 1
+    assert "roi" in capsys.readouterr().err
 
 
 def test_keep_going_stops_on_store_errors(

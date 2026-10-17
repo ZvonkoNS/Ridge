@@ -278,6 +278,12 @@ class OpenCase:
                 f"{path_label(label)} is byte-identical to the stored {existing.role} {sha[:12]}; "
                 f"it cannot also be imported as {role}"
             )
+        if existing is not None and source is not None and existing.source != source:
+            had = f"with the source note {existing.source!r}" if existing.source else "without a source note"
+            raise ParameterError(  # provenance is never silently dropped or rewritten
+                f"{path_label(label)} is already stored as {existing.role} {sha[:12]} {had}; "
+                "a stored item's source note cannot be changed"
+            )
         if existing is not None:
             self._log(action, item, result="duplicate")
             return item
@@ -301,12 +307,16 @@ class OpenCase:
             )
         )
 
-    def import_evidence(self, path: Path, limits: ReadLimits | None = None) -> StoredItem:
-        """Copy an original photo into the case: validated, hashed, encrypted; the source is only read."""
+    def import_evidence(self, path: Path, limits: ReadLimits | None = None, *, source: str | None = None) -> StoredItem:
+        """Copy an original photo into the case: validated, hashed, encrypted; the source is only read.
+
+        `source` is the examiner's note on where the photo came from (exhibit number, device), kept
+        encrypted in the custody log and repeated in every job report on this photo.
+        """
         limits = limits or ReadLimits()
         data = read_bounded(path, limits.max_bytes)
         decode_image(data, limits)  # refuse anything Ridge could not process later
-        return self._put(data, "evidence", path.name, None)
+        return self._put(data, "evidence", path.name, None, clean_text(source, "source") if source else None)
 
     def import_reference(self, path: Path, source: str, limits: ReadLimits | None = None) -> StoredItem:
         """Import a NAFIS/AFIS candidate image for viewing beside an export (FR-52); hashed and logged like evidence.

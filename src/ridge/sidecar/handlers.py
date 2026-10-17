@@ -178,7 +178,7 @@ def items(session: Session, params: dict[str, Json]) -> Json:
 def import_evidence(session: Session, params: dict[str, Json]) -> Json:
     """Import one evidence photo chosen in a native file dialog."""
     case, _ = session.require()
-    return _item(case.import_evidence(_absolute(params["path"], "path")))
+    return _item(case.import_evidence(_absolute(params["path"], "path"), source=params.get("source")))
 
 
 def import_reference(session: Session, params: dict[str, Json]) -> Json:
@@ -209,6 +209,14 @@ def compare_export(session: Session, params: dict[str, Json]) -> Json:
     }
 
 
+def _roi(value: Json) -> tuple[int, int, int, int] | None:
+    if value is None:
+        return None
+    if len(value) != 4 or not all(type(v) is int for v in value):
+        raise ParameterError("roi must be [x, y, width, height] in whole pixels")
+    return (value[0], value[1], value[2], value[3])
+
+
 def run_job(session: Session, params: dict[str, Json]) -> Json:
     """Run one extraction job; returns the outputs and the report's summary fields."""
     case, signer = session.require()
@@ -231,6 +239,7 @@ def run_job(session: Session, params: dict[str, Json]) -> Json:
         debug=params.get("debug", False),
         export=export,
         minutiae=params.get("minutiae", False),
+        roi=_roi(params.get("roi")),
     )
     outcome = run_extraction_job(case, params["evidence"], signer, job)
     report = outcome.report
@@ -350,7 +359,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "session.lock": (lock, {}),
     "session.status": (status, {}),
     "case.items": (items, {}),
-    "case.import": (import_evidence, {"path": (str_, True)}),
+    "case.import": (import_evidence, {"path": (str_, True), "source": ((str, type(None)), False)}),
     "case.verify": (verify, {}),
     "case.export": (export_item, {"sha256": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
     "case.jobs": (jobs, {}),
@@ -385,6 +394,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
             "ppi": (NUMBER, False),
             "ruler": ((list, type(None)), False),
             "minutiae": (bool_, False),
+            "roi": ((list, type(None)), False),
         },
     ),
 }
