@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from ridge.errors import ParameterError
+from ridge.errors import InputRejectedError, ParameterError
 from ridge.validation.metrics import Rate, det_curve, equal_error_rate, failure_to_extract, operating_point
 from ridge.validation.report import build_report, main, read_scores
 
@@ -129,3 +129,30 @@ def test_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert '"schema": "ridge.validation/1"' in capsys.readouterr().out
     with pytest.raises(SystemExit):
         main([str(scores), "--ftx-attempts", "10"])
+
+
+@pytest.mark.parametrize(
+    ("rows", "message"),
+    [
+        (["genuine,score,group", "1,0.9,all", "0,0.1,all"], "reserved"),
+        (["genuine,score,group", "1,0.9, ALL ", "0,0.1,A"], "reserved"),
+        (["genuine,score,group", "1,0.9,A", "0,0.1,A", "1,0.8,B"], "B need both"),
+        (["genuine,score,group", "1,0.9,A", "0,0.1,"], "group is empty"),
+        (["genuine,score", "1," + "9" * 200_000, "0,0.1"], "not valid CSV"),
+    ],
+)
+def test_group_rules_and_csv_errors(tmp_path: Path, rows: list[str], message: str) -> None:
+    with pytest.raises(ParameterError, match=message):
+        read_scores(write_csv(tmp_path / "bad.csv", rows))
+
+
+def test_score_file_must_be_bounded_utf8(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from ridge.validation import report  # noqa: PLC0415
+
+    path = tmp_path / "s.csv"
+    path.write_bytes(b"genuine,score\n1,0.9\n0,\xff\n")
+    with pytest.raises(ParameterError, match="UTF-8"):
+        read_scores(path)
+    monkeypatch.setattr(report, "MAX_FILE_BYTES", 8)
+    with pytest.raises(InputRejectedError):
+        read_scores(path)

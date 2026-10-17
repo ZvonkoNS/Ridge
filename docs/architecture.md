@@ -175,7 +175,7 @@ Reference images and comparison sheets (`src/ridge/case/compare.py`, PRD FR-52):
 
 Reproduction check (`src/ridge/case/reproduce.py`, PRD FR-34, NFR-3): `ridge-case reproduce` loads a verified report and rebuilds the job parameters from it alone. It runs them as a new, normally logged and signed job on the same evidence, then compares every output by role, label and SHA-256. Identical outputs are deduplicated, not stored twice. The comparison and any environment changes (version, platform, CPU architecture, dependency versions) are logged as `job.reproduce` with result `ok` or `mismatch`, under a new signed head. Results are reproducible per OS and CPU architecture (ADR-009), so a mismatch with an architecture change is expected and reported, not hidden. The NFIQ 2 score is not an output file and is not compared.
 
-Processing record (`src/ridge/case/processing_record.py`, PRD PRIV-3): `ridge-case log --to` first logs `log.export`, then signs the custody head, and then writes every decrypted entry with the case id and the examiner's public key as readable JSON (`ridge.processing-record/1`). Every entry in the file is therefore covered by a signed head. `ridge-case check-log` recomputes the sequence and the hash links from the entries and verifies every signed head. It reports any unsigned tail. Truncation after a signed head cannot be detected offline (R-5); the DPO compares the last entry with what the examiner reports.
+Processing record (`src/ridge/case/processing_record.py`, PRD PRIV-3): `ridge-case log --to` first logs `log.export` (with the case id), then signs the custody head, and then writes every decrypted entry with the case id and the examiner's public key as readable JSON (`ridge.processing-record/1`). Every entry in the file is therefore covered by a signed head. `ridge-case check-log` recomputes the sequence and the hash links from the entries and verifies every signed head. It refuses a record that does not end with that signed `log.export`, which catches appended entries and stripped signatures. It also refuses a record whose case id differs from the one in the signed entry. Truncation after a signed head cannot be detected offline (R-5); the DPO compares the last entry with what the examiner reports.
 
 ### 7.3 GUI ↔ sidecar (M4) [Sidecar implemented; Rust core and WebView planned]
 
@@ -185,6 +185,8 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | --- | --- | --- |
 | `ridge.version` | – | Ridge and protocol versions |
 | `session.unlock` | `store` (absolute), `case_id` (UUID), `passphrase` | Case reference, retention, hold. **Only the Rust core sends this**, from a native prompt, never from the WebView |
+| `identity.create` | `store` (absolute), `passphrase` | Key id and public key of the new examiner identity (first run). **Rust core only**, from a native prompt |
+| `case.create` | `store`, `reference`, `legal_basis`, `retention_until` (YYYY-MM-DD), `passphrase` | New case id; the passphrase must unlock the identity. **Rust core only** |
 | `session.lock` / `session.status` | – | Locks the case (also done at end of input and after 15 minutes without requests) / unlocked state and idle timeout |
 | `case.items` / `case.verify` | – | Stored items / verification result |
 | `case.import` | `path` (absolute, from a native file dialog) | Evidence item |

@@ -3,8 +3,9 @@
 The sidecar is a trusted layer (architecture §5, ADR-002); its caller is the Tauri Rust core,
 which forwards only allow-listed commands from the untrusted WebView. Every argument is still
 validated here (deny by default): case ids must be UUIDs (no path traversal), paths absolute,
-numbers in range. ``session.unlock`` carries the examiner passphrase and must only ever be
-sent by the Rust core from a native dialog, never from WebView code.
+numbers in range. ``identity.create``, ``case.create`` and ``session.unlock`` carry the examiner
+passphrase and must only ever be sent by the Rust core from a native dialog, never from
+WebView code.
 """
 
 from __future__ import annotations
@@ -13,7 +14,8 @@ import base64
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import cast
 
@@ -23,13 +25,13 @@ import ridge
 from ridge.arrays import ImageU8
 from ridge.case.compare import SHEET_PPI, export_sheet
 from ridge.case.export_step import ExportOptions
-from ridge.case.identity import Signer, unlock_identity
+from ridge.case.identity import Signer, create_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
-from ridge.case.keys import KeyringKeyStore, KeyStore
+from ridge.case.keys import KdfParams, KeyringKeyStore, KeyStore, b64
 from ridge.case.processing_record import export_log
 from ridge.case.reports import export_report, list_jobs, load_report, signature_path
 from ridge.case.reproduce import reproduce_job
-from ridge.case.store import OpenCase, StoredItem, open_case
+from ridge.case.store import OpenCase, StoredItem, create_case, open_case
 from ridge.case.verify import verify_case
 from ridge.errors import CaseError, ParameterError
 from ridge.image_io import ReadLimits, decode_image, encode_image
@@ -46,6 +48,7 @@ class Session:
     """At most one unlocked case per sidecar process, locked again after `idle_timeout_s`."""
 
     keystore_factory: Callable[[], KeyStore] = KeyringKeyStore
+    kdf_params: KdfParams = field(default_factory=KdfParams)  # Argon2id cost for new identities and cases
     idle_timeout_s: float = DEFAULT_IDLE_TIMEOUT_S
     clock: Callable[[], float] = time.monotonic
     case: OpenCase | None = None
@@ -106,18 +109,47 @@ def unlock(session: Session, params: dict[str, Json]) -> Json:
     session.close()
     keystore = session.keystore_factory()
     signer = unlock_identity(store, params["passphrase"], keystore)
-    session.case, session.signer, session.store = (
-        open_case(store / case_id, params["passphrase"], keystore),
-        signer,
-        store,
-    )
-    meta = session.case.meta()
+    case = open_case(store / case_id, params["passphrase"], keystore)
+    try:
+        meta = case.meta()
+    except BaseException:
+        case.close()  # a case whose metadata cannot be read is never left unlocked (fail closed)
+        raise
+    session.case, session.signer, session.store = case, signer, store
     return {
         "case_id": case_id,
         "reference": meta.case_reference,
         "retention_until": meta.retention_until.isoformat(),
         "legal_hold": meta.legal_hold,
     }
+
+
+def identity_create(session: Session, params: dict[str, Json]) -> Json:
+    """Create the examiner signing identity of a store (first run; sent by the Rust core only)."""
+    store = _absolute(params["store"], "store")
+    signer = create_identity(store, params["passphrase"], session.keystore_factory(), session.kdf_params)
+    return {"key_id": signer.key_id, "public_key": b64(signer.public_key)}
+
+
+def case_create(session: Session, params: dict[str, Json]) -> Json:
+    """Create a case protected by the identity's passphrase (sent by the Rust core only); unlock it next."""
+    store = _absolute(params["store"], "store")
+    try:
+        retention = date.fromisoformat(params["retention_until"])
+    except ValueError:
+        raise ParameterError("retention_until must be a date, YYYY-MM-DD") from None
+    keystore = session.keystore_factory()
+    unlock_identity(store, params["passphrase"], keystore)  # one passphrase for identity and cases
+    case_dir = create_case(
+        store,
+        case_reference=params["reference"],
+        legal_basis=params["legal_basis"],
+        retention_until=retention,
+        passphrase=params["passphrase"],
+        keystore=keystore,
+        params=session.kdf_params,
+    )
+    return {"case_id": case_dir.name}
 
 
 def status(session: Session, params: dict[str, Json]) -> Json:
@@ -296,6 +328,17 @@ str_ = (str,)
 bool_ = (bool,)
 METHODS: dict[str, tuple[Handler, Schema]] = {
     "ridge.version": (version, {}),
+    "identity.create": (identity_create, {"store": (str_, True), "passphrase": (str_, True)}),
+    "case.create": (
+        case_create,
+        {
+            "store": (str_, True),
+            "reference": (str_, True),
+            "legal_basis": (str_, True),
+            "retention_until": (str_, True),
+            "passphrase": (str_, True),
+        },
+    ),
     "session.unlock": (unlock, {"store": (str_, True), "case_id": (str_, True), "passphrase": (str_, True)}),
     "session.lock": (lock, {}),
     "session.status": (status, {}),

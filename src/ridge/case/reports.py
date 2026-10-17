@@ -26,9 +26,9 @@ from ridge.case.crypto import sha256_hex
 from ridge.case.custody import Entry
 from ridge.case.identity import key_id_for, public_identity, verify_signature
 from ridge.case.jobs import REPORT_SCHEMA
-from ridge.case.store import OpenCase
+from ridge.case.store import OpenCase, publish_logged
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
-from ridge.image_io import publish, read_bounded
+from ridge.image_io import read_bounded
 
 SIGNATURE_SUFFIX = ".sig"
 MAX_REPORT_BYTES = 1024 * 1024  # reports hold summaries only; real ones are a few KiB
@@ -142,9 +142,13 @@ def export_report(case: OpenCase, store: Path, ref: str, dest: Path, *, overwrit
     sig_dest = signature_path(dest)
     if not overwrite and (dest.exists() or sig_dest.exists()):
         raise OutputExistsError(f"{dest.name} or {sig_dest.name} already exists (use --overwrite to replace)")
-    publish(dest, signed.canonical, overwrite=overwrite)
-    publish(sig_dest, base64.b64encode(signed.signature) + b"\n", overwrite=overwrite)
-    case.entries.append(case.custody.append("report.export", job_id=signed.job_id, destination=str(dest.resolve())))
+    publish_logged(
+        [(dest, signed.canonical), (sig_dest, base64.b64encode(signed.signature) + b"\n")],
+        lambda: case.entries.append(
+            case.custody.append("report.export", job_id=signed.job_id, destination=str(dest.resolve()))
+        ),
+        overwrite=overwrite,
+    )
     return signed
 
 

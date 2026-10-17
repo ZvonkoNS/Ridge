@@ -20,6 +20,7 @@ import os
 import re
 import secrets
 import uuid
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -79,6 +80,25 @@ class StoredItem:
     label: str
     job_id: str | None = None
     source: str | None = None  # where a reference image came from (examiner's note)
+
+
+def publish_logged(files: Sequence[tuple[Path, bytes]], log: Callable[[], object], *, overwrite: bool) -> None:
+    """Write plaintext files, then log the export; if anything fails, remove what was written.
+
+    Data leaves the store only together with its custody entry (FR-22, FR-25): a failed second
+    file or a failed log append never leaves an unlogged plaintext copy behind. Files that existed
+    before are never removed unless this call replaced them (`overwrite`).
+    """
+    written: list[Path] = []
+    try:
+        for path, data in files:
+            publish(path, data, overwrite=overwrite)
+            written.append(path)
+        log()
+    except BaseException:
+        for path in written:
+            path.unlink(missing_ok=True)
+        raise
 
 
 def clean_text(value: str, what: str, limit: int = 200) -> str:
@@ -309,9 +329,14 @@ class OpenCase:
         """Write one item in plaintext to `dest`: the only way data leaves the store (logged)."""
         item = self.item(sha)
         data = self.read(item.sha256, log=False)
-        publish(dest, data, overwrite=overwrite)
-        self.entries.append(
-            self.custody.append("artefact.export", sha256=item.sha256, role=item.role, destination=str(dest.resolve()))
+        publish_logged(
+            [(dest, data)],
+            lambda: self.entries.append(
+                self.custody.append(
+                    "artefact.export", sha256=item.sha256, role=item.role, destination=str(dest.resolve())
+                )
+            ),
+            overwrite=overwrite,
         )
         return dest
 

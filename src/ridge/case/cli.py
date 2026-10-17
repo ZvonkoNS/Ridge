@@ -193,10 +193,8 @@ def cmd_check_log(args: argparse.Namespace) -> int:
     check = check_exported_log(args.record, expected_key_id=args.key_id)
     _say(
         f"chain intact: case {check.case_id}, {check.entries} entries, {check.signed_heads} signed head(s), "
-        f"last signed entry {check.last_signed_seq}"
+        "ending with the signed export"
     )
-    if check.unsigned_tail:
-        _say(f"WARNING: the last {check.unsigned_tail} entries are not covered by a signature")
     if check.key_confirmed:
         _say(f"signed by the expected key {check.key_id}")
     else:

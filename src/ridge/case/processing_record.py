@@ -1,9 +1,11 @@
 """Processing record export (PRD PRIV-3): the custody log as a readable file that verifies offline.
 
 The export holds every decrypted custody entry, the case id and the examiner's public key.
-Before writing, Ridge logs ``log.export`` and signs the custody head, so every entry in the file
-is covered by a signature. `check_exported_log` recomputes the hash chain from the entries and
-checks every signed head without the case store. Like the log itself (R-5), the export cannot
+Before writing, Ridge logs ``log.export`` (naming the case id) and signs the custody head, so
+every entry in the file, and the case id it claims, is covered by a signature.
+`check_exported_log` recomputes the hash chain from the entries and checks every signed head
+without the case store. It refuses a record that does not end with that signed export, so
+appended entries or stripped signatures cannot pass. Like the log itself (R-5), the export cannot
 show that entries were cut off after a signed head. The DPO compares the last entry with what
 the examiner reports. The key id in the file must be compared with the examiner's published
 identity, because the file carries its own public key.
@@ -41,7 +43,7 @@ def export_log(case: OpenCase, store: Path, signer: Signer, dest: Path, *, overw
     key_id, public = public_identity(store)
     if signer.key_id != key_id:
         raise IntegrityError("the unlocked identity is not this store's examiner identity")
-    case.entries.append(case.custody.append("log.export", destination=str(dest.resolve())))
+    case.entries.append(case.custody.append("log.export", destination=str(dest.resolve()), case_id=case.case_id))
     case.entries.append(case.custody.sign_head(signer))
     record = {
         "schema": SCHEMA,
@@ -67,8 +69,6 @@ class LogCheck:
     case_id: str
     entries: int
     signed_heads: int
-    last_signed_seq: int  # -1 when nothing is signed
-    unsigned_tail: int  # entries after the last signed head
     key_id: str
     key_confirmed: bool
 
@@ -102,13 +102,15 @@ def check_exported_log(path: Path, *, expected_key_id: str | None = None) -> Log
         signed = verify_signed_heads(entries, {key_id: public})
     except (binascii.Error, ValueError):  # a signature that is not base64, a head that is not hex
         raise IntegrityError("a chain.sign entry is malformed") from None
-    last_signed = max((i for i, e in enumerate(entries) if e.get("action") == "chain.sign"), default=-1)
+    if signed == 0 or entries[-1].get("action") != "chain.sign":
+        raise IntegrityError("the record does not end with a signed custody head (entries added or signatures removed)")
+    export = entries[-2] if len(entries) > 1 else {}
+    if export.get("action") != "log.export" or export.get("case_id") != record.get("case_id"):
+        raise IntegrityError("the record's case id is not the one named by its signed log.export entry")
     return LogCheck(
         case_id=str(record.get("case_id")),
         entries=len(entries),
         signed_heads=signed,
-        last_signed_seq=last_signed,
-        unsigned_tail=len(entries) - 1 - last_signed,
         key_id=key_id,
         key_confirmed=expected_key_id is not None,
     )

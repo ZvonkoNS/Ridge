@@ -5,13 +5,17 @@
 ``scores.csv`` (from the lab's matcher run; never committed) has a header row with at least
 ``genuine`` (1 same finger, 0 different fingers) and ``score`` columns; an optional ``group``
 column (e.g. skin-tone or capture-condition category) adds a per-group breakdown, which the
-PRD requires as a bias check. Other columns are ignored. Rows are validated strictly.
+PRD requires as a bias check. Other columns are ignored. Rows are validated strictly: with a
+``group`` column every row needs a group, ``all`` is reserved for the overall population, and
+every group needs both genuine and impostor comparisons, so no group can drop out of the bias
+check unnoticed.
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
+import io
 import json
 import math
 import sys
@@ -21,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from ridge.errors import ParameterError, RidgeError
-from ridge.image_io import MiB, publish
+from ridge.image_io import MiB, publish, read_bounded
 from ridge.validation.metrics import det_curve, equal_error_rate, failure_to_extract, operating_point
 
 SCHEMA = "ridge.validation/1"
@@ -33,29 +37,49 @@ type Scores = dict[str, tuple[list[float], list[float]]]  # group -> (genuine, i
 
 def read_scores(path: Path) -> Scores:
     """Parse a score CSV into per-group genuine/impostor lists ('all' holds every row)."""
-    if path.stat().st_size > MAX_FILE_BYTES:
-        raise ParameterError(f"score file larger than {MAX_FILE_BYTES // MiB} MiB")
+    data = read_bounded(path, MAX_FILE_BYTES)  # regular files only, size checked while reading (CWE-400)
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ParameterError("the score file is not UTF-8 text") from None
+    try:
+        return _parse(csv.DictReader(io.StringIO(text, newline="")))
+    except csv.Error as exc:
+        raise ParameterError(f"the score file is not valid CSV: {exc}") from None
+
+
+def _parse(reader: csv.DictReader[str]) -> Scores:
+    if reader.fieldnames is None or not {"genuine", "score"} <= set(reader.fieldnames):
+        raise ParameterError("the score file needs a header with 'genuine' and 'score' columns")
+    grouped = "group" in reader.fieldnames
     groups: Scores = defaultdict(lambda: ([], []))
-    with path.open(encoding="utf-8", newline="") as fh:
-        reader = csv.DictReader(fh)
-        if reader.fieldnames is None or not {"genuine", "score"} <= set(reader.fieldnames):
-            raise ParameterError("the score file needs a header with 'genuine' and 'score' columns")
-        for line, row in enumerate(reader, start=2):
-            genuine, score = (row.get("genuine") or "").strip(), (row.get("score") or "").strip()
-            if genuine not in ("0", "1"):
-                raise ParameterError(f"line {line}: genuine must be 0 or 1")
-            try:
-                value = float(score)
-            except ValueError:
-                raise ParameterError(f"line {line}: score is not a number") from None
-            if not math.isfinite(value):
-                raise ParameterError(f"line {line}: score must be finite")
-            for group in ("all", *([row["group"].strip()] if row.get("group") else [])):
-                groups[group][0 if genuine == "1" else 1].append(value)
-            if len(groups) > MAX_GROUPS + 1:
-                raise ParameterError(f"more than {MAX_GROUPS} groups")
+    for line, row in enumerate(reader, start=2):
+        genuine, score = (row.get("genuine") or "").strip(), (row.get("score") or "").strip()
+        if genuine not in ("0", "1"):
+            raise ParameterError(f"line {line}: genuine must be 0 or 1")
+        try:
+            value = float(score)
+        except ValueError:
+            raise ParameterError(f"line {line}: score is not a number") from None
+        if not math.isfinite(value):
+            raise ParameterError(f"line {line}: score must be finite")
+        names = ["all"]
+        if grouped:
+            group = (row.get("group") or "").strip()
+            if not group:
+                raise ParameterError(f"line {line}: group is empty (every row needs one for the bias check)")
+            if group.casefold() == "all":
+                raise ParameterError(f"line {line}: the group name 'all' is reserved for the overall population")
+            names.append(group)
+        for name in names:
+            groups[name][0 if genuine == "1" else 1].append(value)
+        if len(groups) > MAX_GROUPS + 1:
+            raise ParameterError(f"more than {MAX_GROUPS} groups")
     if "all" not in groups or not groups["all"][0] or not groups["all"][1]:
         raise ParameterError("the score file needs both genuine (1) and impostor (0) comparisons")
+    incomplete = sorted(name for name, (g, i) in groups.items() if not (g and i))
+    if incomplete:
+        raise ParameterError(f"group(s) {', '.join(incomplete)} need both genuine and impostor comparisons")
     return dict(groups)
 
 
@@ -78,9 +102,7 @@ def build_report(scores: Scores, targets: Sequence[float], ftx: tuple[int, int] 
         "method": "ISO/IEC 19795-1 style verification metrics; Wilson 95 % intervals assume independent comparisons",
         "overall": summarise(genuine, impostor, targets),
         "det_curve": [{"threshold": t, "fmr": a, "fnmr": b} for t, a, b in det_curve(genuine, impostor)],
-        "groups": {
-            name: summarise(g, i, targets) for name, (g, i) in sorted(scores.items()) if name != "all" and g and i
-        },
+        "groups": {name: summarise(g, i, targets) for name, (g, i) in sorted(scores.items()) if name != "all"},
     }
     if ftx is not None:
         report["failure_to_extract"] = failure_to_extract(*ftx).to_json()
