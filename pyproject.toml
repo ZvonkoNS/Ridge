@@ -33,6 +33,7 @@ heic = ["pillow-heif>=1.0"]
 ridge = "ridge.cli:main"
 ridge-case = "ridge.case.cli:main"
 ridge-sidecar = "ridge.sidecar.server:main"
+ridge-validate = "ridge.validation.report:main"
 
 [tool.setuptools.dynamic]
 version = { attr = "ridge.__version__" }

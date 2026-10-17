@@ -144,7 +144,7 @@ Note for the Quality/Release Owner: on 2026-10-16 the Python devguide lists 3.13
 | Accessibility | Yes (M4) | `desktop_gui_tauri_standards.md` section 9 | Yes | Test report |
 | Supply chain | Yes | `deps`, `secrets`, `licenses`, `sbom` gates; Scorecard | Yes | CI artifacts |
 | Documentation integrity | Yes | `python tools/gate.py docs` | Yes | CI log |
-| Matcher benchmark and NFIQ 2 | Ops gate | Validation procedure outside CI | Yes for Ops gate | Validation report (lab QMS) |
+| Matcher benchmark and NFIQ 2 | Ops gate | Validation procedure outside CI; metrics with `ridge-validate` (tested in CI on synthetic scores) | Yes for Ops gate | Validation report (lab QMS) |
 
 ## 8. Exceptions and deviations
 
