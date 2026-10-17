@@ -173,3 +173,14 @@ def test_unlogged_sheet_is_removed(
         with pytest.raises(OSError, match="log unavailable"):
             export_sheet(case, export_sha, ref, dest)
     assert not dest.exists()  # no plaintext sheet without its custody entry
+
+
+def test_one_blob_has_one_role(case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path) -> None:
+    photo = photo_file(tmp_path / "in")
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        case.import_evidence(photo)
+        with pytest.raises(ParameterError, match="byte-identical to the stored evidence"):
+            case.import_reference(photo, "the same file")
+        assert [i.role for i in case.items()] == ["evidence"]
+        case.import_evidence(photo)  # the same role again is a logged duplicate, not an error
+        assert case.entries[-1]["result"] == "duplicate"

@@ -39,6 +39,11 @@ Branch: `m5-compare-reproduce` (built on `m5-case-reports`) → PR after PRs #5,
 
 The CLI and sidecar end-to-end tests cover the new commands. `compare.py` and `reproduce.py` have 100 % line and branch coverage.
 
+**Review fixes (PR #9):**
+
+- A re-run that fails outright is logged as `job.reproduce` `failed`, linked to the original job, under a new signed head (`test_a_failed_rerun_is_logged_and_linked`).
+- One blob has one role: importing a file that is byte-identical to a stored item of another role, such as a reference identical to evidence, is refused instead of silently resolving to the other role (`test_one_blob_has_one_role`).
+
 ## 3. Forensic impact
 
 - The comparison sheet supports the examiner's manual comparison (ACE-V). Ridge never aligns, matches or scores, and every sheet says so.
