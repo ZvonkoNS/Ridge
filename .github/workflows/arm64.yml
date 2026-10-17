@@ -1,0 +1,54 @@
+# Per-architecture reproducibility on Apple silicon (PRD NFR-3), only when a pull request changes
+# code or data that can alter output pixels. macOS minutes are the most expensive GitHub Actions
+# minutes, so this runs the pixel-relevant tests only, on one Python version. The full matrix
+# (ci.yml, full = true) covers macOS for every release.
+name: arm64
+
+on:
+  pull_request:
+    paths:
+      - "src/ridge/pipeline/**"
+      - "src/ridge/export/**"
+      - "src/ridge/minutiae/**"
+      - "src/ridge/image_io.py"
+      - "src/ridge/legacy.py"
+      - "src/ridge/arrays.py"
+      - "tests/golden/**"
+      - "tests/golden_cases.py"
+      - "tests/reference.py"
+      - "tests/synthetic.py"
+      - "requirements.lock"
+      - ".github/workflows/arm64.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arm64-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  arm64:
+    name: pixel tests (macOS arm64, py3.13)
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0  # the live v0 test loads the reference implementation from git history
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install hash-pinned dependencies
+        run: |
+          python -m pip install --require-hashes --no-deps -r requirements.lock -r requirements-dev.lock
+          python -m pip install --no-deps --no-build-isolation -e .
+      - name: Pixel-relevant tests
+        env:
+          RIDGE_GOLDEN_MODE: tolerant  # same as ci.yml: CI CPUs differ from the reference workstation
+        run: >-
+          python -m pytest -q
+          tests/test_characterization.py tests/test_cross_architecture.py tests/test_pipeline_units.py
+          tests/test_output_scale.py tests/test_export.py tests/test_minutiae.py

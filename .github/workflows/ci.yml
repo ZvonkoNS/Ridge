@@ -1,4 +1,10 @@
-# Quality gates on every push to main and every pull request.
+# Quality gates, kept to a minimum of GitHub Actions minutes (owner decision 2026-10-17):
+# - pull requests: one Linux job (Python 3.12, the oldest supported) plus one supply-chain job;
+#   documentation-only pull requests do not run CI at all. The examiner workstation gate
+#   (`python tools/gate.py all` on Windows, Python 3.13) runs locally before every push.
+# - Apple silicon runs only when pixel-affecting code changes (arm64.yml, PRD NFR-3).
+# - the full matrix (Windows, Linux, macOS x Python 3.12-3.14, PRD NFR-5) runs on demand
+#   (Actions -> CI -> Run workflow, full = true) and for release tags (v*).
 # Actions are pinned by commit SHA (tag in the comment); Dependabot proposes updates.
 # CodeQL and dependency review need GitHub code scanning, which private repositories on a
 # personal account do not have: they run on public repos or when the repository variable
@@ -6,9 +12,19 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "Instruction_documentation/**"
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Full matrix: Windows, Linux and macOS x Python 3.12-3.14"
+        type: boolean
+        default: true
+  push:
+    tags: ["v*"]
 
 permissions:
   contents: read
@@ -25,8 +41,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["3.12", "3.13", "3.14"]
+        # Full matrix for release tags and manual runs with full = true; otherwise Linux, Python 3.12.
+        os: ${{ fromJSON((github.event_name == 'push' || inputs.full) && '["ubuntu-latest", "windows-latest", "macos-latest"]' || '["ubuntu-latest"]') }}
+        python: ${{ fromJSON((github.event_name == 'push' || inputs.full) && '["3.12", "3.13", "3.14"]' || '["3.12"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -48,12 +65,16 @@ jobs:
         run: python tools/gate.py docs lint format typecheck test sast licenses
 
   supply-chain:
-    name: dependency audit + SBOM
+    name: dependency audit, SBOM and secret scan
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0  # gitleaks scans the history too
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -69,19 +90,6 @@ jobs:
           name: sbom
           path: build/sbom.cdx.json
           if-no-files-found: error
-
-  secrets:
-    name: secret scan (gitleaks)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      GITLEAKS_VERSION: "8.30.1"
-      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
       - name: Install gitleaks (checksum-verified)
         run: |
           curl -sSfL -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"

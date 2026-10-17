@@ -113,7 +113,7 @@ The volunteer set never enters CI, the repository or a coding-agent session.
 
 ## Quality gates
 
-Single entry point: `python tools/gate.py <gate>` (implemented by `tools/gate.py`). CI runs `all` on every pull request and on the default branch.
+Single entry point: `python tools/gate.py <gate>` (implemented by `tools/gate.py`). `all` runs locally before every push. To keep GitHub Actions usage minimal (owner decision 2026-10-17), CI runs the gates on pull requests with one Linux job (Python 3.12) plus the supply-chain gates, skips documentation-only pull requests, adds Apple silicon pixel tests (`arm64.yml`) only when pixel-affecting code changes, and runs the full Windows/Linux/macOS x Python 3.12-3.14 matrix on demand and for release tags.
 
 | Gate | Tool | Checks | Release blocker |
 | --- | --- | --- | --- |
@@ -131,7 +131,7 @@ Single entry point: `python tools/gate.py <gate>` (implemented by `tools/gate.py
 
 Coverage threshold is configured in `pyproject.toml`. Pack minimum: 90 percent line and branch coverage for `src/ridge/`, and every error path of `src/ridge/image_io.py` covered. Lowering it is a profile exception.
 
-Also in CI (GitHub Actions, actions pinned by commit SHA, minimal `permissions`): CodeQL, dependency review, gitleaks, OpenSSF Scorecard.
+Also in CI (GitHub Actions, actions pinned by commit SHA, minimal `permissions`): CodeQL, dependency review, gitleaks, OpenSSF Scorecard (monthly). Agents do not re-run CI in bulk; they re-run only the runs a merge needs.
 
 Future GUI gates (M4): `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`, `npm run test:e2e`, `npm audit --audit-level=moderate`, `cargo clippy -- -D warnings`, `cargo audit`, `cargo deny check`.
 

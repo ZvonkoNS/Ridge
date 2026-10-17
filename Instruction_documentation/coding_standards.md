@@ -21,7 +21,7 @@ Default coding standard for Ridge. Project tooling configuration (`pyproject.tom
 
 | Item | Rule |
 | --- | --- |
-| Version | `requires-python >= 3.12`; development on 3.13; CI matrix per `docs/prd.md` NFR-5 (3.12, 3.13). Adding 3.14 is recommended: since October 2026 3.13 receives security fixes only. |
+| Version | `requires-python >= 3.12`; development on 3.13; full CI matrix per `docs/prd.md` NFR-5 (3.12, 3.13, 3.14) for every release, pull requests on 3.12 (`.github/workflows/ci.yml`). Since October 2026 3.13 receives security fixes only. |
 | Style | PEP 8 enforced by `ruff format` (check mode in CI). |
 | Docstrings | PEP 257 for every public module, class and function. State units (original-image pixels vs working-scale pixels), dtype, shape and value range of array arguments and results. |
 | Typing | PEP 484; `mypy --strict` with `warn_unreachable` and error codes `ignore-without-code`, `redundant-expr`, `truthy-bool`. Every `# type: ignore[code]` carries a reason. No `Any` in public signatures. |

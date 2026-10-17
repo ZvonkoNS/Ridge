@@ -2,10 +2,9 @@
 name: Scorecard
 
 on:
-  push:
-    branches: [main]
   schedule:
-    - cron: "17 4 * * 1"
+    - cron: "17 4 1 * *"  # monthly: GitHub Actions usage is kept minimal
+  workflow_dispatch:
 
 permissions: read-all
 
