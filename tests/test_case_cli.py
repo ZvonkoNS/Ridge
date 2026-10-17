@@ -77,7 +77,7 @@ def test_full_workflow(case_dir: Path, tmp_path: Path, capsys: pytest.CaptureFix
     assert main(["check-log", str(record)]) == 0
     out = capsys.readouterr().out
     assert "chain intact" in out
-    assert "WARNING" not in out
+    assert "ending with the signed export" in out
     key_id = out.split("signed by key ")[1].split(":")[0]
     assert main(["check-log", str(record), "--key-id", key_id]) == 0
     assert "expected key" in capsys.readouterr().out

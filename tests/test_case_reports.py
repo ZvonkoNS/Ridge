@@ -288,3 +288,42 @@ def test_job_record_is_frozen() -> None:
     record = JobRecord("j", "e", "t", None, "open", None, None, None)
     with pytest.raises(AttributeError):
         record.result = "ok"  # type: ignore[misc]
+
+
+def test_failed_exports_leave_nothing_behind(
+    case_dir: Path, keystore: MemoryKeyStore, job_id: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ridge.case import store as store_module  # noqa: PLC0415
+    from ridge.image_io import publish as real_publish  # noqa: PLC0415
+
+    calls: list[Path] = []
+
+    def second_fails(path: Path, data: bytes, *, overwrite: bool = False) -> None:
+        calls.append(path)
+        if len(calls) == 2:
+            raise OSError("disk full")
+        real_publish(path, data, overwrite=overwrite)
+
+    dest = tmp_path / "report.json"
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        monkeypatch.setattr(store_module, "publish", second_fails)
+        with pytest.raises(OSError, match="disk full"):
+            export_report(case, case_dir.parent, job_id, dest)
+        monkeypatch.setattr(store_module, "publish", real_publish)
+        assert not dest.exists()
+        assert not signature_path(dest).exists()
+
+        def no_log(*args: object, **kwargs: object) -> None:
+            raise OSError("log unavailable")
+
+        monkeypatch.setattr(case.custody, "append", no_log)
+        with pytest.raises(OSError, match="log unavailable"):
+            export_report(case, case_dir.parent, job_id, dest)
+        assert not dest.exists()
+        assert not signature_path(dest).exists()
+        print_sha = next(i.sha256 for i in case.items() if i.role == "print")
+        with pytest.raises(OSError, match="log unavailable"):
+            case.export(print_sha, tmp_path / "print.png")
+        assert not (tmp_path / "print.png").exists()
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        assert not any(e["action"] in ("report.export", "artefact.export") for e in case.entries)

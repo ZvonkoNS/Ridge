@@ -57,7 +57,8 @@ def test_export_is_signed_complete_and_readable(record: Path, case_dir: Path) ->
     assert actions[0] == "case.create"
     assert actions[-2:] == ["log.export", "chain.sign"]
     check = check_exported_log(record)
-    assert (check.entries, check.unsigned_tail, check.key_confirmed) == (len(actions), 0, False)
+    assert (check.entries, check.key_confirmed) == (len(actions), False)
+    assert data["entries"][-2]["case_id"] == case_dir.name  # the case id is inside the signed chain
     assert check.signed_heads == 2  # after the job and after the export
     assert check_exported_log(record, expected_key_id=check.key_id.upper()).key_confirmed is True
     with pytest.raises(IntegrityError, match="not the expected key"):
@@ -130,7 +131,7 @@ def test_removed_entries_are_detected(record: Path) -> None:
         check_exported_log(record)
 
 
-def test_unsigned_tail_is_reported(record: Path) -> None:
+def test_appended_entries_are_refused(record: Path) -> None:
     def append(d: dict[str, Any]) -> None:
         last = d["entries"][-1]
         d["entries"].append({**last, "seq": last["seq"] + 1, "action": "evidence.read", "prev": ""})
@@ -138,7 +139,26 @@ def test_unsigned_tail_is_reported(record: Path) -> None:
         relink(d["entries"])  # the earlier links are unchanged; only the new entry is linked
 
     rewrite(record, append)
-    assert check_exported_log(record).unsigned_tail == 1
+    with pytest.raises(IntegrityError, match="does not end with a signed"):
+        check_exported_log(record)
+
+
+def test_stripped_signatures_are_refused(record: Path) -> None:
+    def strip(d: dict[str, Any]) -> None:
+        d["entries"] = [e for e in d["entries"] if e["action"] != "chain.sign"]
+        for seq, entry in enumerate(d["entries"]):
+            entry["seq"] = seq
+        relink(d["entries"])
+
+    rewrite(record, strip)
+    with pytest.raises(IntegrityError, match="does not end with a signed"):
+        check_exported_log(record)
+
+
+def test_case_id_is_authenticated(record: Path) -> None:
+    rewrite(record, lambda d: d.update(case_id="00000000-0000-0000-0000-000000000000"))
+    with pytest.raises(IntegrityError, match="case id"):
+        check_exported_log(record)
 
 
 MALFORMED: dict[str, tuple[Callable[[dict[str, Any]], None], str]] = {
