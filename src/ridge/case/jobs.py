@@ -11,7 +11,8 @@ from __future__ import annotations
 import io
 import platform
 import uuid
-from dataclasses import asdict, dataclass
+from collections.abc import Sequence
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 import cryptography
@@ -24,6 +25,7 @@ from PIL import Image
 import ridge
 from ridge.case.crypto import sha256_hex
 from ridge.case.custody import utc_now
+from ridge.case.export_step import ExportOptions, export_and_score
 from ridge.case.identity import Signer
 from ridge.case.keys import b64
 from ridge.case.store import OpenCase, StoredItem
@@ -44,6 +46,11 @@ class JobParams:
     flip: bool = False
     crop: bool = True
     debug: bool = False
+    export: ExportOptions = field(default_factory=ExportOptions)
+
+    def to_json(self) -> dict[str, Any]:
+        """JSON-friendly form for the custody log and the report."""
+        return {**asdict(self), "export": self.export.to_json()}
 
 
 @dataclass(frozen=True)
@@ -77,15 +84,25 @@ def _probe(data: bytes) -> dict[str, Any]:
 
 
 def run_extraction_job(
-    case: OpenCase, evidence_sha: str, signer: Signer, params: JobParams, limits: ReadLimits | None = None
+    case: OpenCase,
+    evidence_sha: str,
+    signer: Signer,
+    params: JobParams,
+    *,
+    limits: ReadLimits | None = None,
+    nfiq2_command: Sequence[str] | None = None,
 ) -> JobOutcome:
-    """Run one extraction job on stored evidence; every step is in the custody log."""
+    """Run one extraction job on stored evidence; every step is in the custody log.
+
+    Produces the print (and debug images), the comparison export (FR-30 to FR-32) and, when
+    `nfiq2_command` is configured, an indicative NFIQ 2 score (FR-33).
+    """
     evidence = case.item(evidence_sha)
     if evidence.role != "evidence":
         raise ExtractionError("jobs run on evidence items only")
     job_id = str(uuid.uuid4())
     case.entries.append(
-        case.custody.append("job.start", job_id=job_id, sha256=evidence.sha256, parameters=asdict(params))
+        case.custody.append("job.start", job_id=job_id, sha256=evidence.sha256, parameters=params.to_json())
     )
     data = case.read(evidence.sha256, job_id=job_id)
     try:
@@ -111,6 +128,10 @@ def run_extraction_job(
         for step, ext in (("region", ".jpg"), ("normalized", ".png"), ("gabor", ".png"), ("quality", ".png")):
             png = encode_image(getattr(result.debug, step), ext)
             outputs.append(case.store_artefact(png, role="debug", label=f"{stem}_debug_{step}{ext}", job_id=job_id))
+    exports, export_fields = export_and_score(
+        case, result, stem=stem, job_id=job_id, options=params.export, nfiq2_command=nfiq2_command
+    )
+    outputs.extend(exports)
 
     report: dict[str, Any] = {
         "schema": REPORT_SCHEMA,
@@ -120,8 +141,13 @@ def run_extraction_job(
         "created_utc": utc_now(),
         "ridge": environment(),
         "input": {"sha256": evidence.sha256, "label": evidence.label, **_probe(data)},
-        "parameters": asdict(params),
-        "measurements": {"ridge_period_px": result.period, "found_finger": result.found_finger},
+        "parameters": params.to_json(),
+        "measurements": {
+            "ridge_period_px": result.period,
+            "found_finger": result.found_finger,
+            "output_scale": result.output_scale,
+        },
+        **export_fields,
         "outputs": [{"role": o.role, "label": o.label, "sha256": o.sha256, "size": o.size} for o in outputs],
         "custody_head": case.custody.head,
         "signer": {"key_id": signer.key_id, "public_key": b64(signer.public_key)},
