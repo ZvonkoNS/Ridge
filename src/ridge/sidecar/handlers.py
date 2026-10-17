@@ -28,6 +28,7 @@ from ridge.case.export_step import ExportOptions
 from ridge.case.identity import Signer, create_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.keys import KdfParams, KeyringKeyStore, KeyStore, b64
+from ridge.case.listing import list_cases
 from ridge.case.processing_record import export_log
 from ridge.case.reports import export_report, list_jobs, load_report, signature_path
 from ridge.case.reproduce import reproduce_job
@@ -122,6 +123,11 @@ def unlock(session: Session, params: dict[str, Json]) -> Json:
         "retention_until": meta.retention_until.isoformat(),
         "legal_hold": meta.legal_hold,
     }
+
+
+def cases(session: Session, params: dict[str, Json]) -> Json:
+    """Cases of a store for the open dialog: ids, creation time and state only (nothing decrypted)."""
+    return [case.to_json() for case in list_cases(_absolute(params["store"], "store"))]
 
 
 def identity_create(session: Session, params: dict[str, Json]) -> Json:
@@ -328,6 +334,7 @@ str_ = (str,)
 bool_ = (bool,)
 METHODS: dict[str, tuple[Handler, Schema]] = {
     "ridge.version": (version, {}),
+    "store.cases": (cases, {"store": (str_, True)}),
     "identity.create": (identity_create, {"store": (str_, True), "passphrase": (str_, True)}),
     "case.create": (
         case_create,

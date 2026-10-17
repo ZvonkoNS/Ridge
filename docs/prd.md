@@ -180,7 +180,7 @@ Day 7 is reserved for the security review, release candidate and handoff.
 
 | ID | Requirement | Pri. | MS | Acceptance criteria |
 | --- | --- | --- | --- | --- |
-| FR-50 | The GUI MUST provide case open/create, evidence import, job run with parameters, side-by-side original/region/result review, export and verify. | M | M4 | E2E tests for each flow; denial paths (locked case, failed verify). |
+| FR-50 | The GUI MUST provide case open/create, evidence import, job run with parameters, side-by-side original/region/result review, export and verify. | M | M4 | E2E tests for each flow; denial paths (locked case, failed verify). Sidecar back end for every flow implemented 2026-10-17 (`store.cases`, `identity.create`, `case.create`, `session.unlock`, `case.import`, `job.run`, `preview.get`, `case.export`, `case.verify`); the Tauri shell is open. |
 | FR-51 | The GUI MUST support two-point scale calibration on a ruler visible in the photo. | M | M4 | Calibrated factor flows into FR-31. |
 | FR-52 | The GUI SHOULD show an imported NAFIS/AFIS candidate image beside the Ridge export for manual comparison (view only, no matching). | S | M4 | Imported image is hashed and logged like evidence. Back end implemented 2026-10-17: `ridge-case import-reference`, `ridge-case compare` (equal-scale sheet with 10 mm bars; resolution from the file or the examiner, never guessed), sidecar `case.import_reference` / `compare.export`. |
 | FR-53 | The GUI MUST meet WCAG 2.2 AA for its controls and MUST respect `prefers-reduced-motion`. | M | M4 | Automated a11y checks plus a keyboard-only walkthrough. |

@@ -260,3 +260,64 @@ def test_reproduce(
     assert "environment changed: machine" in captured.out
     assert "\x1b" not in captured.out
     assert "differs: print:" in captured.err
+
+
+def test_cases_and_keep_going(
+    case_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ridge.case import jobs  # noqa: PLC0415
+    from ridge.errors import NoRidgePatternError  # noqa: PLC0415
+    from ridge.pipeline import extract_fingerprint  # noqa: PLC0415
+
+    assert main(["cases", "--store", str(case_dir.parent)]) == 0
+    assert f"{case_dir.name}  active" in capsys.readouterr().out
+    assert main(["cases", "--store", str(tmp_path / "empty-store-missing")]) == 1
+    (tmp_path / "empty").mkdir()
+    assert main(["cases", "--store", str(tmp_path / "empty")]) == 0
+    assert capsys.readouterr().out.strip() == "no cases"
+
+    first = photo_file(tmp_path / "a")
+    second = photo_file(tmp_path / "b", "arch_large_period", "arch.png")
+    assert main(["import", str(case_dir), str(first), str(second)]) == 0
+    capsys.readouterr()
+    calls: list[int] = []
+
+    def first_fails(*args: Any, **kwargs: Any) -> Any:
+        calls.append(1)
+        if len(calls) == 1:
+            raise NoRidgePatternError("no ridge pattern found")
+        return extract_fingerprint(*args, **kwargs)
+
+    monkeypatch.setattr(jobs, "extract_fingerprint", first_fails)
+    assert main(["extract", str(case_dir), "--all"]) == 1  # stops at the first refusal
+    assert len(calls) == 1
+    calls.clear()
+    assert main(["extract", str(case_dir), "--all", "--keep-going"]) == 1
+    captured = capsys.readouterr()
+    assert len(calls) == 2
+    assert "1 of 2 job(s) failed" in captured.out
+    assert "no ridge pattern" in captured.err
+    monkeypatch.setattr(jobs, "extract_fingerprint", extract_fingerprint)
+    assert main(["extract", str(case_dir), "--all", "--keep-going"]) == 0
+
+
+def test_keep_going_stops_on_store_errors(
+    case_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ridge.case import jobs  # noqa: PLC0415
+    from ridge.errors import IntegrityError  # noqa: PLC0415
+
+    first = photo_file(tmp_path / "a")
+    second = photo_file(tmp_path / "b", "arch_large_period", "arch.png")
+    assert main(["import", str(case_dir), str(first), str(second)]) == 0
+    capsys.readouterr()
+    calls: list[int] = []
+
+    def tampered(*args: Any, **kwargs: Any) -> Any:
+        calls.append(1)
+        raise IntegrityError("stored evidence does not match its hash")
+
+    monkeypatch.setattr(jobs, "extract_fingerprint", tampered)
+    assert main(["extract", str(case_dir), "--all", "--keep-going"]) == 1
+    assert len(calls) == 1  # the batch stopped at the integrity error
+    assert "does not match its hash" in capsys.readouterr().err
