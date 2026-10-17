@@ -18,13 +18,14 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from PIL import Image
 
-from ridge.case.crypto import random_key
+from ridge.case.crypto import random_key, seal
 from ridge.case.custody import CustodyLog
 from ridge.errors import DecodeError, InputRejectedError, IntegrityError
 from ridge.image_io import ReadLimits, decode_image
 
 FUZZ = settings(max_examples=150, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 LIMITS = ReadLimits(max_bytes=4 * 1024 * 1024, max_pixels=4_000_000)
+NL = bytes([10])  # line separator of the custody log
 
 
 def _sample(fmt: str) -> bytes:
@@ -70,17 +71,27 @@ def test_mutated_images_only_raise_typed_errors(fmt: str, edits: list[tuple[int,
 
 @FUZZ
 @given(lines=st.lists(st.binary(max_size=200), min_size=1, max_size=5), encode=st.booleans())
-def test_custody_log_rejects_garbage(lines: list[bytes], encode: bool) -> None:
+def test_custody_log_rejects_undecryptable_lines(lines: list[bytes], encode: bool) -> None:
+    """Malformed base64 and lines that fail authentication."""
     with tempfile.TemporaryDirectory() as tmp:  # hypothesis re-runs the body: fresh folder per example
         path = Path(tmp) / "custody.jsonl.enc"
-        raw = [base64.b64encode(line) if encode else line.replace(b"\n", b"") for line in lines]
-        path.write_bytes(b"\n".join(raw) + b"\n")
-        log = CustodyLog(path, random_key(), "case", "actor")
-        try:
+        raw = [base64.b64encode(line) if encode else line.replace(NL, b"") for line in lines]
+        path.write_bytes(NL.join(raw) + NL)
+        with pytest.raises(IntegrityError):
+            CustodyLog(path, random_key(), "case", "actor").load()
+
+
+@FUZZ
+@given(payload=st.one_of(st.binary(max_size=300), st.text(max_size=100).map(str.encode), st.just(b"[1, 2]")))
+def test_custody_log_rejects_authenticated_garbage(payload: bytes) -> None:
+    """Payloads sealed with the right key and position reach the parser and are still refused."""
+    key = random_key()
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "custody.jsonl.enc"
+        log = CustodyLog(path, key, "case", "actor")
+        path.write_bytes(base64.b64encode(seal(key, payload, log._aad(0))) + NL)
+        with pytest.raises(IntegrityError):
             log.load()
-        except IntegrityError:
-            return
-        raise AssertionError("garbage custody lines were accepted")
 
 
 def test_decoder_warnings_are_logged_not_raised(caplog: pytest.LogCaptureFixture) -> None:

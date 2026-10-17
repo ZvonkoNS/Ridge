@@ -123,3 +123,17 @@ def test_legacy_script_shim(photo_png: Path, tmp_path: Path) -> None:
     assert set(info) == {"period", "found_finger"}
     assert image.dtype == np.uint8
     assert (tmp_path / "legacy_debug_region.jpg").is_file()
+
+
+def test_symlinked_input_does_not_hide_its_folder(photo_png: Path, tmp_path: Path) -> None:
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    link = evidence / "photo.png"
+    try:
+        link.symlink_to(photo_png)  # the link lives in evidence/, its target elsewhere
+    except OSError:
+        pytest.skip("creating symlinks needs extra privileges on this system")
+    with pytest.raises(SystemExit) as excinfo:
+        main([str(link), "-o", str(evidence)])
+    assert excinfo.value.code == 2
+    assert sorted(p.name for p in evidence.iterdir()) == ["photo.png"]
