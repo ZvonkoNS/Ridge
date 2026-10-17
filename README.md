@@ -91,6 +91,8 @@ ridge-case jobs D:/ridge-store/<case-id>                # jobs: started, result,
 ridge-case report D:/ridge-store/<case-id> <job-id>     # verified report as text (--json for the signed JSON)
 ridge-case report D:/ridge-store/<case-id> <job-id> --to report.json   # + report.json.sig (logged)
 ridge-case check-report report.json --key-id <key-id>   # anyone can verify an exported report, no store needed
+ridge-case log D:/ridge-store/<case-id> --to record.json # signed processing record for the DPO (logged)
+ridge-case check-log record.json --key-id <key-id>      # chain, sequence and signed heads, no store needed
 ridge-case hold D:/ridge-store/<case-id> --on --reason "..."
 ridge-case dispose D:/ridge-store/<case-id> --confirm <case-id> --reason retention-expired
 ```

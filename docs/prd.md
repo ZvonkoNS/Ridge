@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/prd.md` |
-| Version | 0.9 (draft for owner review; M0-M3 and the M4 sidecar implemented, validation metrics tool and verified report access added, see `Instruction_documentation/Handoff/Handoff_9.md`) |
+| Version | 0.9 (draft for owner review; M0-M3 and the M4 sidecar implemented, validation metrics tool and verified report access and the signed processing record added, see `Instruction_documentation/Handoff/Handoff_9.md`) |
 | Date | 2026-10-17 |
 | Status | Draft. Not approved. Not approved for casework. |
 | Product Owner | TBD (named owner required, see §17) |
@@ -203,7 +203,7 @@ Mapped to OWASP ASVS 5.0 (applicable chapters for an offline desktop application
 | SEC-10 | Static analysis, secret scanning and CodeQL MUST run in CI with zero unreviewed high/critical findings at release. | M | M0 | CI evidence. |
 | PRIV-1 | Data minimisation: Ridge MUST process only the imported evidence and MUST NOT keep intermediate or debug images outside the case store. | M | M1 | Tests on temp-file usage; debug outputs are encrypted in the case store. |
 | PRIV-2 | Retention and disposal per FR-26; crypto-erase on disposal. | M | M1 | See FR-26. |
-| PRIV-3 | Processing records (LED Art. 25-style logging) MUST be exportable for the DPO. | S | M1 | `ridge case log --export` produces a readable, verifiable log. |
+| PRIV-3 | Processing records (LED Art. 25-style logging) MUST be exportable for the DPO. | S | M1 | `ridge-case log --to` produces a readable, signed record; `ridge-case check-log` verifies it without the case store (implemented 2026-10-17). |
 
 ## 10. Non-functional requirements (ISO/IEC 25010)
 

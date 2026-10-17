@@ -25,6 +25,7 @@ from ridge.case.export_step import ExportOptions
 from ridge.case.identity import Signer, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.keys import KeyringKeyStore, KeyStore
+from ridge.case.processing_record import export_log
 from ridge.case.reports import export_report, list_jobs, load_report, signature_path
 from ridge.case.store import OpenCase, StoredItem, open_case
 from ridge.case.verify import verify_case
@@ -203,6 +204,14 @@ def report_export(session: Session, params: dict[str, Json]) -> Json:
     return {"exported": str(dest), "signature": str(signature_path(dest)), "key_id": signed.key_id}
 
 
+def log_export(session: Session, params: dict[str, Json]) -> Json:
+    """Export the signed processing record (custody log) to a native-dialog path (logged)."""
+    case, signer = session.require()
+    dest = _absolute(params["dest"], "dest")
+    count = export_log(case, _store(session), signer, dest, overwrite=params.get("overwrite", False))
+    return {"exported": str(dest), "entries": count, "key_id": signer.key_id}
+
+
 def preview(session: Session, params: dict[str, Json]) -> Json:
     """Return a bounded PNG preview of a stored image for display (the read is logged)."""
     case, _ = session.require()
@@ -244,6 +253,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "case.jobs": (jobs, {}),
     "report.get": (report, {"job_id": (str_, True)}),
     "report.export": (report_export, {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
+    "log.export": (log_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
     "preview.get": (preview, {"sha256": (str_, True), "max_side": ((int,), False)}),
     "job.run": (
         run_job,

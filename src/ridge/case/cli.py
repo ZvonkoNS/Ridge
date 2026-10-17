@@ -5,6 +5,8 @@
     ridge-case import CASE photo.jpg [more...]
     ridge-case extract CASE --all            (or --evidence SHA ...) [extraction options]
     ridge-case list CASE | log CASE | verify CASE | jobs CASE
+    ridge-case log CASE --to PATH [--overwrite]     (signed processing record for the DPO)
+    ridge-case check-log RECORD.json [--key-id KEY_ID]                     (no case store needed)
     ridge-case report CASE JOB [--json | --to PATH [--overwrite]]
     ridge-case check-report REPORT.json [--sig PATH] [--key-id KEY_ID]     (no case store needed)
     ridge-case export CASE SHA --to PATH [--overwrite]
@@ -32,6 +34,7 @@ from ridge.case.export_step import ExportOptions
 from ridge.case.identity import create_identity, public_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.keys import KdfParams, KeyringKeyStore, KeyStore, b64
+from ridge.case.processing_record import check_exported_log, export_log
 from ridge.case.reports import check_exported_report, export_report, list_jobs, load_report, printable, render_report
 from ridge.case.store import create_case, open_case
 from ridge.case.verify import verify_case
@@ -141,10 +144,33 @@ def cmd_list(args: argparse.Namespace) -> None:
 
 
 def cmd_log(args: argparse.Namespace) -> None:
-    """Print the decrypted custody log as JSON lines (processing record for the DPO)."""
-    with open_case(args.case, read_passphrase(), KEYSTORE_FACTORY()) as case:
+    """Print the decrypted custody log as JSON lines, or export it as a signed processing record."""
+    passphrase, keystore = read_passphrase(), KEYSTORE_FACTORY()
+    if args.to:
+        signer = unlock_identity(args.case.parent, passphrase, keystore)
+        with open_case(args.case, passphrase, keystore) as case:
+            count = export_log(case, args.case.parent, signer, args.to, overwrite=args.overwrite)
+        _say(f"processing record with {count} entries exported to {args.to} (signed by key {signer.key_id})")
+        return
+    with open_case(args.case, passphrase, keystore) as case:
         for entry in case.entries:
             _say(json.dumps(entry, ensure_ascii=False, sort_keys=True))
+
+
+def cmd_check_log(args: argparse.Namespace) -> int:
+    """Verify an exported processing record without opening any case."""
+    check = check_exported_log(args.record, expected_key_id=args.key_id)
+    _say(
+        f"chain intact: case {check.case_id}, {check.entries} entries, {check.signed_heads} signed head(s), "
+        f"last signed entry {check.last_signed_seq}"
+    )
+    if check.unsigned_tail:
+        _say(f"WARNING: the last {check.unsigned_tail} entries are not covered by a signature")
+    if check.key_confirmed:
+        _say(f"signed by the expected key {check.key_id}")
+    else:
+        _say(f"signed by key {check.key_id}: confirm it is the examiner's key, or pass --key-id")
+    return 0
 
 
 def cmd_jobs(args: argparse.Namespace) -> None:
@@ -253,7 +279,6 @@ def _add_store_commands(sub: Any) -> None:
 def _add_case_commands(sub: Any) -> None:
     for name, func, help_text in (
         ("list", cmd_list, "list stored items"),
-        ("log", cmd_log, "print the custody log"),
         ("verify", cmd_verify, "verify the case"),
         ("jobs", cmd_jobs, "list jobs from the custody log"),
     ):
@@ -323,6 +348,15 @@ def _add_report_commands(sub: Any) -> None:
     p.add_argument("--sig", type=Path, help="detached signature (default: REPORT.sig)")
     p.add_argument("--key-id", help="the examiner key id the report must be signed with")
     p.set_defaults(func=cmd_check_report)
+    p = sub.add_parser("log", help="print the custody log, or export it as a signed processing record")
+    p.add_argument("case", type=Path)
+    p.add_argument("--to", type=Path, help="write a signed, verifiable processing record (JSON)")
+    p.add_argument("--overwrite", action="store_true")
+    p.set_defaults(func=cmd_log)
+    p = sub.add_parser("check-log", help="verify an exported processing record without the case store")
+    p.add_argument("record", type=Path)
+    p.add_argument("--key-id", help="the examiner key id the record must be signed with")
+    p.set_defaults(func=cmd_check_log)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from ridge.case.identity import create_identity
+from ridge.case.processing_record import check_exported_log
 from ridge.case.reports import check_exported_report
 from ridge.sidecar import handlers
 from ridge.sidecar.handlers import Session
@@ -170,6 +171,9 @@ def test_full_workflow(session: Session, case_dir: Path, tmp_path: Path) -> None
     assert saved["signature"] == f"{report_dest}.sig"
     assert check_exported_report(report_dest, expected_key_id=saved["key_id"]).job_id == job["job_id"]
     assert error_code(call(session, "report.export", {"job_id": job["job_id"], "dest": "r.json"})) == APPLICATION_ERROR
+    record = (tmp_path / "record.json").resolve()
+    logged = call(session, "log.export", {"dest": str(record)})["result"]
+    assert check_exported_log(record, expected_key_id=logged["key_id"]).entries == logged["entries"]
     assert call(session, "session.lock")["result"] == {"locked": True}
     assert not (case_dir / "LOCK").exists()
 

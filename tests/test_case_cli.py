@@ -69,6 +69,20 @@ def test_full_workflow(case_dir: Path, tmp_path: Path, capsys: pytest.CaptureFix
     actions = [json.loads(line)["action"] for line in capsys.readouterr().out.splitlines()]
     assert actions[:2] == ["case.create", "evidence.import"]
     assert {"job.start", "report.sign", "job.end", "chain.sign", "artefact.export", "case.verify"} <= set(actions)
+
+    record = tmp_path / "record.json"
+    assert main(["log", str(case_dir), "--to", str(record)]) == 0
+    assert "processing record with" in capsys.readouterr().out
+    assert main(["log", str(case_dir), "--to", str(record)]) == 1  # never overwritten silently
+    assert main(["check-log", str(record)]) == 0
+    out = capsys.readouterr().out
+    assert "chain intact" in out
+    assert "WARNING" not in out
+    key_id = out.split("signed by key ")[1].split(":")[0]
+    assert main(["check-log", str(record), "--key-id", key_id]) == 0
+    assert "expected key" in capsys.readouterr().out
+    record.write_text(record.read_text(encoding="utf-8").replace("case.create", "case.CREATE"), encoding="utf-8")
+    assert main(["check-log", str(record)]) == 1
     assert sha  # imported evidence id was printed
 
 

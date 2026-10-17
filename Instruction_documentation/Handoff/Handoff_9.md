@@ -14,7 +14,8 @@ Verified access to job reports (new **PRD FR-28**). Until now a signed report co
 | `ridge.case.reports` | `list_jobs` derives every job from the custody log: ok, failed (with its error) or open (started, never closed). `resolve_job` accepts a full UUID or a unique prefix of 8 or more characters, matched only against ids in the verified log, so caller input never builds a path (CWE-22). `load_report` checks three things. The report's hash must match the `report.sign` entry. Its signature must verify with the store's identity. It must name its own job and case. `export_report` writes the canonical bytes and a base64 detached signature (`PATH.sig`). It refuses to replace either file unless asked. `check_exported_report` verifies an exported pair offline: canonical form, the key id derived from the embedded public key, the signature, and optionally an expected key id. `render_report` gives a plain-text view with control characters replaced (CWE-150) |
 | `ridge-case jobs` / `report` / `check-report` | List jobs; show (`--json` for the signed bytes) or export (`--to`) a verified report; verify an exported report without a passphrase or store |
 | Sidecar | `case.jobs`, `report.get`, `report.export` (architecture §7.3) |
-| Custody | New actions `report.read` and `report.export`; `ridge-case jobs` only reads the log and adds no entry, like `list` |
+| `ridge.case.processing_record` (PRIV-3) | `ridge-case log --to PATH` logs `log.export`, signs the custody head, then writes all decrypted entries, the case id and the examiner public key as readable JSON (`ridge.processing-record/1`), so every exported entry is covered by a signature. `ridge-case check-log` recomputes sequence numbers and hash links, verifies every signed head, reports any unsigned tail, and optionally checks the expected key id. A failed write is logged as a failed `log.export`. Sidecar: `log.export` |
+| Custody | New actions `report.read`, `report.export` and `log.export`; `ridge-case jobs` only reads the log and adds no entry, like `list` |
 
 ## 2. Evidence
 
@@ -29,12 +30,23 @@ Verified access to job reports (new **PRD FR-28**). Until now a signed report co
 - offline checks against edited, reformatted, wrongly keyed and malformed reports, non-JSON input and oversized files;
 - rendering, including escape-sequence neutralisation.
 
-The CLI and sidecar end-to-end tests also exercise the new commands. `reports.py` has 100 % line and branch coverage.
+`tests/test_processing_record.py` covers:
+
+- signed, complete exports;
+- the overwrite rule;
+- a foreign identity;
+- a logged failed write;
+- edited, re-linked (forged), removed and appended entries;
+- malformed identity, entries and signatures;
+- NaN, non-JSON and oversized files.
+
+The CLI and sidecar end-to-end tests also exercise the new commands. `reports.py` and `processing_record.py` have 100 % line and branch coverage.
 
 ## 3. Forensic impact
 
 - Reports become usable records (ISO/IEC 17025 7.5, ISO/IEC 27037/27042). An exported report is exactly what was signed, so a reviewer can check it independently.
 - **Limit:** the report carries its own public key. A valid signature shows only that the holder of that key signed it. The reviewer must compare the key id with the examiner's published identity (`ridge-case identity show`), which is what `--key-id` does. The CLI says so when `--key-id` is missing.
+- The DPO gets a processing record they can verify themselves (LED Art. 25-style logging, PRIV-3). It contains the actors and file labels in plaintext.
 - Reading and exporting reports is logged (FR-22). The exported report holds the case reference and file labels in plaintext, so the examiner chooses where it goes (FR-25).
 
 ## 4. Open items
