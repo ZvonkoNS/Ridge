@@ -65,6 +65,31 @@ def collect_inputs(paths: Sequence[str]) -> list[Path]:
     return files
 
 
+def output_conflict(outdir: Path, inputs: Sequence[str]) -> str | None:
+    """Explain why `outdir` must not be used, or return None.
+
+    Outputs never go into an input folder (or the folder of an input file), so folders of
+    original evidence are never written to (write-path audit W1).
+    """
+    # Compare both the paths as given and with links resolved, so a symlinked input or output
+    # folder cannot hide that outputs would land next to evidence.
+    outs = {outdir.absolute(), outdir.resolve()}
+    for raw in inputs:
+        path = Path(raw)
+        if path.is_dir():
+            folders, inside = {path.absolute(), path.resolve()}, True
+            what = f"inside the input folder {path}"
+        elif path.is_file() or path.is_symlink():
+            folders, inside = {path.absolute().parent, path.resolve().parent}, False
+            what = f"the folder of the input {path}"
+        else:
+            continue
+        for out in outs:
+            if any(out == f or (inside and f in out.parents) for f in folders):
+                return f"output folder {outdir} is {what}: choose a separate folder"
+    return None
+
+
 def _bounded(kind: Callable[[str], float], low: float, high: float, unit: str) -> Callable[[str], float]:
     def parse(text: str) -> float:
         try:
@@ -157,13 +182,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     _warn(RND_NOTICE)
 
     outdir = Path(args.outdir)
-    try:
-        outdir.mkdir(mode=0o700, parents=True, exist_ok=True)  # biometric outputs: owner-only on POSIX
-    except OSError as exc:
-        ap.error(f"cannot create output folder {outdir}: {exc.strerror}")
     files = collect_inputs(args.inputs)
     if not files:
         ap.error("no images found")
+    conflict = output_conflict(outdir, args.inputs)
+    if conflict:
+        ap.error(conflict)
+    try:  # created only after the inputs are validated
+        outdir.mkdir(mode=0o700, parents=True, exist_ok=True)  # biometric outputs: owner-only on POSIX
+    except OSError as exc:
+        ap.error(f"cannot create output folder {outdir}: {exc.strerror}")
 
     code = EXIT_OK
     for f in files:
