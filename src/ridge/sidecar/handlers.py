@@ -10,6 +10,7 @@ sent by the Rust core from a native dialog, never from WebView code.
 from __future__ import annotations
 
 import base64
+import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -31,18 +32,29 @@ from ridge.image_io import ReadLimits, decode_image, encode_image
 from ridge.sidecar.protocol import Json, Schema
 
 PROTOCOL = "ridge.sidecar/1"
+DEFAULT_IDLE_TIMEOUT_S = 15 * 60.0
 PREVIEW_DEFAULT, PREVIEW_MAX = 1024, 2048
 NUMBER = (int, float)
 
 
 @dataclass
 class Session:
-    """At most one unlocked case per sidecar process."""
+    """At most one unlocked case per sidecar process, locked again after `idle_timeout_s`."""
 
     keystore_factory: Callable[[], KeyStore] = KeyringKeyStore
+    idle_timeout_s: float = DEFAULT_IDLE_TIMEOUT_S
+    clock: Callable[[], float] = time.monotonic
     case: OpenCase | None = None
     signer: Signer | None = None
     store: Path | None = None
+    last_activity: float = 0.0
+
+    def touch(self) -> None:
+        """Lock first if the session sat idle too long, then record activity."""
+        now = self.clock()
+        if self.case is not None and now - self.last_activity > self.idle_timeout_s:
+            self.close()  # an unattended workstation must not keep a decrypted case open
+        self.last_activity = now
 
     def require(self) -> tuple[OpenCase, Signer]:
         """Return the unlocked case and identity, or refuse."""
@@ -95,6 +107,11 @@ def unlock(session: Session, params: dict[str, Json]) -> Json:
         "retention_until": meta.retention_until.isoformat(),
         "legal_hold": meta.legal_hold,
     }
+
+
+def status(session: Session, params: dict[str, Json]) -> Json:
+    """Whether a case is unlocked, and the idle timeout."""
+    return {"unlocked": session.case is not None, "idle_timeout_s": session.idle_timeout_s}
 
 
 def lock(session: Session, params: dict[str, Json]) -> Json:
@@ -193,6 +210,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "ridge.version": (version, {}),
     "session.unlock": (unlock, {"store": (str_, True), "case_id": (str_, True), "passphrase": (str_, True)}),
     "session.lock": (lock, {}),
+    "session.status": (status, {}),
     "case.items": (items, {}),
     "case.import": (import_evidence, {"path": (str_, True)}),
     "case.verify": (verify, {}),

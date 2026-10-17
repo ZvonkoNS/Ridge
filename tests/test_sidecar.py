@@ -202,3 +202,18 @@ def test_main_uses_binary_stdio(monkeypatch: pytest.MonkeyPatch) -> None:
     assert main() == 0
     stdout.flush()
     assert json.loads(stdout.buffer.getvalue())["id"] == 9
+
+
+def test_idle_session_locks_itself(keystore: MemoryKeyStore, case_dir: Path) -> None:
+    now = [1000.0]
+    session = Session(keystore_factory=lambda: keystore, idle_timeout_s=60.0, clock=lambda: now[0])
+    unlock = {"store": str(case_dir.parent), "case_id": case_dir.name, "passphrase": PASSPHRASE}
+    assert "result" in call(session, "session.unlock", unlock)
+    now[0] += 30
+    assert call(session, "session.status")["result"]["unlocked"] is True  # activity resets the timer
+    now[0] += 59
+    assert "result" in call(session, "case.items")
+    now[0] += 61
+    reply = call(session, "case.items")
+    assert "no case is unlocked" in reply["error"]["message"]
+    assert not (case_dir / "LOCK").exists()  # the case lock was released
