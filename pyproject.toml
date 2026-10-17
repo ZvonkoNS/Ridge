@@ -1,0 +1,115 @@
+[build-system]
+requires = ["setuptools>=80", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ridge"
+dynamic = ["version"]
+description = "Forensic image-enhancement aid: extract fingerprints from photos of fingers."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "LicenseRef-Proprietary"
+classifiers = [
+  "Private :: Do Not Upload",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
+dependencies = [
+  "numpy>=2.2,<3",
+  "opencv-python>=4.10",
+  "pillow>=11.0",
+]
+
+[project.optional-dependencies]
+heic = ["pillow-heif>=1.0"]
+
+[project.scripts]
+ridge = "ridge.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "ridge.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ridge = ["py.typed"]
+
+# ----------------------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests", "tools"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F",  # pycodestyle, pyflakes
+  "I",            # import order
+  "N",            # PEP 8 naming
+  "D",            # PEP 257 docstrings
+  "UP",           # modern syntax
+  "B",            # bugbear
+  "S",            # bandit security rules
+  "BLE",          # no blind except
+  "A",            # no shadowed builtins
+  "C4", "PIE", "SIM", "RET", "PERF",
+  "DTZ",          # timezone-aware datetimes only
+  "T10", "T20",   # no debugger / print outside the CLI
+  "PT",           # pytest style
+  "PTH",          # pathlib
+  "TID",          # tidy imports
+  "ERA",          # no commented-out code
+  "PL",           # pylint subset
+  "RUF",
+]
+ignore = [
+  "D105", "D107",  # magic methods / __init__ documented on the class
+  "PLR2004",       # numeric constants of the published algorithm are documented inline
+  "PLR0913",       # keyword-only parameter lists mirror the CLI options
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.per-file-ignores]
+"src/ridge/cli.py" = ["T201"]            # the CLI reports on stdout/stderr by design
+"src/ridge/pipeline/extract.py" = ["PLR0915"]  # one linear, commented algorithm; split would obscure it
+"tests/**" = ["S101", "D", "PLR0913", "T201"]
+"tools/**" = ["T201", "S603", "S607"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+# ----------------------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+files = ["src", "tests", "tools", "fingerprint_extract.py"]
+mypy_path = "src"
+explicit_package_bases = true
+
+# ----------------------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
+xfail_strict = true
+filterwarnings = ["error"]
+markers = ["slow: long-running tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["ridge"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
+exclude_also = ["if __name__ == .__main__.:"]
+
+# ----------------------------------------------------------------------------- bandit
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]

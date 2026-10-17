@@ -1,0 +1,15 @@
+# Development and quality-gate tools. Compiled with hashes into requirements-dev.lock:
+#   pip-compile --generate-hashes --allow-unsafe -o requirements-dev.lock requirements-dev.in
+# Runtime pins come from requirements.lock (constraint), so both locks agree.
+-c requirements.lock
+
+pip-tools
+pytest
+pytest-cov
+hypothesis
+ruff
+mypy
+bandit
+pip-audit
+pip-licenses
+cyclonedx-bom
