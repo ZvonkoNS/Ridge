@@ -12,6 +12,7 @@ import pytest
 from PIL import Image
 
 import ridge.case.cli as case_cli
+from ridge.case import cli_common
 from ridge.case.cli import main
 from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, future, photo_file
 
@@ -19,8 +20,8 @@ from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, future, pho
 @pytest.fixture
 def keystore(monkeypatch: pytest.MonkeyPatch) -> MemoryKeyStore:
     shared = MemoryKeyStore()
-    monkeypatch.setattr(case_cli, "KEYSTORE_FACTORY", lambda: shared)
-    monkeypatch.setattr(case_cli, "KDF_PARAMS", FAST_KDF)
+    monkeypatch.setattr(cli_common, "KEYSTORE_FACTORY", lambda: shared)
+    monkeypatch.setattr(cli_common, "KDF_PARAMS", FAST_KDF)
     monkeypatch.setattr(getpass, "getpass", lambda prompt="": PASSPHRASE)
     return shared
 

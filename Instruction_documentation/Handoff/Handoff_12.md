@@ -11,6 +11,8 @@ Branch: `m5-roi-source` (built on `m5-store-listing`) → PR after the stack bel
 | --- | --- |
 | Region of interest (**proposed FR-35**, PO confirmation pending) | `JobParams.roi` (x, y, width, height in the EXIF-oriented photo) is validated before a job starts: four whole numbers, start inside the photo, at least 32 × 32 px. A malformed ROI starts no job. The photo is cut to the ROI before extraction. An ROI outside the photo fails the job with a logged reason. The ROI is recorded in the report parameters, shown in `ridge-case report`, and rebuilt by `reproduce`; reports from before the ROI have none. Ruler points stay in full-photo coordinates, which is valid because the scale depends only on their distance. CLI `--roi X Y W H` (single evidence only); sidecar `job.run` `roi` |
 | Evidence source note (FR-21 extension) | `ridge-case import --source "Exhibit 12, phone A"` and sidecar `case.import` `source`. The note is cleaned (control characters refused), kept encrypted in the custody log, listed by `ridge-case list`, and repeated as `input.source` in every job report on the photo |
+| CLI split (PR #9 review, AGENTS.md file-size rule) | `ridge/case/cli.py` (497 lines) is split by responsibility. `cli.py` (320 lines) keeps the entry point and the store, case and extract commands. `cli_records.py` holds jobs, report, reproduce, check-report, log and check-log. `cli_compare.py` holds import-reference and compare. `cli_common.py` holds the keystore factory, KDF cost, passphrase prompt and output; tests patch `cli_common`. Behaviour is unchanged |
+
 
 The previous branch (`m5-store-listing`, PR #10, Handoff_11) added `ridge-case cases` / `store.cases` (store listing without a passphrase) and `extract --keep-going`.
 

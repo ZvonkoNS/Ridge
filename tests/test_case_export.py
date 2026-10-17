@@ -12,9 +12,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-import ridge.case.cli as case_cli
 from ridge import extract_fingerprint
-from ridge.case import jobs
+from ridge.case import cli_common, jobs
 from ridge.case.cli import main
 from ridge.case.export_step import ExportOptions
 from ridge.case.identity import create_identity, unlock_identity
@@ -121,8 +120,8 @@ def test_missing_nfiq2_is_not_a_failure(case_dir: Path, keystore: MemoryKeyStore
 @pytest.fixture
 def cli_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> Path:
     shared = MemoryKeyStore()
-    monkeypatch.setattr(case_cli, "KEYSTORE_FACTORY", lambda: shared)
-    monkeypatch.setattr(case_cli, "KDF_PARAMS", FAST_KDF)
+    monkeypatch.setattr(cli_common, "KEYSTORE_FACTORY", lambda: shared)
+    monkeypatch.setattr(cli_common, "KDF_PARAMS", FAST_KDF)
     monkeypatch.setattr(getpass, "getpass", lambda prompt="": PASSPHRASE)
     store = tmp_path / "store"
     assert main(["identity", "init", "--store", str(store)]) == 0
@@ -135,7 +134,7 @@ def cli_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.Cap
 
 
 def test_cli_extract_with_ruler_and_nfiq2(cli_case: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    with open_case(cli_case, PASSPHRASE, case_cli.KEYSTORE_FACTORY()) as case:
+    with open_case(cli_case, PASSPHRASE, cli_common.KEYSTORE_FACTORY()) as case:
         sha = case.items()[0].sha256
     command = fake_nfiq2(tmp_path, "37")
     args = ["extract", str(cli_case), "--evidence", sha, "--ruler", "0", "0", "200", "0", "10"]
