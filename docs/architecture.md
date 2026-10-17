@@ -169,6 +169,10 @@ sequenceDiagram
 5. Custody entries are appended for each step: `job.start`, `evidence.read`, `artefact.write`, `report.sign`, `job.end`. The chain head is signed at `job.end`.
 6. Any failure aborts the job, writes a `job.failed` entry with its category, and leaves no partial artefacts (atomic rename).
 
+Reading reports back (`src/ridge/case/reports.py`, PRD FR-28): jobs are listed from the verified custody log. A job id from the caller is only matched against ids in that log (a full UUID or a unique prefix of at least 8 characters), so it never reaches a file path unchecked. Before a report is shown or exported, three checks must pass. Its bytes must hash to the `report.sign` entry. Its signature must verify against the store's examiner identity. It must name its own job and case. Reads are logged as `report.read` and exports as `report.export`. An export is the exact canonical bytes plus a base64 detached signature (`<file>.sig`). `ridge-case check-report` verifies the pair without the store. It rejects reformatted JSON, any edit and, with `--key-id`, any other key. The key id still has to be matched out of band against the examiner's published identity, because a report carries its own public key.
+
+Processing record (`src/ridge/case/processing_record.py`, PRD PRIV-3): `ridge-case log --to` first logs `log.export` (with the case id), then signs the custody head, and then writes every decrypted entry with the case id and the examiner's public key as readable JSON (`ridge.processing-record/1`). Every entry in the file is therefore covered by a signed head. `ridge-case check-log` recomputes the sequence and the hash links from the entries and verifies every signed head. It refuses a record that does not end with that signed `log.export`, which catches appended entries and stripped signatures. It also refuses a record whose case id differs from the one in the signed entry. Truncation after a signed head cannot be detected offline (R-5); the DPO compares the last entry with what the examiner reports.
+
 ### 7.3 GUI ↔ sidecar (M4) [Sidecar implemented; Rust core and WebView planned]
 
 Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`):
@@ -185,6 +189,10 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `job.run` | `evidence`, extraction options, `export`, `mirror`, `ppi`, `ruler`, `minutiae` | Outputs, measurements, export, quality, minutiae summary |
 | `preview.get` | `sha256`, `max_side` 16–2048 | Bounded PNG (base64) for display; the read is logged |
 | `case.export` | `sha256`, `dest` (absolute), `overwrite` | Logged plaintext export |
+| `case.jobs` | – | Jobs from the custody log: id, evidence, start and end time, result, whether a signed report exists |
+| `report.get` | `job_id` (UUID or a unique prefix of 8 or more characters) | The report, returned only after its hash and signature are verified; the read is logged |
+| `report.export` | `job_id`, `dest` (absolute), `overwrite` | Logged export of the canonical report and its detached signature (`dest.sig`) |
+| `log.export` | `dest` (absolute), `overwrite` | Logged, signed processing record (PRIV-3) |
 
 Errors use JSON-RPC codes: -32700 parse, -32600 invalid request, -32601 unknown method, -32602 invalid params, -32000 refused by Ridge (safe message), -32603 internal (exception type only).
 

@@ -4,7 +4,11 @@
     ridge-case init --store STORE --reference REF --legal-basis TEXT --retention YYYY-MM-DD
     ridge-case import CASE photo.jpg [more...]
     ridge-case extract CASE --all            (or --evidence SHA ...) [extraction options]
-    ridge-case list CASE | log CASE | verify CASE
+    ridge-case list CASE | log CASE | verify CASE | jobs CASE
+    ridge-case log CASE --to PATH [--overwrite]     (signed processing record for the DPO)
+    ridge-case check-log RECORD.json [--key-id KEY_ID]                     (no case store needed)
+    ridge-case report CASE JOB [--json | --to PATH [--overwrite]]
+    ridge-case check-report REPORT.json [--sig PATH] [--key-id KEY_ID]     (no case store needed)
     ridge-case export CASE SHA --to PATH [--overwrite]
     ridge-case hold CASE --on|--off --reason TEXT
     ridge-case dispose CASE --confirm CASE_ID --reason TEXT [--before-retention]
@@ -30,6 +34,8 @@ from ridge.case.export_step import ExportOptions
 from ridge.case.identity import create_identity, public_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.keys import KdfParams, KeyringKeyStore, KeyStore, b64
+from ridge.case.processing_record import check_exported_log, export_log
+from ridge.case.reports import check_exported_report, export_report, list_jobs, load_report, printable, render_report
 from ridge.case.store import create_case, open_case
 from ridge.case.verify import verify_case
 from ridge.errors import ParameterError, RidgeError
@@ -138,10 +144,68 @@ def cmd_list(args: argparse.Namespace) -> None:
 
 
 def cmd_log(args: argparse.Namespace) -> None:
-    """Print the decrypted custody log as JSON lines (processing record for the DPO)."""
-    with open_case(args.case, read_passphrase(), KEYSTORE_FACTORY()) as case:
+    """Print the decrypted custody log as JSON lines, or export it as a signed processing record."""
+    passphrase, keystore = read_passphrase(), KEYSTORE_FACTORY()
+    if args.to:
+        signer = unlock_identity(args.case.parent, passphrase, keystore)
+        with open_case(args.case, passphrase, keystore) as case:
+            count = export_log(case, args.case.parent, signer, args.to, overwrite=args.overwrite)
+        _say(f"processing record with {count} entries exported to {args.to} (signed by key {signer.key_id})")
+        return
+    with open_case(args.case, passphrase, keystore) as case:
         for entry in case.entries:
             _say(json.dumps(entry, ensure_ascii=False, sort_keys=True))
+
+
+def cmd_check_log(args: argparse.Namespace) -> int:
+    """Verify an exported processing record without opening any case."""
+    check = check_exported_log(args.record, expected_key_id=args.key_id)
+    _say(
+        f"chain intact: case {check.case_id}, {check.entries} entries, {check.signed_heads} signed head(s), "
+        "ending with the signed export"
+    )
+    if check.key_confirmed:
+        _say(f"signed by the expected key {check.key_id}")
+    else:
+        _say(f"signed by key {check.key_id}: confirm it is the examiner's key, or pass --key-id")
+    return 0
+
+
+def cmd_jobs(args: argparse.Namespace) -> None:
+    """List the jobs recorded in the custody log."""
+    with open_case(args.case, read_passphrase(), KEYSTORE_FACTORY()) as case:
+        jobs = list_jobs(case.entries)
+    if not jobs:
+        _say("no jobs")
+    for job in jobs:
+        signed = "signed report" if job.report_sha256 else "no report"
+        error = f"  ({printable(job.error)})" if job.error else ""
+        _say(f"{job.job_id}  {job.started_utc}  {job.result:6}  evidence {job.evidence_sha256[:12]}  {signed}{error}")
+
+
+def cmd_report(args: argparse.Namespace) -> None:
+    """Show or export a job's signed report after verifying it."""
+    with open_case(args.case, read_passphrase(), KEYSTORE_FACTORY()) as case:
+        if args.to:
+            signed = export_report(case, args.case.parent, args.job, args.to, overwrite=args.overwrite)
+            _say(f"report {signed.job_id} exported to {args.to} (signature: {args.to.name}.sig, key {signed.key_id})")
+            return
+        signed = load_report(case, args.case.parent, args.job)
+    _say(signed.canonical.decode("utf-8") if args.json else render_report(signed.report, signed.key_id))
+
+
+def cmd_check_report(args: argparse.Namespace) -> int:
+    """Verify an exported report and its signature without opening any case."""
+    check = check_exported_report(args.report, args.sig, expected_key_id=args.key_id)
+    _say(f"signature valid: job {check.job_id}, case {check.case_id}, created {check.created_utc}")
+    if check.key_confirmed:
+        _say(f"signed by the expected key {check.key_id}")
+    else:
+        _say(
+            f"signed by key {check.key_id}: confirm it is the examiner's key (ridge-case identity show), "
+            "or pass --key-id"
+        )
+    return 0
 
 
 def cmd_export(args: argparse.Namespace) -> None:
@@ -193,6 +257,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = ap.add_subparsers(dest="command", required=True)
     _add_store_commands(sub)
     _add_case_commands(sub)
+    _add_report_commands(sub)
     return ap
 
 
@@ -212,8 +277,8 @@ def _add_store_commands(sub: Any) -> None:
 def _add_case_commands(sub: Any) -> None:
     for name, func, help_text in (
         ("list", cmd_list, "list stored items"),
-        ("log", cmd_log, "print the custody log"),
         ("verify", cmd_verify, "verify the case"),
+        ("jobs", cmd_jobs, "list jobs from the custody log"),
     ):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("case", type=Path)
@@ -265,6 +330,31 @@ def _add_case_commands(sub: Any) -> None:
     p.add_argument("--reason", required=True, choices=REASONS, help="reason code kept in the disposal record")
     p.add_argument("--before-retention", action="store_true")
     p.set_defaults(func=cmd_dispose)
+
+
+def _add_report_commands(sub: Any) -> None:
+    p = sub.add_parser("report", help="show or export a job's signed report (verified first)")
+    p.add_argument("case", type=Path)
+    p.add_argument("job", help="job id, or its first 8 or more characters")
+    shown = p.add_mutually_exclusive_group()
+    shown.add_argument("--json", action="store_true", help="print the signed canonical JSON")
+    shown.add_argument("--to", type=Path, help="export the report and its detached signature (PATH.sig)")
+    p.add_argument("--overwrite", action="store_true")
+    p.set_defaults(func=cmd_report)
+    p = sub.add_parser("check-report", help="verify an exported report without the case store")
+    p.add_argument("report", type=Path)
+    p.add_argument("--sig", type=Path, help="detached signature (default: REPORT.sig)")
+    p.add_argument("--key-id", help="the examiner key id the report must be signed with")
+    p.set_defaults(func=cmd_check_report)
+    p = sub.add_parser("log", help="print the custody log, or export it as a signed processing record")
+    p.add_argument("case", type=Path)
+    p.add_argument("--to", type=Path, help="write a signed, verifiable processing record (JSON)")
+    p.add_argument("--overwrite", action="store_true")
+    p.set_defaults(func=cmd_log)
+    p = sub.add_parser("check-log", help="verify an exported processing record without the case store")
+    p.add_argument("record", type=Path)
+    p.add_argument("--key-id", help="the examiner key id the record must be signed with")
+    p.set_defaults(func=cmd_check_log)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

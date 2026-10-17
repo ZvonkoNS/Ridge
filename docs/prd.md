@@ -3,8 +3,8 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/prd.md` |
-| Version | 0.8 (draft for owner review; M0-M3 and the M4 sidecar implemented, validation metrics tool added, see `Instruction_documentation/Handoff/Handoff_8.md`) |
-| Date | 2026-10-16 |
+| Version | 0.9 (draft for owner review; M0-M3 and the M4 sidecar implemented, validation metrics tool and verified report access and the signed processing record added, see `Instruction_documentation/Handoff/Handoff_9.md`) |
+| Date | 2026-10-17 |
 | Status | Draft. Not approved. Not approved for casework. |
 | Product Owner | TBD (named owner required, see §17) |
 | Related | [`docs/architecture.md`](architecture.md), [`Instruction_documentation/Project_Standards_Profile.md`](../Instruction_documentation/Project_Standards_Profile.md), [`AGENTS.md`](../AGENTS.md) |
@@ -157,6 +157,7 @@ Day 7 is reserved for the security review, release candidate and handoff.
 | FR-25 | `ridge export` MUST be the only way to write decrypted outputs outside the case store, to an examiner-chosen location, with a custody entry. | M | M1 | No other command writes plaintext biometric outputs. |
 | FR-26 | Ridge MUST support retention dates and legal hold, and MUST perform disposal only on explicit command with confirmation, logging it. | M | M1 | Disposal of a case on hold is refused; disposal removes keys (crypto-erase) and logs the event. |
 | FR-27 | A legacy "no case" mode MAY remain for R&D on synthetic or consented data, clearly labelled "not for casework" in output and reports. | C | M1 | Warning printed; outputs carry no evidential report. |
+| FR-28 | Ridge MUST let the examiner list a case's jobs and show or export a job's signed report only after checking it against the custody log and the examiner identity; an exported report (canonical bytes plus detached signature) MUST be verifiable offline without the case store. | M | M1 | `ridge-case jobs`, `ridge-case report` and `ridge-case check-report`; a one-byte change, a reformatted report or another key fails; reads and exports are logged. |
 
 ### 8.4 Matcher-ready output and quality (M2)
 
@@ -202,7 +203,7 @@ Mapped to OWASP ASVS 5.0 (applicable chapters for an offline desktop application
 | SEC-10 | Static analysis, secret scanning and CodeQL MUST run in CI with zero unreviewed high/critical findings at release. | M | M0 | CI evidence. |
 | PRIV-1 | Data minimisation: Ridge MUST process only the imported evidence and MUST NOT keep intermediate or debug images outside the case store. | M | M1 | Tests on temp-file usage; debug outputs are encrypted in the case store. |
 | PRIV-2 | Retention and disposal per FR-26; crypto-erase on disposal. | M | M1 | See FR-26. |
-| PRIV-3 | Processing records (LED Art. 25-style logging) MUST be exportable for the DPO. | S | M1 | `ridge case log --export` produces a readable, verifiable log. |
+| PRIV-3 | Processing records (LED Art. 25-style logging) MUST be exportable for the DPO. | S | M1 | `ridge-case log --to` produces a readable, signed record; `ridge-case check-log` verifies it without the case store (implemented 2026-10-17). |
 
 ## 10. Non-functional requirements (ISO/IEC 25010)
 
@@ -304,7 +305,7 @@ Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 
 | --- | --- | --- | --- |
 | FR-1–FR-7 | ISO/IEC 25010 functional suitability; ISO/IEC 14764 (regression protection) | §6 module structure | `tests/test_characterization.py`, CLI tests |
 | FR-8–FR-13 | OWASP ASVS 5.0 file handling and input validation; CWE-20, CWE-22, CWE-59, CWE-367, CWE-400, CWE-409, CWE-434, CWE-789 | §9.1 input handling | `tests/test_image_io.py`, `tests/test_hardening.py`, `tests/test_offline.py` |
-| FR-20–FR-27 | ISO/IEC 27037/27042; ISO/IEC 17025 7.5/7.11; LED Art. 25 | §8 data architecture, §9.3 integrity | case-store, custody and verify tests (M1) |
+| FR-20–FR-28 | ISO/IEC 27037/27042; ISO/IEC 17025 7.5/7.11; LED Art. 25 | §8 data architecture, §9.3 integrity | case-store, custody and verify tests (M1) |
 | FR-30–FR-34 | ISO/IEC 39794-4/19794-4; ISO/IEC 29794-4; ECMA-404; ISO 8601 | §8.4 export | export and report tests (M2) |
 | SEC-1–SEC-10 | OWASP ASVS 5.0 L3 (applicable); CWE Top 25; NIST SSDF PW/PS/RV | §9 security architecture | `tools/gate.py all`, CI, tests |
 | PRIV-1–PRIV-3 | LED Art. 4, 10, 20, 25, 27; ISO/IEC 24745 | §8, §9.2 | retention/disposal tests (M1) |
