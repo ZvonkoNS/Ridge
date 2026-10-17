@@ -71,15 +71,22 @@ def output_conflict(outdir: Path, inputs: Sequence[str]) -> str | None:
     Outputs never go into an input folder (or the folder of an input file), so folders of
     original evidence are never written to (write-path audit W1).
     """
-    out = outdir.resolve()
+    # Compare both the paths as given and with links resolved, so a symlinked input or output
+    # folder cannot hide that outputs would land next to evidence.
+    outs = {outdir.absolute(), outdir.resolve()}
     for raw in inputs:
         path = Path(raw)
         if path.is_dir():
-            folder = path.resolve()
-            if out == folder or folder in out.parents:
-                return f"output folder {outdir} is inside the input folder {path}: choose a separate folder"
-        elif path.is_file() and out == path.resolve().parent:
-            return f"output folder {outdir} is the folder of the input {path}: choose a separate folder"
+            folders, inside = {path.absolute(), path.resolve()}, True
+            what = f"inside the input folder {path}"
+        elif path.is_file() or path.is_symlink():
+            folders, inside = {path.absolute().parent, path.resolve().parent}, False
+            what = f"the folder of the input {path}"
+        else:
+            continue
+        for out in outs:
+            if any(out == f or (inside and f in out.parents) for f in folders):
+                return f"output folder {outdir} is {what}: choose a separate folder"
     return None
 
 
