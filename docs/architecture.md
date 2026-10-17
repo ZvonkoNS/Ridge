@@ -177,7 +177,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | --- | --- | --- |
 | `ridge.version` | – | Ridge and protocol versions |
 | `session.unlock` | `store` (absolute), `case_id` (UUID), `passphrase` | Case reference, retention, hold. **Only the Rust core sends this**, from a native prompt, never from the WebView |
-| `session.lock` | – | Locks the case (also done at end of input) |
+| `session.lock` / `session.status` | – | Locks the case (also done at end of input and after 15 minutes without requests) / unlocked state and idle timeout |
 | `case.items` / `case.verify` | – | Stored items / verification result |
 | `case.import` | `path` (absolute, from a native file dialog) | Evidence item |
 | `job.run` | `evidence`, extraction options, `export`, `mirror`, `ppi`, `ruler`, `minutiae` | Outputs, measurements, export, quality, minutiae summary |

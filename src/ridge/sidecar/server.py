@@ -28,6 +28,7 @@ def handle(line: bytes, session: Session) -> bytes:
     try:
         request = parse_request(line, SCHEMAS)
         request_id = request.id
+        session.touch()  # idle auto-lock happens before the request is served
         handler, _ = METHODS[request.method]
         return response(request_id, handler(session, request.params))
     except RpcError as exc:

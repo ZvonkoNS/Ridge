@@ -13,6 +13,7 @@ Branch: `m4-sidecar` (built on `m3-minutiae`) → PR into `main` after PRs #4 an
 | --- | --- |
 | `ridge.sidecar.protocol` | JSON-RPC 2.0 framing: messages ≤ 1 MiB, UTF-8, duplicate keys and NaN/Infinity refused. Only objects with `jsonrpc`/`id`/`method`/`params`; no batches or notifications. Method allow-list, per-method schemas (unknown, missing or mistyped fields refused; bool never accepted as a number). Request id echoed on errors |
 | `ridge.sidecar.handlers` | One session per process: unlock (UUID case id, absolute store path), lock, items, import (absolute path), job.run (all job options incl. ruler and minutiae), verify, export (absolute destination), preview (bounded downscaled PNG, read logged) |
+| Idle auto-lock | The session locks itself after 15 minutes without requests (injectable clock; `session.status` reports it). Test: `test_idle_session_locks_itself` |
 | `ridge.sidecar.server` | `ridge-sidecar`: serves until stdin closes, then locks the case. Oversized lines are discarded without losing sync. Errors answered safely (-32000 safe message, -32603 exception type only) |
 
 The Tauri Rust core and the React/TypeScript WebView are **not built yet**. Their rules are in `Instruction_documentation/desktop_gui_tauri_standards.md`. Key point: the passphrase must come from a native prompt in the Rust core, never from WebView code.
@@ -33,7 +34,6 @@ The Tauri Rust core and the React/TypeScript WebView are **not built yet**. Thei
 
 - Tauri v2 shell: capability allow-list, CSP, native passphrase prompt, packaging the sidecar (PyInstaller) and signing.
 - The React UI, with Motion animations that respect `prefers-reduced-motion`, and WCAG 2.2 AA.
-- An idle timeout that locks the session automatically.
 
 ## 5. First thing to do
 
