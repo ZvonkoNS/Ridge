@@ -241,7 +241,8 @@ class OpenCase:
         """Place or lift a legal hold (logged)."""
         meta = self.meta()
         self.write_meta(CaseMeta(meta.case_reference, meta.legal_basis, meta.retention_until, on))
-        self.custody.append("case.hold", legal_hold=on, reason=clean_text(reason, "reason", 500))
+        # Kept in `entries` too: a long-lived session (the GUI sidecar) verifies and exports from them.
+        self.entries.append(self.custody.append("case.hold", legal_hold=on, reason=clean_text(reason, "reason", 500)))
 
     # ------------------------------------------------------------------ blobs
     def _aad(self, role: str, sha: str) -> bytes:
