@@ -49,7 +49,7 @@ Ridge has **no network interface**: no AFIS connection, no updates, no telemetry
 | ID | Attribute | Stimulus → response | Measure |
 | --- | --- | --- | --- |
 | QA-1 | Integrity | Someone edits a byte of an output, report or log entry → `ridge case verify` reports the exact artefact. | 100% of tamper fixtures detected. |
-| QA-2 | Reproducibility | A defence expert re-runs a job from its report with the same release → identical output. | Hash-equal output (same platform). |
+| QA-2 | Reproducibility | A defence expert re-runs a job from its report with the same release on the same OS and CPU architecture → identical output. | Hash-equal output (same OS and architecture). |
 | QA-3 | Security | A crafted image (decompression bomb, wrong format, truncated) is imported → rejected before full decode, with bounded memory and a typed error. | No crash; peak memory below the limit plus a constant. |
 | QA-4 | Confidentiality | A workstation disk is copied → no biometric plaintext is readable without the keystore entry and the passphrase. | Storage inspection test. |
 | QA-5 | Isolation | Compromised GUI JavaScript tries to read arbitrary files or reach the network → blocked by the Tauri capability allow-list and CSP; the sidecar accepts only schema-valid RPCs. | IPC denial tests. |
@@ -318,7 +318,7 @@ The reference workstation is to be specified (OQ-11).
 - **Errors:** `RidgeError` subclasses with safe, actionable messages. The CLI exits 0 (all ok), 1 (some inputs failed), 2 (usage/config error) or 3 (internal error: a bug, reported per file while the batch continues). Stack traces appear only with `--verbose` and never contain biometric data.
 - **Logging:** stdlib `logging`, structured key=value, ISO 8601 UTC timestamps. Logs record hashes, IDs and categories only, never pixel data, passphrases or keys (SEC-5).
 - **Configuration:** CLI flags first, then a `RIDGE_*` environment variable or config file (validated, typed). Defaults are safe. Unknown keys are rejected.
-- **Numerics:** the float32 pipeline follows IEEE 754 with no nondeterministic parallel reductions. Reproducibility is claimed per (release, OS, CPU architecture). Cross-platform pixel agreement is measured per release and must be ≥ 99.9% (NFR-3).
+- **Numerics:** the float32 pipeline follows IEEE 754 with no nondeterministic parallel reductions. Reproducibility and method validation are per (release, OS, CPU architecture) (NFR-3, ADR-009). Behaviour preservation is proven on every platform by running v0 from git history next to the package and requiring bit-identical results. Stored goldens exist per architecture family (`tests/golden/v0-x86_64.*`, `v0-arm64.*`). On the reference machine they must match exactly; on other CPUs of the same architecture, ≥ 99.9% of output pixels must agree, the ridge spacing to 1e-6 relative and debug images to within 1 grey level on average. Results are not compared across architectures for equality. Instead, the committed golden sets must stay inside a cross-architecture envelope (`tests/cross_arch.py`): same outcomes and finger detection, ridge spacing within 1%, output size within 2 px, ≥ 99.8% of output pixels agreeing where the sizes match. The envelope is the difference measured on 2026-10-17 plus a small margin; widening it needs Forensic Quality Manager approval. `python tools/compare_goldens.py` prints the table for the release handoff.
 - **Text and paths:** Unicode paths everywhere (`pathlib`, `np.fromfile`/`tofile` for OpenCV I/O); UTF-8 JSON.
 - **Time:** UTC everywhere, ISO 8601 with `Z`. No local time in records.
 
@@ -337,7 +337,7 @@ The reference workstation is to be specified (OQ-11).
 | sbom | `python tools/gate.py sbom` | CycloneDX JSON |
 | all | `python tools/gate.py all` | All of the above, fails on first error |
 
-Test layers: characterization (golden arrays from v0), unit (pipeline helpers, I/O limits), hostile input (bombs, truncation, wrong formats, symlinks), CLI behaviour, offline guarantee (socket blocking), and, from M1, crypto, custody and tamper tests. From M2: report schema and determinism. From M4: GUI unit/E2E and IPC denial. Validation benchmarks run outside CI on the consented dataset (PRD §12).
+Test layers: characterization (live v0 run, bit-identical on every platform; per-architecture golden arrays), unit (pipeline helpers, I/O limits), hostile input (bombs, truncation, wrong formats, symlinks), CLI behaviour, offline guarantee (socket blocking), and, from M1, crypto, custody and tamper tests. From M2: report schema and determinism. From M4: GUI unit/E2E and IPC denial. Validation benchmarks run outside CI on the consented dataset (PRD §12).
 
 ## 13. Architecture decision records
 
@@ -351,5 +351,6 @@ Test layers: characterization (golden arrays from v0), unit (pipeline helpers, I
 | ADR-006 | Hash-pinned locks, reproducible builds, release signing | Accepted | Reproducibility and supply-chain integrity. |
 | ADR-007 | `src/` layout, pure pipeline, I/O at the edges, ≤ 300-line modules | Accepted | Testability and reviewability; pack modularity rules. |
 | ADR-008 | Case store on the filesystem (files + JSONL) rather than SQLite, with keyed (HMAC) file names and all metadata, reports and custody lines encrypted | Proposed | Fewer moving parts; no plaintext personal data or image hashes on disk. Revisit if querying needs grow. |
+| ADR-009 | Reproducibility and validation are per CPU architecture; behaviour preservation is proven against a live v0 run; goldens are stored per architecture (arm64 generated on a CI Apple silicon runner by the `golden` workflow) | Accepted | x86-64 and arm64 SIMD floating point legitimately differ (R-7, observed 2026-10-17); equality would always fail, so a measured cross-architecture envelope guards against further drift instead. |
 
 ADRs move to individual files under `docs/adr/` when they need more than a table row.

@@ -1,8 +1,10 @@
 {
   "reference_commit": "3441cf8d0e9f05fd769315ec906cda6b34f7c6f8",
+  "arch": "x86_64",
   "generated_with": {
     "python": "3.13.5",
     "platform": "Windows-11-10.0.26300-SP0",
+    "machine": "AMD64",
     "numpy": "2.5.4",
     "opencv": "5.0.0",
     "pillow": "12.3.0"

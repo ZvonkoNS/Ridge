@@ -1,0 +1,102 @@
+{
+  "reference_commit": "3441cf8d0e9f05fd769315ec906cda6b34f7c6f8",
+  "arch": "arm64",
+  "generated_with": {
+    "python": "3.13.16",
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "numpy": "2.5.4",
+    "opencv": "5.0.0",
+    "pillow": "12.3.0"
+  },
+  "cases": {
+    "whorl_default": {
+      "status": "ok",
+      "shape": [
+        505,
+        300
+      ],
+      "sha256": "44d1e08e92a3aae2887ea1f9fbb09cf20d05c6c46843e57ef3cefdc384140348",
+      "period": 8.812001824034592,
+      "found_finger": true
+    },
+    "whorl_flip": {
+      "status": "ok",
+      "shape": [
+        505,
+        300
+      ],
+      "sha256": "976bd5e4240fd08449cd5fa4ceb52003c83373ec56516be5dfec7595583fbf68",
+      "period": 8.812001824034592,
+      "found_finger": true
+    },
+    "whorl_no_crop": {
+      "status": "ok",
+      "shape": [
+        480,
+        360
+      ],
+      "sha256": "074a6cb17edcf691e8cef52c6501528e1ec48bebb4cc6b40108aaafcb17c57f0",
+      "period": 8.812001824034592,
+      "found_finger": true
+    },
+    "whorl_period_override": {
+      "status": "ok",
+      "shape": [
+        444,
+        262
+      ],
+      "sha256": "b7e572d53c94f3479616cf05c7a1e7ae576192c03b38606db36a93b8b22a843c",
+      "period": 10.0,
+      "found_finger": true
+    },
+    "whorl_strict_quality": {
+      "status": "ok",
+      "shape": [
+        498,
+        300
+      ],
+      "sha256": "0a87f5d1c51d5b4184d27c616df218bdf8e3ab4d307408b17fafc4d07321d4f2",
+      "period": 8.812001824034592,
+      "found_finger": true
+    },
+    "arch_default": {
+      "status": "ok",
+      "shape": [
+        507,
+        311
+      ],
+      "sha256": "955e4be95ddbf7f30b62e6966dd470809d3d81172a25d7196dfe00dc3b80ad2f",
+      "period": 9.507601314665056,
+      "found_finger": true
+    },
+    "arch_large_period": {
+      "status": "ok",
+      "shape": [
+        492,
+        293
+      ],
+      "sha256": "5227f5ae57cb6d96c3268d96c3fe7654b8602d6cb56869b4d08e74abff77041e",
+      "period": 13.774178741398705,
+      "found_finger": true
+    },
+    "grey_whole_frame": {
+      "status": "ok",
+      "shape": [
+        572,
+        408
+      ],
+      "sha256": "073ac7476492b2422126c9890ae08e1c246546041fe8b9ab97fa47358626fe19",
+      "period": 8.385558810629355,
+      "found_finger": false
+    },
+    "too_low_resolution": {
+      "status": "error",
+      "error": "ridges are only 2.5px apart: the photo is too low-resolution (take it closer, or pass --period if the estimate is wrong)"
+    },
+    "noise_only": {
+      "status": "error",
+      "error": "no clear ridge pattern found (try a lower --min-quality or a sharper photo)"
+    }
+  }
+}

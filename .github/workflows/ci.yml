@@ -30,6 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0  # the live v0 test loads the reference implementation from git history
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -41,7 +42,9 @@ jobs:
           python -m pip check
       - name: Gates
         env:
-          RIDGE_GOLDEN_MODE: tolerant  # CI CPUs differ from the reference workstation (see tests/conftest.py)
+          # Stored goldens: same-architecture tolerances, since CI CPUs differ from the reference
+          # workstation. The live v0 comparison stays bit-identical (tests/test_characterization.py).
+          RIDGE_GOLDEN_MODE: tolerant
         run: python tools/gate.py docs lint format typecheck test sast licenses
 
   supply-chain:

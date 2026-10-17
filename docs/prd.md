@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/prd.md` |
-| Version | 0.2 (draft for owner review; M0 implemented, see `Instruction_documentation/Handoff/Handoff_1.md`) |
+| Version | 0.3 (draft for owner review; M0 implemented; reproducibility per CPU architecture, see `Instruction_documentation/Handoff/Handoff_2.md`) |
 | Date | 2026-10-16 |
 | Status | Draft. Not approved. Not approved for casework. |
 | Product Owner | TBD (named owner required, see §17) |
@@ -54,7 +54,7 @@ Out of scope as users: members of the public, data subjects, AFIS operators (Rid
 | --- | --- | --- |
 | G-1 | Usable ridge detail from typical case photos | Matcher benchmark (§12) meets the target agreed after the baseline run. |
 | G-2 | Evidence integrity | 100% of inputs/outputs hashed; custody chain and signatures verify; originals never modified (tested). |
-| G-3 | Reproducibility | Same input + same Ridge release + same platform ⇒ bit-identical output (tested on every release). |
+| G-3 | Reproducibility | Same input + same Ridge release + same OS and CPU architecture ⇒ bit-identical output; behaviour checked against a live v0 run on every CI platform (tested on every change). |
 | G-4 | Lawful, minimal processing | DPIA approved; no network access; encrypted at rest; retention enforced per case. |
 | G-5 | Defensible engineering | Quality gates green; OWASP ASVS 5.0 L3-mapped controls verified where applicable; zero open high/critical findings at release. |
 
@@ -210,9 +210,9 @@ Mapped to OWASP ASVS 5.0 (applicable chapters for an offline desktop application
 | --- | --- | --- | --- |
 | NFR-1 | Performance efficiency | Extraction time per photo on the reference workstation. | Target p95 ≤ 20 s for a 12 MP phone photo; peak memory ≤ 4 GiB at the default limits. **Not yet measured** (needs full-size synthetic fixtures and the reference workstation, OQ-11). |
 | NFR-2 | Reliability | No partial outputs or corrupted case state after crash or power loss. | Atomic writes; crash-injection tests on import/job/export. |
-| NFR-3 | Reproducibility | Bit-identical output for identical input, release and platform; cross-platform differences measured and bounded. | Repeat-run test per release; cross-platform agreement ≥ 99.9% of pixels, documented. |
+| NFR-3 | Reproducibility | Bit-identical output for identical input, release, OS and CPU architecture (x86-64, arm64). Results from different architectures legitimately differ (SIMD floating point). They must stay inside the documented cross-architecture envelope: same outcomes and finger detection, ridge spacing within 1%, output size within 2 px, and ≥ 99.8% of output pixels agreeing where the sizes match. They are reported per release and are **not interchangeable for casework** without validation of each architecture (§12). Requirement changed on 2026-10-17 at the product owner's direction (PR #1), replacing "≥ 99.9% cross-platform agreement". | Live v0 bit-identical test on every CI platform; per-architecture goldens (`tests/golden/v0-<arch>.*`); envelope test `tests/test_cross_architecture.py`; report `python tools/compare_goldens.py` in the release handoff. |
 | NFR-4 | Numerical correctness | IEEE 754 float32 pipeline; tolerances documented; no nondeterministic parallel reductions. | Golden tests; tolerance rationale in architecture §11. |
-| NFR-5 | Portability | Windows 11, Linux (x86-64), macOS (Apple silicon); Python 3.12–3.14. | CI matrix green on all three OSes and Python versions. |
+| NFR-5 | Portability | Windows 11, Linux (x86-64), macOS (Apple silicon); Python 3.12–3.14. Casework only on architectures covered by method validation (NFR-3, OQ-15). | CI matrix green on all three OSes and Python versions. |
 | NFR-6 | Maintainability | Source files ≤ ~300 lines; mypy strict; ruff clean; branch coverage ≥ 90% for `ridge` core. | `lint`, `typecheck`, `test` gates. |
 | NFR-7 | Usability | Errors explain what failed and what to try next, with no stack traces for expected errors. | CLI message tests; GUI review. |
 | NFR-8 | Accessibility | WCAG 2.2 AA in the GUI. | FR-53. |
@@ -245,7 +245,8 @@ ISO/IEC 17025 7.2.2 method validation, run by the Forensic Quality Manager with 
 4. **Targets:** provisional targets are FNMR ≤ 20% at FMR = 0.1% for photos meeting the capture guidance and a failure-to-extract rate ≤ 10%. They are to be **confirmed after the baseline run** (OQ-7), because published contactless-to-contact results vary widely with capture quality.
 5. **Robustness:** compression levels, resolution, focus and lighting variation; mixed skin tones (bias check across skin tones is mandatory).
 6. **Examiner study (recommended):** examiners rate usability of Ridge exports versus manual enhancement for a sample.
-7. **Outcome:** a validation report that defines the method's limits of use (e.g. minimum ridge spacing in pixels, minimum NFIQ 2) and enforces them in Ridge as warnings.
+7. **Per architecture:** the study runs on every CPU architecture that will be used for casework (x86-64, arm64). Results on one architecture do not validate another (NFR-3).
+8. **Outcome:** a validation report that defines the method's limits of use (e.g. minimum ridge spacing in pixels, minimum NFIQ 2) and enforces them in Ridge as warnings.
 
 Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 0 open high/critical findings; characterization tests pass; `verify` detects 100% of tamper fixtures.
 
@@ -270,7 +271,7 @@ Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 
 | R-4 | Biometric data leak from a workstation or export. | Low | Critical | Encryption at rest, offline operation, export logging, minimisation, crypto-erase. |
 | R-5 | Custody record challenged in court (e.g. clock manipulation, no trusted timestamping offline). | Medium | High | Hash chain + signatures; monotonic sequence numbers; optional lab-side countersigning (OQ-8). |
 | R-6 | Supply-chain compromise of a dependency or image decoder (e.g. libheif, libtiff). | Medium | High | Hash-pinned lock, audits, SBOM, minimal decoder allow-list, headless OpenCV, CI on tagged commits only. |
-| R-7 | Cross-platform numerical differences break reproducibility claims. | Medium | Medium | Claim reproducibility per platform; measure and document cross-platform agreement. |
+| R-7 | Cross-architecture numerical differences (x86-64 vs arm64). **Materialised 2026-10-17:** on Apple silicon one golden case agreed on 99.85% of output pixels and one measured ridge spacing differed by +0.5% (Handoff_2). | High (observed) | Medium | Reproducibility and validation per architecture (NFR-3, §12); casework workstations limited to validated architectures (OQ-15); cross-architecture deltas reported per release. |
 | R-8 | One-week timeline pressure reduces rigour. | High | High | Gates are blocking; behaviour-preserving refactor first; M5 is separate; open items tracked in handoffs. |
 | R-9 | Legal basis or DPIA not approved. | Medium | Critical | DPO engaged before M5; no casework use before approval. |
 | R-10 | Owners not named, so approvals stall. | High | High | Owner roles are a release blocker in the standards profile. |
@@ -295,6 +296,7 @@ Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 
 | OQ-12 | Recovery-key policy for case stores: is a sealed, lab-held recovery key allowed, and who holds it? | Security Owner | M1 |
 | OQ-13 | Confirm the design that case metadata, reports and custody logs are encrypted at rest and file names are keyed (architecture §8.1). | DPO | M1 |
 | OQ-14 | Licence review of `pillow-heif` (bundled GPL/LGPL) versus switching to `pi-heif`. | Legal + Security Owner | Before M1 release |
+| OQ-15 | Which CPU architectures will casework workstations use (x86-64 Windows/Linux, Apple silicon)? Each one needs its own method validation. | Forensic Quality Manager + IT | Before M5 |
 
 ## 16. Traceability (initial)
 

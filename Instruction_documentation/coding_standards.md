@@ -83,7 +83,7 @@ Serialisation and processes:
 - Method constants (working ridge period 12 px, 16 Gabor orientations, quality defaults, morphology sizes) are named, documented and defined in one place. Changing one is a method change (`forensic_evidence_and_biometric_data_standards.md` section 6).
 - No unseeded randomness; random generators only in tests and synthetic-data generators with fixed seeds (`numpy.random.default_rng(seed)`).
 - OpenCV thread count is set once at startup (`cv2.setNumThreads`) and recorded. The default is 1 unless the determinism test proves bit-identical results for the higher count. No threads or processes inside one image's pipeline; batch parallelism across files only if results are independent and outputs and records are ordered deterministically.
-- Comparisons: integer and binary outputs exactly; floats with `numpy.testing.assert_allclose` and explicit tolerances. Default same-platform tolerance for float32 intermediates: `rtol=1e-5`, `atol=1e-6` on values normalised to order 1. Cross-platform tolerances are set and justified in `docs/architecture.md` and approved by the Quality/Release Owner.
+- Comparisons: integer and binary outputs exactly; floats with `numpy.testing.assert_allclose` and explicit tolerances. Default same-platform tolerance for float32 intermediates: `rtol=1e-5`, `atol=1e-6` on values normalised to order 1. Same-architecture tolerances (different CPUs) are set and justified in `docs/architecture.md` §11 and approved by the Quality/Release Owner; gates never compare results across CPU architectures.
 
 ## Secure coding requirements
 

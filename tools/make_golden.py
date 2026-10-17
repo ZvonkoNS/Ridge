@@ -1,27 +1,24 @@
-"""Regenerate the golden characterization results from the reference (v0) implementation.
+"""Regenerate the golden characterization results for this machine's CPU architecture.
 
-The reference is loaded from git history rather than the working tree, so goldens can be
-reproduced at any time:
+The reference (v0) implementation is loaded from git history rather than the working tree,
+so goldens can be reproduced at any time:
 
-    python tools/make_golden.py               # reference = tests.golden_cases.REFERENCE_COMMIT
-    python tools/make_golden.py --ref <commit>
+    python tools/make_golden.py                       # -> tests/golden/v0-<arch>.{npz,json}
+    python tools/make_golden.py --out-dir build/golden
 
-Writes tests/golden/v0.npz (result arrays) and tests/golden/v0.json (metadata). Only run this
-when an extraction change is intended, and record the reason in a handoff.
+Golden files are per architecture family (x86_64, arm64); arm64 goldens are produced on an
+Apple silicon runner by the "golden" GitHub Actions workflow. Only regenerate when an
+extraction change is intended or a new architecture is added, and record why in a handoff.
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
-import importlib.util
 import json
 import platform
-import subprocess  # nosec B404 - fixed git invocation on our own repository
 import sys
 import tempfile
 from pathlib import Path
-from types import ModuleType
 from typing import Any
 
 import cv2
@@ -31,50 +28,26 @@ import PIL
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests.golden_cases import CASES, REFERENCE_COMMIT  # noqa: E402
-
-GOLDEN_DIR = ROOT / "tests" / "golden"
-DEBUG_STEPS = ("normalized", "gabor", "quality")
-
-
-def load_reference(ref: str, workdir: Path) -> ModuleType:
-    """Import fingerprint_extract.py as it was at git revision `ref`."""
-    source = subprocess.run(  # nosec B603 B607 - static argument list, no shell
-        ["git", "show", f"{ref}:fingerprint_extract.py"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-    ).stdout
-    path = workdir / "fingerprint_extract_reference.py"
-    path.write_bytes(source)
-    spec = importlib.util.spec_from_file_location("fingerprint_extract_reference", path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError("cannot load reference implementation")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def read_image(path: Path) -> np.ndarray[Any, Any]:
-    """Read an image file unchanged (lossless PNG or the v0 JPEG)."""
-    img = cv2.imdecode(np.fromfile(str(path), dtype=np.uint8), cv2.IMREAD_UNCHANGED)
-    if img is None:
-        raise RuntimeError(f"cannot read {path}")
-    return img
+from tests.golden_cases import CASES  # noqa: E402
+from tests.reference import GOLDEN_DIR, REFERENCE_COMMIT, Arrays, arch_key, golden_paths, load_reference, run_reference  # noqa: E402
 
 
 def main() -> int:
     """Run every case through the reference and write the golden files."""
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--ref", default=REFERENCE_COMMIT)
+    ap.add_argument("--ref", default=REFERENCE_COMMIT, help="git revision of the reference implementation")
+    ap.add_argument("--out-dir", type=Path, default=GOLDEN_DIR, help="output folder (default: tests/golden)")
     args = ap.parse_args()
 
-    arrays: dict[str, np.ndarray[Any, Any]] = {}
+    arch = arch_key()
+    arrays: Arrays = {}
     meta: dict[str, Any] = {
         "reference_commit": args.ref,
+        "arch": arch,
         "generated_with": {
             "python": platform.python_version(),
             "platform": platform.platform(),
+            "machine": platform.machine(),
             "numpy": np.__version__,
             "opencv": cv2.__version__,
             "pillow": PIL.__version__,
@@ -82,34 +55,18 @@ def main() -> int:
         "cases": {},
     }
     with tempfile.TemporaryDirectory() as tmp:
-        workdir = Path(tmp)
-        ref = load_reference(args.ref, workdir)
+        v0 = load_reference(Path(tmp), args.ref)
         for case in CASES:
-            debug = (case.name, workdir) if case.debug else None
-            entry: dict[str, Any]
-            try:
-                image, info = ref.extract_fingerprint(case.photo(), debug=debug, **case.params)
-            except ValueError as exc:
-                entry = {"status": "error", "error": str(exc)}
-            else:
-                arrays[f"{case.name}__image"] = image
-                entry = {
-                    "status": "ok",
-                    "shape": list(image.shape),
-                    "sha256": hashlib.sha256(image.tobytes()).hexdigest(),
-                    "period": info["period"],
-                    "found_finger": info["found_finger"],
-                }
-                if case.debug:
-                    for step in DEBUG_STEPS:
-                        arrays[f"{case.name}__debug_{step}"] = read_image(workdir / f"{case.name}_debug_{step}.png")
-                    arrays[f"{case.name}__debug_region"] = read_image(workdir / f"{case.name}_debug_region.jpg")
+            entry, case_arrays = run_reference(v0, case, Path(tmp))
             meta["cases"][case.name] = entry
+            arrays.update(case_arrays)
             print(f"{case.name}: {entry['status']}", entry.get("error", ""))
 
-    GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(GOLDEN_DIR / "v0.npz", allow_pickle=False, **arrays)
-    (GOLDEN_DIR / "v0.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    npz_path, json_path = golden_paths(arch, args.out_dir)
+    args.out_dir.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(npz_path, allow_pickle=False, **arrays)
+    json_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    print(f"wrote {npz_path.name} and {json_path.name} for {arch}")
     return 0
 
 

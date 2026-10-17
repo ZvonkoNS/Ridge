@@ -81,7 +81,7 @@ Use for review and high-risk tasks:
 
 | Test | Where | Rule |
 | --- | --- | --- |
-| Golden characterization | `tests/golden/*.npz`, in `test` gate | Synthetic inputs with outputs and selected intermediates captured from the legacy script before the refactor; the refactored package must reproduce them (exact for binary/uint8, documented tolerances for floats). |
+| Golden characterization | `tests/test_characterization.py`, in `test` gate | Two checks on synthetic inputs: (1) v0 loaded from git history runs next to the package on the same machine, and results must be bit-identical on every platform; (2) stored per-architecture goldens `tests/golden/v0-<arch>.*` must match exactly on the reference machine and within documented same-architecture tolerances elsewhere; (3) the committed golden sets of different architectures must stay inside the cross-architecture envelope (`tests/test_cross_architecture.py`). |
 | Determinism | `test` gate | Same input twice in one process and in two separate processes gives identical output pixel hash and file hash; varying `cv2.setNumThreads` either gives identical results or is pinned. |
 | Reproducibility record | `test` gate | Run record contains every field required by `forensic_evidence_and_biometric_data_standards.md` section 6 and hashes match re-read files. |
 | Evidence immutability | `test` gate | Input bytes and modification time unchanged after processing; outputs never written beside originals. |

@@ -105,8 +105,10 @@ These apply when photos are taken for validation; case photos are what they are.
 
 The `secrets` gate needs [gitleaks](https://github.com/gitleaks/gitleaks) on PATH, and
 `deps` needs network access. Tests use synthetic images only (`tests/synthetic.py`).
-`tests/golden/` freezes the v0 results. Regenerate it with `tools/make_golden.py` only
-for an intended, documented change.
+`tests/golden/` freezes the v0 results per CPU architecture (x86-64, arm64), and the test
+suite also runs v0 from git history to require bit-identical results on every machine.
+Regenerate goldens with `tools/make_golden.py` (arm64: the `golden` workflow) only for an
+intended, documented change.
 
 To update the locks:
 

@@ -1,8 +1,8 @@
 """Characterization cases: inputs and parameters whose v0 results are frozen in tests/golden/.
 
 The golden results were produced by the original single-file implementation (git commit
-3441cf8) with ``tools/make_golden.py``. Any intended change to extraction results must
-regenerate them deliberately and be recorded in a handoff.
+3441cf8) with ``tools/make_golden.py``, one set per CPU architecture. Any intended change to
+extraction results must regenerate them deliberately and be recorded in a handoff.
 """
 
 from __future__ import annotations
@@ -10,9 +10,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from tests.reference import REFERENCE_COMMIT
 from tests.synthetic import ImageU8, make_photo
 
-REFERENCE_COMMIT = "3441cf8d0e9f05fd769315ec906cda6b34f7c6f8"
+__all__ = ["CASES", "CASES_BY_NAME", "REFERENCE_COMMIT", "Case"]
 
 
 @dataclass(frozen=True)

@@ -70,7 +70,7 @@ Requirement: the same input bytes, same Ridge version, same parameters and same 
 - "Same platform" means same OS family and version, CPU architecture and instruction-set level, Python version and the exact hashed dependency set from `requirements.lock`.
 - Every run records a manifest: Ridge version and git commit, lock-file SHA-256, Python version, OS, CPU architecture, numpy/OpenCV/Pillow/pillow-heif/libheif versions, OpenCV build-information hash, thread count, every parameter value including defaults, input hashes, output file and pixel hashes, start/end UTC time.
 - The pipeline is single-threaded or uses a fixed, recorded thread count. Nondeterministic parallel reductions, unseeded randomness and wall-clock-dependent behaviour are forbidden in `src/ridge/pipeline/`.
-- Cross-platform runs are compared with documented tolerances (see `coding_standards.md` numerics section); differences are reported, never silently accepted.
+- Results from different CPU architectures (x86-64, arm64) are not interchangeable: reproducibility and method validation are per architecture (`docs/prd.md` NFR-3). Runs on different CPUs of the same architecture are compared with documented tolerances (see `coding_standards.md` numerics section); cross-architecture differences are measured and reported per release, never silently accepted.
 - Any change that alters output pixels for the golden set is a method change: it needs an ADR, updated golden arrays with review, and a revalidation decision by the Forensic Quality Manager.
 
 ## 7. Signed job reports (M1)
