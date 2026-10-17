@@ -5,7 +5,7 @@
 | Document | `docs/architecture.md` (IEEE 1016-style design description) |
 | Version | 0.1 (draft for owner review) |
 | Date | 2026-10-16 |
-| Status | Draft. §6 and §9.1 describe the M0 implementation; the rest describes the target design for M1–M4. |
+| Status | Draft. §6, §8, §9.1 and §9.3 describe the implementation (M0, M1); §7.3 and the GUI are the target design for M2–M4. |
 | Requirements | [`docs/prd.md`](prd.md) (IDs FR-, SEC-, PRIV-, NFR-) |
 | Standards | [`Instruction_documentation/Project_Standards_Profile.md`](../Instruction_documentation/Project_Standards_Profile.md) |
 
@@ -74,16 +74,16 @@ flowchart TB
   subgraph PY["src/ridge — Python core"]
     CLI["cli.py [Implemented]"]
     SC["sidecar/ JSON-RPC over stdio [Planned M4]"]
-    APP["app services: case, jobs, export [Planned M1–M2]"]
+    APP["case/jobs.py app service [Implemented M1]; export [Planned M2]"]
     PIPE["pipeline/ pure extraction [Implemented]"]
     IO["image_io.py bounded decode/encode [Implemented]"]
-    CASE["case/ encrypted store [Planned M1]"]
-    CUST["custody/ hash-chained log [Planned M1]"]
-    REP["report/ JSON + Ed25519 [Planned M1–M2]"]
+    CASE["case/store.py encrypted store [Implemented M1]"]
+    CUST["case/custody.py hash-chained log [Implemented M1]"]
+    REP["case/jobs.py signed JSON report [Implemented M1]"]
     EXP["export/ 500 ppi, polarity, mirror [Planned M2]"]
     QLT["quality/ NFIQ 2 adapter [Planned M2]"]
     MIN["minutiae/ [Planned M3]"]
-    KEY["keys/ keystore + Argon2id [Planned M1]"]
+    KEY["case/keys.py + identity.py [Implemented M1]"]
   end
   WV -- "invoke (allow-listed)" --> RC
   RC -- "spawn + stdio" --> SC
@@ -130,7 +130,7 @@ Dependency rules (enforced by review now; an import-linter contract is planned):
 | `image_io` | `PIL`, `numpy`, `cv2` (encode only), `ridge.errors` | `pipeline`, `cli` |
 | `debug` | `image_io`, `numpy`, `cv2` | `cli` |
 | `cli` | everything above | — (nothing imports `cli`, except `__main__` and the shim) |
-| `case`, `custody`, `report`, `keys` [Planned] | `cryptography`, `argon2-cffi`, `keyring`, `ridge.errors` | `pipeline` (only app services orchestrate) |
+| `case/*` [Implemented M1] (`crypto`, `keys`, `identity`, `custody`, `store`, `jobs`, `verify`, `dispose`, `cli`) | `cryptography`, `argon2-cffi`, `keyring`, `rfc8785`, `ridge.errors`, `ridge.image_io`; `jobs` also `ridge.pipeline` | `cli` modules of other packages; nothing outside `case` imports `case.cli` |
 
 Files are kept to about 300 lines or fewer, and functions do one job. Documentation is never imported by runtime code.
 
@@ -157,7 +157,7 @@ sequenceDiagram
   C-->>U: one summary line per file; exit 0 / 1 (failures) / 2 (usage) / 3 (internal error)
 ```
 
-### 7.2 Case job (M1–M2) [Planned]
+### 7.2 Case job (M1) [Implemented; M2 export steps planned]
 
 1. `ridge case open` unlocks the case DEK: the passphrase goes through Argon2id to produce a KEK, combined with the keystore device secret (§9.2).
 2. The job loads the evidence blob by hash, decrypts and verifies it (AES-GCM tag plus SHA-256), then decodes it via `image_io` with limits.
@@ -173,39 +173,42 @@ sequenceDiagram
 - Each method has a strict schema (unknown fields rejected), an explicit allow-list of methods, and per-method size and time limits. The sidecar exits when stdin closes.
 - The WebView can only call allow-listed Tauri commands, which forward validated requests to the sidecar. It has no `fs`, `shell` or `http` capabilities.
 
-## 8. Data architecture [Planned M1–M2]
+## 8. Data architecture [Implemented M1]
 
 ### 8.1 Case store layout
 
 ```text
 <store_root>/                       examiner-chosen, on an FDE-protected volume
+  identity.json                     examiner Ed25519 public key + sealed private key (§9.3)
+  <case_uuid>.disposal.json         kept after disposal: no personal data (§8.2)
   <case_uuid>/
-    case.json.enc                   case metadata (reference, legal basis, retention, hold)
-    keys.json                       wrapped DEK(s) + KDF parameters + device-secret ID (no plaintext keys)
-    evidence/<sha256>.enc           original evidence, encrypted; never rewritten
-    artefacts/<sha256>.enc          derived outputs, debug images, exports-in-store
+    case.json                       schema, case id, KDF parameters, salt, wrapped DEK (no plaintext keys, no personal data)
+    meta.enc                        case reference, legal basis, retention date, legal hold (encrypted)
+    evidence/<keyed-name>.enc       original evidence, encrypted; never rewritten
+    artefacts/<keyed-name>.enc      derived outputs and debug images
     reports/<job_uuid>.json.enc     signed job report, encrypted (no pixels, but personal data by reference)
     reports/<job_uuid>.json.sig     detached Ed25519 signature over the plaintext canonical report
     custody.jsonl.enc               append-only hash-chained log; each line AES-GCM encrypted
     LOCK                            single-writer lock file
 ```
 
-Writes are atomic: write to a temporary file in the same directory, `fsync`, then `os.replace`. Evidence and artefacts are identified by the SHA-256 of their **plaintext**, computed before encryption. On disk they are named `HMAC-SHA256(name_key, sha256)` with `name_key` derived from the case DEK, so file names do not reveal whether a known image is in a store, yet duplicates are still detected. Verification needs the case unlocked (OQ-13).
+Writes are atomic and never replace existing blobs (`image_io.publish`). The custody log is the index of everything stored: listing, verification and export resolve items through it. Evidence and artefacts are identified by the SHA-256 of their **plaintext**, computed before encryption. On disk they are named `HMAC-SHA256(name_key, sha256)` with `name_key` derived from the case DEK, so file names do not reveal whether a known image is in a store, yet duplicates are still detected. Verification needs the case unlocked (OQ-13).
 
 ### 8.2 Encryption envelope
 
 | Item | Choice |
 | --- | --- |
 | Cipher | AES-256-GCM (`cryptography.hazmat.primitives.ciphers.aead.AESGCM`), 96-bit random nonce per file, single-shot (files are bounded by FR-9). |
-| Associated data | `ridge-v1 \| case_uuid \| role (evidence/artefact/meta) \| plaintext sha256`. A blob cannot be swapped between cases or roles. |
+| Associated data | `ridge-blob-v1 \| case_id \| role \| plaintext sha256` for blobs, `ridge-custody-v1 \| case_id \| seq` per custody line, `ridge-dek-v1 \| case_id` for the wrapped key. A blob cannot be swapped between cases, roles or positions. |
 | Format | `magic "RDG1" \| version \| nonce \| ciphertext+tag`. |
 | DEK | 256-bit from `secrets.token_bytes`, one per case. |
-| KEK | `HKDF-SHA256(Argon2id(passphrase, salt; t=3, m=256 MiB, p=4) ‖ device_secret, info="ridge-kek-v1")`. |
-| Device secret | 256-bit random, stored in the OS keystore via `keyring` (DPAPI / Keychain / Secret Service). |
-| Recovery | An optional recovery key (printed and sealed, lab-held) wraps a second copy of the DEK. Policy is decided by the Security Owner (OQ-12). |
-| Disposal | Crypto-erase: destroy the wrapped DEKs and the keystore entry, then delete the files. Disposal is logged. |
+| KEK | `HKDF-SHA256(Argon2id(passphrase, salt; t=3, m=256 MiB, p=4) ‖ device_secret, info="ridge-kek-v1\|<purpose>")`, purpose = `case\|<case_id>` or `identity`. Stored parameters are unauthenticated, so they are bounded both ways (t 3-10, m 64 MiB-1 GiB, p 1-16) before Argon2 runs. One examiner passphrase unlocks the identity and all of that examiner's cases (`init` checks this). |
+| Sub-keys | HKDF from the DEK: `ridge-data-v1` (blobs, metadata, reports), `ridge-names-v1` (keyed file names), `ridge-custody-v1` (custody lines). |
+| Device secret | 256-bit random, one per OS account, stored in the OS keystore via `keyring` (Windows Credential Locker / Keychain / Secret Service). |
+| Recovery | **Not implemented**: without the passphrase and the OS account a case is unrecoverable. An optional sealed recovery key waits for the Security Owner's decision (OQ-12). |
+| Disposal | `ridge-case dispose`: refused under legal hold or before the retention date (unless `--before-retention`); needs the case id typed back and a reason code from a fixed list. Order: (1) `case.json` becomes an `erasing` stub without the wrapped DEK (crypto-erasure), (2) the `<case_id>.disposal.json` record is published, (3) the folder is deleted; re-running finishes an interrupted disposal. The record holds the examiner's key id and the reason code, no names or free text. The device secret is shared by all cases of the account and is not deleted. |
 
-There is no custom cryptography: only library AEAD, KDF and signature primitives, with parameters recorded in `keys.json`.
+There is no custom cryptography: only library AEAD, KDF and signature primitives, with parameters recorded in `case.json` and `identity.json`.
 
 ### 8.3 Job report (JSON, ECMA-404) — schema outline
 
@@ -291,9 +294,9 @@ flowchart LR
 
 The full ASVS 5.0 L3 mapping (applicable chapters only, with N/A rationale for server-only chapters) is kept in the standards profile.
 
-### 9.3 Key and signing management [Planned M1]
+### 9.3 Key and signing management [Implemented M1]
 
-- The signing key is Ed25519, one per workstation or examiner (OQ-9). The private key is encrypted under the KEK, and the public key is exported for the lab registry (`ridge keys export-public`).
+- The signing key is Ed25519, one per store (`ridge-case identity init`), i.e. per examiner workstation until OQ-9 decides otherwise. The private key is sealed under an identity KEK (passphrase + device secret, purpose `identity`); `ridge-case identity show` prints the key id and public key for the lab registry. Reports and custody heads are verified against the store's identity key.
 - Rotation: new reports use the new key, and old reports remain verifiable with registered old public keys.
 - Passphrase policy follows the NIST SP 800-63B approach: at least 15 characters, checked against a breached-password list where available offline, with no composition rules. Argon2id parameters are recorded per case.
 
@@ -346,11 +349,11 @@ Test layers: characterization (live v0 run, bit-identical on every platform; per
 | ADR-001 | Offline-only: no network code in any component | Accepted | Biometric data, evidential use, workstation threat model (SEC-1). |
 | ADR-002 | Python core; Tauri v2 + React + TypeScript GUI talking to a Python sidecar over stdio JSON-RPC | Accepted | Keeps the existing algorithm; rich UI; no listening sockets; WebView isolated. |
 | ADR-003 | Pillow as the sole decoder with a format allow-list; headless OpenCV for processing only | Accepted | Removes decoder fallback and the exotic-plugin attack surface. |
-| ADR-004 | Per-case AES-256-GCM DEK wrapped by keystore secret + Argon2id passphrase (HKDF-combined) | Proposed | Two factors, portable libraries, crypto-erase on disposal. Needs Security Owner approval. |
-| ADR-005 | Content-addressed artefacts, hash-chained JSONL custody log, Ed25519-signed RFC 8785 reports | Proposed | Tamper evidence verifiable with standard tools. |
+| ADR-004 | Per-case AES-256-GCM DEK wrapped by keystore secret + Argon2id passphrase (HKDF-combined) | Accepted (implemented M1; Security Owner review pending) | Two factors, portable libraries, crypto-erase on disposal. Needs Security Owner approval. |
+| ADR-005 | Content-addressed artefacts, hash-chained JSONL custody log, Ed25519-signed RFC 8785 reports | Accepted (implemented M1; Security Owner review pending) | Tamper evidence verifiable with standard tools. |
 | ADR-006 | Hash-pinned locks, reproducible builds, release signing | Accepted | Reproducibility and supply-chain integrity. |
 | ADR-007 | `src/` layout, pure pipeline, I/O at the edges, ≤ 300-line modules | Accepted | Testability and reviewability; pack modularity rules. |
-| ADR-008 | Case store on the filesystem (files + JSONL) rather than SQLite, with keyed (HMAC) file names and all metadata, reports and custody lines encrypted | Proposed | Fewer moving parts; no plaintext personal data or image hashes on disk. Revisit if querying needs grow. |
+| ADR-008 | Case store on the filesystem (files + JSONL) rather than SQLite, with keyed (HMAC) file names and all metadata, reports and custody lines encrypted | Accepted (implemented M1; Security Owner review pending) | Fewer moving parts; no plaintext personal data or image hashes on disk. Revisit if querying needs grow. |
 | ADR-009 | Reproducibility and validation are per CPU architecture; behaviour preservation is proven against a live v0 run; goldens are stored per architecture (arm64 generated on a CI Apple silicon runner by the `golden` workflow) | Accepted | x86-64 and arm64 SIMD floating point legitimately differ (R-7, observed 2026-10-17); equality would always fail, so a measured cross-architecture envelope guards against further drift instead. |
 
 ADRs move to individual files under `docs/adr/` when they need more than a table row.

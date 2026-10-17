@@ -29,6 +29,10 @@ from ridge.pipeline import extract_fingerprint
 
 OUT_TAG = "_fingerprint"  # output: <photo>_fingerprint.png
 EXIT_OK, EXIT_FAILURES, EXIT_INTERNAL = 0, 1, 3
+RND_NOTICE = (
+    "note: R&D mode, not for casework: outputs are not encrypted, hashed or logged. "
+    "Use `ridge-case` for case material (PRD FR-27)."
+)
 
 
 def _warn(message: str) -> None:
@@ -150,6 +154,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap = build_parser()
     args = ap.parse_args(argv)
     limits = ReadLimits(max_bytes=int(args.max_input_mb * MiB), max_pixels=int(args.max_megapixels * 1e6))
+    _warn(RND_NOTICE)
 
     outdir = Path(args.outdir)
     try:
