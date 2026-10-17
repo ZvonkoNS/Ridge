@@ -134,7 +134,7 @@ Note for the Quality/Release Owner: on 2026-10-16 the Python devguide lists 3.13
 | Lint/format | Yes | `python tools/gate.py lint`, `python tools/gate.py format` | Yes | CI log |
 | Typecheck | Yes | `python tools/gate.py typecheck` | Yes | CI log |
 | Unit tests and coverage | Yes | `python tools/gate.py test` | Yes | CI log, coverage report |
-| Golden characterization | Yes (M0) | part of `test`: live v0 run (bit-identical, every platform) and per-architecture goldens `tests/golden/v0-<arch>.*` | Yes | CI log |
+| Golden characterization | Yes (M0) | part of `test`: live v0 run (bit-identical on each platform tested) and per-architecture goldens `tests/golden/v0-<arch>.*`; every platform in the full CI matrix per release, Apple silicon on pixel-affecting pull requests (`arm64.yml`) | Yes | CI log |
 | Determinism | Yes (M0) | part of `test` | Yes | CI log |
 | Hostile input (malformed, oversized, bombs, wrong format) | Yes (M0) | part of `test` | Yes | CI log |
 | Fuzzing of decoders | Yes (M1) | hypothesis in `test`; atheris campaigns scheduled | Findings block | CI artifacts |
@@ -150,6 +150,7 @@ Note for the Quality/Release Owner: on 2026-10-16 the Python devguide lists 3.13
 
 | Standard/control/rule | Reason | Risk | Compensating control | Owner | Approval | Expiration/follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
+| CI test matrix on every pull request (3 OS x Python 3.12-3.14) | Owner decision 2026-10-17: keep GitHub Actions usage to a minimum (account spending limit reached twice that day) | A platform- or version-specific defect is found later, at the next full-matrix run instead of on the pull request | Local `python tools/gate.py all` (Windows, 3.13) before every push; Linux 3.12 CI on every code pull request; Apple silicon pixel tests whenever pixel-affecting code changes; full matrix on demand and required for every release (`release_readiness_checklist.md`) | Quality/Release Owner (TBD) | Product owner, 2026-10-17 | Review when the account's Actions budget changes |
 | Named owners for all roles | Names not yet provided | No accountable approval of risk, releases or validation | No release beyond internal engineering builds; no casework | Product Owner (TBD) | Pending | Before M1 release; release blocker |
 | Encrypted case store (`forensic_evidence...` sections 2, 10) | Not implemented | Class E outputs written unencrypted | OS full-disk encryption (BitLocker, FileVault, LUKS) on every machine that handles outputs; outputs only on that volume; examiner deletes outputs per case retention | Security Owner (TBD) | Pending | **Closed for casework 2026-10-17 (M1, Handoff_3):** `ridge-case` stores evidence, outputs, reports and custody encrypted. The plain `ridge` command stays unencrypted R&D mode and says so (FR-27). |
 | Custody log and signed reports | Not implemented | No tamper-evident record of processing | Examiner records SHA-256 of inputs and outputs (`certutil -hashfile <f> SHA256`, `shasum -a 256`, `sha256sum`) and parameters in the lab case record | Forensic Quality Manager (TBD) | Pending | **Closed 2026-10-17 (M1, Handoff_3):** hash-chained encrypted custody log, Ed25519-signed RFC 8785 reports, `ridge-case verify`. Open: out-of-band countersigning (OQ-8). |

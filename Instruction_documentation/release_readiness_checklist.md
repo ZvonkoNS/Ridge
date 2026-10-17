@@ -29,7 +29,7 @@ python tools/gate.py all
 
 `all` covers `docs`, `lint`, `format`, `typecheck`, `test`, `sast`, `deps`, `secrets`, `licenses`, `sbom` (details in `testing_and_codex_quality_gates.md`).
 
-Also required in GitHub Actions for the release commit: CodeQL, dependency review, gitleaks, OpenSSF Scorecard result reviewed, test matrix on Windows, Linux and macOS runners.
+Also required in GitHub Actions for the release commit: CodeQL, dependency review, gitleaks, OpenSSF Scorecard result reviewed, the full test matrix on Windows, Linux and macOS runners (CI run with full = true, or the release tag), since pull requests run a reduced matrix.
 
 From M4 (GUI):
 
