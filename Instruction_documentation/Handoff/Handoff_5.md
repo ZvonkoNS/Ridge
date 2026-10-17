@@ -35,6 +35,14 @@ python -m pytest tests/test_case_export.py tests/test_case_store.py          # 3
 
 The full gate run on the integrated branch is recorded in the PR.
 
+**Review follow-up (PR #4, automated Codex review of `0bcbaf8`):**
+
+| Finding | Change |
+| --- | --- |
+| P1 invalid export settings failed after artefacts were stored, leaving an open job | Settings are validated before `job.start` (`validate_job_settings`); any failure after `job.start` closes the job with `job.end failed` (safe message or exception type only). Tests: `test_invalid_settings_are_refused_before_the_job_starts`, `test_any_failure_after_start_closes_the_job` |
+| P2 NFIQ 2 scored non-500-ppi exports | Recorded as not computed unless the export is 500 ppi. Test: `test_nfiq2_is_skipped_unless_the_export_is_500_ppi` |
+| P2 NFIQ 2 output buffered before the size check | Output is read while the tool runs and the tool is killed at the 1 MiB cap or the timeout. Test: `test_endless_output_is_cut_off_while_running` |
+
 ## 3. Forensic impact
 
 - Print pixels are unchanged. The export is a new artefact, and a test checks it equals the library's `make_comparison_export` for the same photo.

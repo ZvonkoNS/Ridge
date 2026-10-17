@@ -14,11 +14,13 @@ from PIL import Image
 
 import ridge.case.cli as case_cli
 from ridge import extract_fingerprint
+from ridge.case import jobs
 from ridge.case.cli import main
 from ridge.case.export_step import ExportOptions
 from ridge.case.identity import create_identity, unlock_identity
 from ridge.case.jobs import JobOutcome, JobParams, run_extraction_job
 from ridge.case.store import open_case
+from ridge.errors import ParameterError
 from ridge.export import make_comparison_export, scale_from_ridge_period
 from ridge.image_io import load_image
 from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, new_case, photo_file
@@ -147,3 +149,53 @@ def test_cli_extract_with_ruler_and_nfiq2(cli_case: Path, tmp_path: Path, capsys
 def test_cli_ruler_needs_a_single_photo(cli_case: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["extract", str(cli_case), "--all", "--ruler", "0", "0", "200", "0", "10"]) == 1
     assert "exactly one --evidence" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "nfiq2"),
+    [
+        ({"export": ExportOptions(target_ppi=0.0)}, None),
+        ({"export": ExportOptions(ruler=(5.0, 5.0, 5.0, 5.0, 10.0))}, None),  # coincident ruler points
+        ({}, ["relative/nfiq2.exe"]),
+    ],
+)
+def test_invalid_settings_are_refused_before_the_job_starts(
+    case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path, kwargs: dict[str, Any], nfiq2: list[str] | None
+) -> None:
+    signer = unlock_identity(case_dir.parent, PASSPHRASE, keystore)
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        evidence = case.import_evidence(photo_file(tmp_path / "in"))
+        before = len(case.entries)
+        with pytest.raises(ParameterError):
+            run_extraction_job(case, evidence.sha256, signer, JobParams(**kwargs), nfiq2_command=nfiq2)
+        assert len(case.entries) == before  # no job.start, nothing stored
+        assert [i.role for i in case.items()] == ["evidence"]
+
+
+def test_any_failure_after_start_closes_the_job(
+    case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr(jobs, "export_and_score", broken)
+    signer = unlock_identity(case_dir.parent, PASSPHRASE, keystore)
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        evidence = case.import_evidence(photo_file(tmp_path / "in"))
+        with pytest.raises(RuntimeError):
+            run_extraction_job(case, evidence.sha256, signer, JobParams())
+        last = case.entries[-1]
+        assert (last["action"], last["result"]) == ("job.end", "failed")
+        assert last["error"] == "internal error (RuntimeError)"
+
+
+def test_nfiq2_is_skipped_unless_the_export_is_500_ppi(
+    case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path
+) -> None:
+    command = fake_nfiq2(tmp_path, "42")
+    outcome, _ = run_job(
+        case_dir, keystore, photo_file(tmp_path / "in"), export=ExportOptions(target_ppi=1000.0), nfiq2_command=command
+    )
+    nfiq2 = outcome.report["quality"]["nfiq2"]
+    assert nfiq2["computed"] is False
+    assert "500 ppi" in nfiq2["reason"]
