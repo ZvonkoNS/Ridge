@@ -82,6 +82,7 @@ ridge-case import D:/ridge-store/<case-id> photo1.jpg photo2.heic
 ridge-case extract D:/ridge-store/<case-id> --all       # print + 500 ppi comparison export; same options as ridge
 ridge-case extract D:/ridge-store/<case-id> --evidence <sha> --ruler 12 40 812 44 40   # ruler: 2 points 40 mm apart
 ridge-case extract D:/ridge-store/<case-id> --all --nfiq2 "C:/Program Files/NFIQ2/bin/nfiq2.exe"
+ridge-case extract D:/ridge-store/<case-id> --all --minutiae   # + automatic minutiae (unvalidated)
 ridge-case list D:/ridge-store/<case-id>                # evidence, outputs, jobs
 ridge-case export D:/ridge-store/<case-id> <sha> --to print.png   # the only way plaintext leaves the store (logged)
 ridge-case verify D:/ridge-store/<case-id>              # hashes, custody chain, report signatures
@@ -98,6 +99,13 @@ to be validated); the report records the method and uncertainty. With `--nfiq2` 
 
 Passphrases (at least 15 characters) are only read interactively. There is no recovery
 key yet: losing the passphrase or the OS account makes a case unreadable (PRD OQ-12).
+
+## Desktop GUI sidecar (`ridge-sidecar`)
+
+The future Tauri desktop GUI talks to Ridge through `ridge-sidecar`. It is a child process
+that speaks JSON-RPC 2.0, one message per line, on stdin/stdout, and never opens a network
+socket. Methods and their schemas are in `docs/architecture.md` §7.3. The GUI itself is not
+built yet.
 
 ## How it works
 
