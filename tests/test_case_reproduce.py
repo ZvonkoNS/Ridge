@@ -76,15 +76,15 @@ def test_a_changed_result_is_a_logged_mismatch(
         return result
 
     monkeypatch.setattr(jobs, "extract_fingerprint", drifted)
-    monkeypatch.setattr(jobs, "environment", lambda: {**env, "machine": "arm64"})
+    monkeypatch.setattr(jobs, "environment", lambda: {**env, "machine": "not-a-real-architecture"})
     result = reproduce(case_dir, keystore, job_id)
     assert not result.identical
     assert any(d.startswith("print:") for d in result.differing)
-    assert result.environment_changes["machine"][1] == "arm64"
+    assert result.environment_changes["machine"][1] == "not-a-real-architecture"
     with open_case(case_dir, PASSPHRASE, keystore) as case:
         entry = next(e for e in reversed(case.entries) if e["action"] == "job.reproduce")
     assert entry["result"] == "mismatch"
-    assert entry["environment_changes"]["machine"][1] == "arm64"
+    assert entry["environment_changes"]["machine"][1] == "not-a-real-architecture"
 
 
 def test_missing_and_extra_outputs(
