@@ -186,9 +186,17 @@ def test_job_is_reproducible_signed_and_complete(case_dir: Path, keystore: Memor
     assert verify_signature(unb64(report["signer"]["public_key"]), signature, canonical)
     assert report["input"]["sha256"] == evidence.sha256
     assert report["input"]["format"] == "PNG"
-    assert report["parameters"] == {"period": None, "min_quality": 0.25, "flip": False, "crop": True, "debug": True}
-    assert {o["role"] for o in report["outputs"]} == {"print", "debug"}
-    assert len(report["outputs"]) == 5
+    export_params = {"enabled": True, "mirror": True, "target_ppi": 500, "ruler": None}
+    assert report["parameters"] == {
+        "period": None,
+        "min_quality": 0.25,
+        "flip": False,
+        "crop": True,
+        "debug": True,
+        "export": export_params,
+    }
+    assert {o["role"] for o in report["outputs"]} == {"print", "debug", "export"}
+    assert len(report["outputs"]) == 6
     assert "identif" in report["disclaimer"]
     expected = extract_fingerprint(load_image(src))
     assert report["measurements"]["ridge_period_px"] == expected.period

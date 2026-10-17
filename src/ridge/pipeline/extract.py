@@ -39,6 +39,10 @@ class ExtractionResult:
     period: float  # ridge spacing in pixels in the photo
     found_finger: bool  # False: skin colour did not separate, the whole photo was searched
     debug: DebugImages | None = None
+    # Output pixels per photo pixel: max(1, WORK_PERIOD / period) when cropping, 1.0 with
+    # crop=False. Nominal: rounding the output size to whole pixels changes the achieved
+    # scale by less than one pixel over the image. Export scaling (500 ppi) depends on it.
+    output_scale: float = 1.0
 
 
 def _check_arguments(bgr: object, period: float | None, min_quality: float) -> None:
@@ -159,4 +163,6 @@ def extract_fingerprint(
             quality=_to8(quality, 0, 1),
         )
 
-    return ExtractionResult(image=result, period=period, found_finger=found_finger, debug=debug_images)
+    return ExtractionResult(
+        image=result, period=period, found_finger=found_finger, debug=debug_images, output_scale=float(out_scale)
+    )

@@ -74,14 +74,14 @@ flowchart TB
   subgraph PY["src/ridge — Python core"]
     CLI["cli.py [Implemented]"]
     SC["sidecar/ JSON-RPC over stdio [Planned M4]"]
-    APP["case/jobs.py app service [Implemented M1]; export [Planned M2]"]
+    APP["case/jobs.py + export_step.py app services [Implemented M1-M2]"]
     PIPE["pipeline/ pure extraction [Implemented]"]
     IO["image_io.py bounded decode/encode [Implemented]"]
     CASE["case/store.py encrypted store [Implemented M1]"]
     CUST["case/custody.py hash-chained log [Implemented M1]"]
     REP["case/jobs.py signed JSON report [Implemented M1]"]
-    EXP["export/ 500 ppi, polarity, mirror [Planned M2]"]
-    QLT["quality/ NFIQ 2 adapter [Planned M2]"]
+    EXP["export/ 500 ppi, polarity, mirror [Implemented M2]"]
+    QLT["quality/ NFIQ 2 adapter [Implemented M2]"]
     MIN["minutiae/ [Planned M3]"]
     KEY["case/keys.py + identity.py [Implemented M1]"]
   end
@@ -130,7 +130,8 @@ Dependency rules (enforced by review now; an import-linter contract is planned):
 | `image_io` | `PIL`, `numpy`, `cv2` (encode only), `ridge.errors` | `pipeline`, `cli` |
 | `debug` | `image_io`, `numpy`, `cv2` | `cli` |
 | `cli` | everything above | — (nothing imports `cli`, except `__main__` and the shim) |
-| `case/*` [Implemented M1] (`crypto`, `keys`, `identity`, `custody`, `store`, `jobs`, `verify`, `dispose`, `cli`) | `cryptography`, `argon2-cffi`, `keyring`, `rfc8785`, `ridge.errors`, `ridge.image_io`; `jobs` also `ridge.pipeline` | `cli` modules of other packages; nothing outside `case` imports `case.cli` |
+| `export/*`, `quality/*` [Implemented M2] | `numpy`, `cv2`, `PIL` (PNG pHYs), `ridge.errors`, `ridge.pipeline` (result type only); `quality` runs one configured external tool (absolute path, argv list, no shell, timeout) | file I/O except the NFIQ 2 temporary copy in a caller-given folder; `case`, `cli` |
+| `case/*` [Implemented M1-M2] (`crypto`, `keys`, `identity`, `custody`, `store`, `jobs`, `export_step`, `verify`, `dispose`, `cli`) | `cryptography`, `argon2-cffi`, `keyring`, `rfc8785`, `ridge.errors`, `ridge.image_io`; `jobs` also `ridge.pipeline` | `cli` modules of other packages; nothing outside `case` imports `case.cli` |
 
 Files are kept to about 300 lines or fewer, and functions do one job. Documentation is never imported by runtime code.
 
@@ -219,21 +220,24 @@ There is no custom cryptography: only library AEAD, KDF and signature primitives
   "case_id": "uuid",
   "case_reference": "string",
   "created_utc": "2026-10-16T19:12:00Z",
-  "ridge": {"version": "0.2.0", "commit": "3441cf8…", "platform": "Windows-11-…", "python": "3.13.5",
-            "dependencies": {"numpy": "…", "opencv-python-headless": "…", "pillow": "…"}},
-  "input": {"sha256": "…", "format": "JPEG", "size_px": [4032, 3024], "exif_orientation": 6},
-  "parameters": {"period": null, "min_quality": 0.25, "flip": false, "crop": true},
-  "measurements": {"ridge_period_px": 17.9, "found_finger": true, "region_area_px": 812345},
-  "transforms": ["polarity:dark-ridges", "mirror:horizontal", "scale:500ppi:calibrated"],
-  "scale": {"method": "ruler|ridge-period", "factor": 0.87, "uncertainty_pct": 2.0},
-  "quality": {"nfiq2": {"score": 54, "version": "2.x"}},
-  "outputs": [{"role": "export", "sha256": "…", "ppi": 500}],
-  "custody_head": "sha256 of the custody entry that closed the job",
-  "disclaimer": "Image enhancement only. No identification or conclusion is made by Ridge."
+  "ridge": {"version": "0.2.0", "python": "3.13.5", "platform": "Windows-11-…", "machine": "AMD64",
+            "dependencies": {"numpy": "…", "opencv": "…", "pillow": "…", "cryptography": "…"}},
+  "input": {"sha256": "…", "label": "IMG_0042.HEIC", "format": "HEIF", "size_px": [4032, 3024]},
+  "parameters": {"period": null, "min_quality": 0.25, "flip": false, "crop": true, "debug": false,
+                 "export": {"enabled": true, "mirror": true, "target_ppi": 500, "ruler": [12, 40, 812, 44, 40]}},
+  "measurements": {"ridge_period_px": 17.9, "found_finger": true, "output_scale": 1.0},
+  "export": {"produced": true, "sha256": "…", "ppi": 500, "factor": 0.98,
+             "transforms": ["polarity:dark-ridges", "mirror:horizontal", "scale:500ppi:ruler"],
+             "scale": {"method": "ruler", "px_per_mm": 20.0, "uncertainty_pct": 0.25}},
+  "quality": {"nfiq2": {"computed": true, "score": 54, "version": "…", "label": "indicative only: …"}},
+  "outputs": [{"role": "print|debug|export", "label": "…", "sha256": "…", "size": 12345}],
+  "custody_head": "head of the custody chain when the report was built",
+  "signer": {"key_id": "…", "public_key": "base64 Ed25519"},
+  "disclaimer": "Image enhancement only. Ridge does not identify anyone and draws no conclusions."
 }
 ```
 
-All timestamps are ISO 8601 UTC with a `Z` suffix. The report is canonicalised with RFC 8785 before signing.
+All timestamps are ISO 8601 UTC with a `Z` suffix. The report is canonicalised with RFC 8785 before signing. Without a ruler the scale is `ridge-period` (assumed 0.47 mm ridge distance, ±15 %, both to be validated, `assumed_ridge_period_mm` recorded). An impossible scale gives `"export": {"produced": false, "reason": …}` without failing the job; `--no-export` gives `null`. NFIQ 2 that is not configured or fails gives `{"computed": false, "reason": …}`.
 
 ### 8.4 Custody log entry
 

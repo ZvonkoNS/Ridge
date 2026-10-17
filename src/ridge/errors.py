@@ -79,3 +79,19 @@ class CaseLockedError(CaseError):
 
 class RetentionError(CaseError):
     """Disposal refused: legal hold, retention period, or missing confirmation."""
+
+
+class ExportError(RidgeError):
+    """A comparison export cannot be produced with the requested scale or resolution."""
+
+
+class ExportTooLargeError(ExportError):
+    """The export would exceed the pixel limit; the scale estimate is the likely cause."""
+
+
+class QualityToolError(RidgeError):
+    """The external quality tool (NFIQ 2) produced no usable score.
+
+    Expected and not a job failure: callers record the score as "not computed: <message>"
+    and carry on. The message never contains tool output or image data.
+    """
