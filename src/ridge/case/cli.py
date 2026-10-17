@@ -3,11 +3,14 @@
     ridge-case identity init --store STORE
     ridge-case init --store STORE --reference REF --legal-basis TEXT --retention YYYY-MM-DD
     ridge-case import CASE photo.jpg [more...]
+    ridge-case import-reference CASE candidate.png --source "NAFIS candidate 3"
+    ridge-case compare CASE EXPORT_SHA REFERENCE_SHA --to sheet.png [--reference-ppi 500]
     ridge-case extract CASE --all            (or --evidence SHA ...) [extraction options]
     ridge-case list CASE | log CASE | verify CASE | jobs CASE
     ridge-case log CASE --to PATH [--overwrite]     (signed processing record for the DPO)
     ridge-case check-log RECORD.json [--key-id KEY_ID]                     (no case store needed)
     ridge-case report CASE JOB [--json | --to PATH [--overwrite]]
+    ridge-case reproduce CASE JOB                (re-run from the report; compare every output)
     ridge-case check-report REPORT.json [--sig PATH] [--key-id KEY_ID]     (no case store needed)
     ridge-case export CASE SHA --to PATH [--overwrite]
     ridge-case hold CASE --on|--off --reason TEXT
@@ -29,6 +32,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from ridge.case.compare import SHEET_PPI, export_sheet
 from ridge.case.dispose import REASONS, dispose_case
 from ridge.case.export_step import ExportOptions
 from ridge.case.identity import create_identity, public_identity, unlock_identity
@@ -36,6 +40,7 @@ from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.keys import KdfParams, KeyringKeyStore, KeyStore, b64
 from ridge.case.processing_record import check_exported_log, export_log
 from ridge.case.reports import check_exported_report, export_report, list_jobs, load_report, printable, render_report
+from ridge.case.reproduce import reproduce_job
 from ridge.case.store import create_case, open_case
 from ridge.case.verify import verify_case
 from ridge.errors import ParameterError, RidgeError
@@ -88,6 +93,32 @@ def cmd_import(args: argparse.Namespace) -> None:
         for path in args.files:
             item = case.import_evidence(path)
             _say(f"{path} -> evidence {item.sha256}  ({item.size} bytes)")
+
+
+def cmd_import_reference(args: argparse.Namespace) -> None:
+    """Import NAFIS/AFIS candidate images for side-by-side viewing (never processed)."""
+    with open_case(args.case, read_passphrase(), KEYSTORE_FACTORY()) as case:
+        for path in args.files:
+            item = case.import_reference(path, args.source)
+            _say(f"{path} -> reference {item.sha256}  ({item.size} bytes)")
+
+
+def cmd_compare(args: argparse.Namespace) -> None:
+    """Write a side-by-side sheet of an export and a reference at equal scale (logged)."""
+    with open_case(args.case, read_passphrase(), KEYSTORE_FACTORY()) as case:
+        sheet = export_sheet(
+            case,
+            args.export,
+            args.reference,
+            args.to,
+            reference_ppi=args.reference_ppi,
+            ppi=args.ppi,
+            overwrite=args.overwrite,
+        )
+    _say(
+        f"comparison sheet {sheet.sha256[:12]} written to {args.to} at {sheet.ppi:g} ppi "
+        f"(reference {sheet.reference_ppi:g} ppi from {sheet.reference_ppi_source}); view aid only, no matching"
+    )
 
 
 def cmd_extract(args: argparse.Namespace) -> None:
@@ -194,6 +225,27 @@ def cmd_report(args: argparse.Namespace) -> None:
             return
         signed = load_report(case, args.case.parent, args.job)
     _say(signed.canonical.decode("utf-8") if args.json else render_report(signed.report, signed.key_id))
+
+
+def cmd_reproduce(args: argparse.Namespace) -> int:
+    """Re-run a signed job from its report and compare every output (exit 1 on any difference)."""
+    passphrase, keystore = read_passphrase(), KEYSTORE_FACTORY()
+    signer = unlock_identity(args.case.parent, passphrase, keystore)
+    nfiq2 = [str(args.nfiq2), *args.nfiq2_arg] if args.nfiq2 else None
+    with open_case(args.case, passphrase, keystore) as case:
+        result = reproduce_job(case, args.case.parent, signer, args.job, nfiq2_command=nfiq2)
+    for key, (before, now) in result.environment_changes.items():
+        _say(f"environment changed: {key}: {printable(before)} -> {printable(now)}")
+    if result.identical:
+        _say(
+            f"reproduced: job {result.original_job} re-run as {result.new_job}, {len(result.matched)} identical outputs"
+        )
+        return 0
+    for label, items in (("differs", result.differing), ("missing", result.missing), ("extra", result.extra)):
+        for item in items:
+            print(f"{label}: {printable(item)}", file=sys.stderr)  # noqa: T201
+    _say(f"NOT reproduced: job {result.original_job} re-run as {result.new_job}; {len(result.matched)} outputs match")
+    return 1
 
 
 def cmd_check_report(args: argparse.Namespace) -> int:
@@ -335,6 +387,20 @@ def _add_case_commands(sub: Any) -> None:
 
 
 def _add_report_commands(sub: Any) -> None:
+    p = sub.add_parser("import-reference", help="import NAFIS/AFIS candidate images (view only, never processed)")
+    p.add_argument("case", type=Path)
+    p.add_argument("files", type=Path, nargs="+")
+    p.add_argument("--source", required=True, help="where the image came from, e.g. 'NAFIS candidate 3'")
+    p.set_defaults(func=cmd_import_reference)
+    p = sub.add_parser("compare", help="side-by-side sheet of an export and a reference at equal scale")
+    p.add_argument("case", type=Path)
+    p.add_argument("export", metavar="EXPORT_SHA")
+    p.add_argument("reference", metavar="REFERENCE_SHA")
+    p.add_argument("--to", type=Path, required=True)
+    p.add_argument("--reference-ppi", type=float, help="the reference's resolution if its file does not declare it")
+    p.add_argument("--ppi", type=float, default=SHEET_PPI, help=f"sheet resolution (default {SHEET_PPI:g})")
+    p.add_argument("--overwrite", action="store_true")
+    p.set_defaults(func=cmd_compare)
     p = sub.add_parser("report", help="show or export a job's signed report (verified first)")
     p.add_argument("case", type=Path)
     p.add_argument("job", help="job id, or its first 8 or more characters")
@@ -343,6 +409,12 @@ def _add_report_commands(sub: Any) -> None:
     shown.add_argument("--to", type=Path, help="export the report and its detached signature (PATH.sig)")
     p.add_argument("--overwrite", action="store_true")
     p.set_defaults(func=cmd_report)
+    p = sub.add_parser("reproduce", help="re-run a signed job from its report and compare every output")
+    p.add_argument("case", type=Path)
+    p.add_argument("job", help="job id, or its first 8 or more characters")
+    p.add_argument("--nfiq2", type=Path, help="absolute path of the NIST NFIQ 2 executable (score is not compared)")
+    p.add_argument("--nfiq2-arg", action="append", default=[], help="extra argument for the NFIQ 2 command")
+    p.set_defaults(func=cmd_reproduce)
     p = sub.add_parser("check-report", help="verify an exported report without the case store")
     p.add_argument("report", type=Path)
     p.add_argument("--sig", type=Path, help="detached signature (default: REPORT.sig)")

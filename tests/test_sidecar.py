@@ -9,7 +9,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pytest
+from PIL import Image
 
 from ridge.case.identity import create_identity
 from ridge.case.processing_record import check_exported_log
@@ -166,11 +168,22 @@ def test_full_workflow(session: Session, case_dir: Path, tmp_path: Path) -> None
     assert shown_report["verified"] is True
     assert shown_report["report"]["export"]["scale"]["method"] == "ruler"
     assert error_code(call(session, "report.get", {"job_id": "../../x"})) == APPLICATION_ERROR
+    again = call(session, "job.reproduce", {"job_id": job["job_id"]})["result"]
+    assert (again["identical"], again["original_job"]) == (True, job["job_id"])
     report_dest = (tmp_path / "report.json").resolve()
     saved = call(session, "report.export", {"job_id": job["job_id"], "dest": str(report_dest)})["result"]
     assert saved["signature"] == f"{report_dest}.sig"
     assert check_exported_report(report_dest, expected_key_id=saved["key_id"]).job_id == job["job_id"]
     assert error_code(call(session, "report.export", {"job_id": job["job_id"], "dest": "r.json"})) == APPLICATION_ERROR
+    candidate = tmp_path / "candidate.png"
+    Image.fromarray(np.full((100, 80), 128, np.uint8)).save(candidate, dpi=(500, 500))
+    reference = call(session, "case.import_reference", {"path": str(candidate.resolve()), "source": "NAFIS 1"})
+    assert (reference["result"]["role"], reference["result"]["source"]) == ("reference", "NAFIS 1")
+    export_sha = next(o["sha256"] for o in job["outputs"] if o["role"] == "export")
+    sheet_dest = str((tmp_path / "sheet.png").resolve())
+    params = {"export": export_sha, "reference": reference["result"]["sha256"], "dest": sheet_dest}
+    assert call(session, "compare.export", params)["result"]["reference_ppi_source"] == "file"
+    assert error_code(call(session, "compare.export", params)) == APPLICATION_ERROR  # no silent overwrite
     record = (tmp_path / "record.json").resolve()
     logged = call(session, "log.export", {"dest": str(record)})["result"]
     assert check_exported_log(record, expected_key_id=logged["key_id"]).entries == logged["entries"]
