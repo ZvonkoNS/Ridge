@@ -55,3 +55,11 @@ class NoRidgePatternError(ExtractionError):
 
 class WorkAreaTooLargeError(ExtractionError):
     """At this ridge spacing the finger area would need too much memory to process."""
+
+
+class ExportError(RidgeError):
+    """A comparison export cannot be produced with the requested scale or resolution."""
+
+
+class ExportTooLargeError(ExportError):
+    """The export would exceed the pixel limit; the scale estimate is the likely cause."""
