@@ -262,6 +262,9 @@ def test_first_run_creates_identity_and_case(keystore: MemoryKeyStore, tmp_path:
         "passphrase": PASSPHRASE,
     }
     case_id = call(session, "case.create", params)["result"]["case_id"]
+    (listed,) = call(session, "store.cases", {"store": store})["result"]
+    assert (listed["case_id"], listed["state"]) == (case_id, "active")
+    assert error_code(call(session, "store.cases", {"store": "relative"})) == APPLICATION_ERROR
     unlocked = call(session, "session.unlock", {"store": store, "case_id": case_id, "passphrase": PASSPHRASE})
     assert unlocked["result"]["reference"] == "KT-2026-9"
     for bad in ({"retention_until": "next year"}, {"store": "relative"}, {"passphrase": "wrong passphrase 123"}):

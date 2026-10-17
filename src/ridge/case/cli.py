@@ -2,10 +2,11 @@
 
     ridge-case identity init --store STORE
     ridge-case init --store STORE --reference REF --legal-basis TEXT --retention YYYY-MM-DD
+    ridge-case cases --store STORE              (ids and states only; no passphrase needed)
     ridge-case import CASE photo.jpg [more...]
     ridge-case import-reference CASE candidate.png --source "NAFIS candidate 3"
     ridge-case compare CASE EXPORT_SHA REFERENCE_SHA --to sheet.png [--reference-ppi 500]
-    ridge-case extract CASE --all            (or --evidence SHA ...) [extraction options]
+    ridge-case extract CASE --all            (or --evidence SHA ...) [--keep-going] [extraction options]
     ridge-case list CASE | log CASE | verify CASE | jobs CASE
     ridge-case log CASE --to PATH [--overwrite]     (signed processing record for the DPO)
     ridge-case check-log RECORD.json [--key-id KEY_ID]                     (no case store needed)
@@ -38,6 +39,7 @@ from ridge.case.export_step import ExportOptions
 from ridge.case.identity import create_identity, public_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.keys import KdfParams, KeyringKeyStore, KeyStore, b64
+from ridge.case.listing import list_cases
 from ridge.case.processing_record import check_exported_log, export_log
 from ridge.case.reports import check_exported_report, export_report, list_jobs, load_report, printable, render_report
 from ridge.case.reproduce import reproduce_job
@@ -121,8 +123,18 @@ def cmd_compare(args: argparse.Namespace) -> None:
     )
 
 
-def cmd_extract(args: argparse.Namespace) -> None:
-    """Run extraction jobs on evidence."""
+def cmd_cases(args: argparse.Namespace) -> None:
+    """List the cases of a store without unlocking anything."""
+    cases = list_cases(args.store)
+    if not cases:
+        _say("no cases")
+    for case in cases:
+        when = case.created_utc or case.disposed_utc or "-"
+        _say(f"{case.case_id}  {case.state:8}  {when}")
+
+
+def cmd_extract(args: argparse.Namespace) -> int:
+    """Run extraction jobs on evidence (with --keep-going, a refused photo does not stop the batch)."""
     passphrase, keystore = read_passphrase(), KEYSTORE_FACTORY()
     signer = unlock_identity(args.case.parent, passphrase, keystore)
     if args.ruler and (args.all or len(args.evidence) != 1):
@@ -139,9 +151,20 @@ def cmd_extract(args: argparse.Namespace) -> None:
         targets = [i.sha256 for i in case.items() if i.role == "evidence"] if args.all else args.evidence
         if not targets:
             raise ParameterError("no evidence selected (use --all or --evidence SHA)")
+        failed = 0
         for sha in targets:
-            outcome = run_extraction_job(case, sha, signer, params, nfiq2_command=nfiq2)
+            try:
+                outcome = run_extraction_job(case, sha, signer, params, nfiq2_command=nfiq2)
+            except RidgeError as exc:  # logged as a failed job; internal errors still stop the batch
+                if not args.keep_going:
+                    raise
+                failed += 1
+                print(f"ridge-case: {sha[:12]}: {exc}", file=sys.stderr)  # noqa: T201
+                continue
             _say(_job_summary(sha, outcome.job_id, outcome.report, len(outcome.outputs)))
+    if failed:
+        _say(f"{failed} of {len(targets)} job(s) failed (see the messages above and `ridge-case jobs`)")
+    return 1 if failed else 0
 
 
 def _job_summary(sha: str, job_id: str, report: dict[str, Any], outputs: int) -> str:
@@ -318,6 +341,9 @@ def _add_store_commands(sub: Any) -> None:
     p.add_argument("action", choices=["init", "show"])
     p.add_argument("--store", type=Path, required=True)
     p.set_defaults(func=cmd_identity)
+    p = sub.add_parser("cases", help="list the cases of a store (no passphrase needed)")
+    p.add_argument("--store", type=Path, required=True)
+    p.set_defaults(func=cmd_cases)
     p = sub.add_parser("init", help="create a case")
     p.add_argument("--store", type=Path, required=True)
     p.add_argument("--reference", required=True, help="case reference (stored encrypted)")
@@ -349,6 +375,7 @@ def _add_case_commands(sub: Any) -> None:
     p.add_argument("--flip", action="store_true")
     p.add_argument("--no-crop", action="store_true")
     p.add_argument("--debug", action="store_true")
+    p.add_argument("--keep-going", action="store_true", help="continue with the next photo when one is refused")
     p.add_argument("--no-export", action="store_true", help="skip the 500 ppi comparison export")
     p.add_argument("--no-mirror", action="store_true", help="do not mirror the export (photo already mirrored)")
     p.add_argument("--ppi", type=float, default=500.0, help="export resolution (default 500)")
