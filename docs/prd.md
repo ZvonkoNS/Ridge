@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/prd.md` |
-| Version | 0.9 (draft for owner review; M0-M3 and the M4 sidecar implemented, validation metrics tool and verified report access and the signed processing record added, see `Instruction_documentation/Handoff/Handoff_9.md`) |
+| Version | 0.10 (draft for owner review; M0-M3 and the M4 sidecar implemented, validation metrics tool and verified report access, the signed processing record, reference comparison and reproduction check added, see `Instruction_documentation/Handoff/Handoff_10.md`) |
 | Date | 2026-10-17 |
 | Status | Draft. Not approved. Not approved for casework. |
 | Product Owner | TBD (named owner required, see §17) |
@@ -167,7 +167,7 @@ Day 7 is reserved for the security review, release candidate and handoff.
 | FR-31 | Ridge MUST normalise exports to 500 ppi using (a) a scale calibration from a ruler in the photo when available, else (b) the measured ridge period with a documented assumed inter-ridge distance, and MUST state which method was used and its uncertainty. | M | M2 | Report contains scale method, factor and uncertainty; calibrated fixtures land within ±2% of the target scale. |
 | FR-32 | Ridge MUST export lossless 8-bit grayscale PNG (default) with the resolution recorded; other formats (e.g. WSQ, ANSI/NIST-ITL, ISO/IEC 39794-4) follow OQ-4. | M | M2 | Exported PNG carries a pHYs chunk at 500 ppi and no source metadata. |
 | FR-33 | Ridge SHOULD compute an NFIQ 2 score (ISO/IEC 29794-4) per export using the NIST reference implementation and record its version. | S | M2 | Score and version appear in the report; missing tool → recorded "not computed", not a failure. |
-| FR-34 | The job report MUST record: Ridge version and commit, dependency versions, platform, all parameters, measured ridge period, region statistics, input/output hashes, transforms and timestamps. | M | M2 | Schema test; reproduction from the report alone yields an identical output. |
+| FR-34 | The job report MUST record: Ridge version and commit, dependency versions, platform, all parameters, measured ridge period, region statistics, input/output hashes, transforms and timestamps. | M | M2 | Schema test; reproduction from the report alone yields an identical output (`ridge-case reproduce` re-runs a signed job from its report and compares every output hash, implemented 2026-10-17). |
 
 ### 8.5 Minutiae and exchange (M3)
 
@@ -182,7 +182,7 @@ Day 7 is reserved for the security review, release candidate and handoff.
 | --- | --- | --- | --- | --- |
 | FR-50 | The GUI MUST provide case open/create, evidence import, job run with parameters, side-by-side original/region/result review, export and verify. | M | M4 | E2E tests for each flow; denial paths (locked case, failed verify). |
 | FR-51 | The GUI MUST support two-point scale calibration on a ruler visible in the photo. | M | M4 | Calibrated factor flows into FR-31. |
-| FR-52 | The GUI SHOULD show an imported NAFIS/AFIS candidate image beside the Ridge export for manual comparison (view only, no matching). | S | M4 | Imported image is hashed and logged like evidence. |
+| FR-52 | The GUI SHOULD show an imported NAFIS/AFIS candidate image beside the Ridge export for manual comparison (view only, no matching). | S | M4 | Imported image is hashed and logged like evidence. Back end implemented 2026-10-17: `ridge-case import-reference`, `ridge-case compare` (equal-scale sheet with 10 mm bars; resolution from the file or the examiner, never guessed), sidecar `case.import_reference` / `compare.export`. |
 | FR-53 | The GUI MUST meet WCAG 2.2 AA for its controls and MUST respect `prefers-reduced-motion`. | M | M4 | Automated a11y checks plus a keyboard-only walkthrough. |
 
 ## 9. Security and privacy requirements

@@ -23,12 +23,14 @@ import cv2
 
 import ridge
 from ridge.arrays import ImageU8
+from ridge.case.compare import SHEET_PPI, export_sheet
 from ridge.case.export_step import ExportOptions
 from ridge.case.identity import Signer, create_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.keys import KdfParams, KeyringKeyStore, KeyStore, b64
 from ridge.case.processing_record import export_log
 from ridge.case.reports import export_report, list_jobs, load_report, signature_path
+from ridge.case.reproduce import reproduce_job
 from ridge.case.store import OpenCase, StoredItem, create_case, open_case
 from ridge.case.verify import verify_case
 from ridge.errors import CaseError, ParameterError
@@ -82,7 +84,14 @@ def _absolute(value: str, what: str) -> Path:
 
 
 def _item(i: StoredItem) -> dict[str, Json]:
-    return {"sha256": i.sha256, "role": i.role, "size": i.size, "label": i.label, "job_id": i.job_id}
+    return {
+        "sha256": i.sha256,
+        "role": i.role,
+        "size": i.size,
+        "label": i.label,
+        "job_id": i.job_id,
+        "source": i.source,
+    }
 
 
 def version(session: Session, params: dict[str, Json]) -> Json:
@@ -166,6 +175,34 @@ def import_evidence(session: Session, params: dict[str, Json]) -> Json:
     return _item(case.import_evidence(_absolute(params["path"], "path")))
 
 
+def import_reference(session: Session, params: dict[str, Json]) -> Json:
+    """Import a NAFIS/AFIS candidate image chosen in a native file dialog (view only)."""
+    case, _ = session.require()
+    return _item(case.import_reference(_absolute(params["path"], "path"), params["source"]))
+
+
+def compare_export(session: Session, params: dict[str, Json]) -> Json:
+    """Write a side-by-side sheet of an export and a reference to a native-dialog path (logged)."""
+    case, _ = session.require()
+    dest = _absolute(params["dest"], "dest")
+    sheet = export_sheet(
+        case,
+        params["export"],
+        params["reference"],
+        dest,
+        reference_ppi=params.get("reference_ppi"),
+        ppi=params.get("ppi", SHEET_PPI),
+        overwrite=params.get("overwrite", False),
+    )
+    return {
+        "exported": str(dest),
+        "sha256": sheet.sha256,
+        "ppi": sheet.ppi,
+        "reference_ppi": sheet.reference_ppi,
+        "reference_ppi_source": sheet.reference_ppi_source,
+    }
+
+
 def run_job(session: Session, params: dict[str, Json]) -> Json:
     """Run one extraction job; returns the outputs and the report's summary fields."""
     case, signer = session.require()
@@ -226,6 +263,22 @@ def report(session: Session, params: dict[str, Json]) -> Json:
     case, _ = session.require()
     signed = load_report(case, _store(session), params["job_id"])
     return {"job_id": signed.job_id, "key_id": signed.key_id, "verified": True, "report": signed.report}
+
+
+def reproduce(session: Session, params: dict[str, Json]) -> Json:
+    """Re-run a signed job from its report and compare every output (logged and signed)."""
+    case, signer = session.require()
+    result = reproduce_job(case, _store(session), signer, params["job_id"])
+    return {
+        "identical": result.identical,
+        "original_job": result.original_job,
+        "new_job": result.new_job,
+        "matched": result.matched,
+        "differing": result.differing,
+        "missing": result.missing,
+        "extra": result.extra,
+        "environment_changes": result.environment_changes,
+    }
 
 
 def report_export(session: Session, params: dict[str, Json]) -> Json:
@@ -295,8 +348,21 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "case.export": (export_item, {"sha256": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
     "case.jobs": (jobs, {}),
     "report.get": (report, {"job_id": (str_, True)}),
+    "job.reproduce": (reproduce, {"job_id": (str_, True)}),
     "report.export": (report_export, {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
     "log.export": (log_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
+    "case.import_reference": (import_reference, {"path": (str_, True), "source": (str_, True)}),
+    "compare.export": (
+        compare_export,
+        {
+            "export": (str_, True),
+            "reference": (str_, True),
+            "dest": (str_, True),
+            "reference_ppi": ((int, float, type(None)), False),
+            "ppi": (NUMBER, False),
+            "overwrite": (bool_, False),
+        },
+    ),
     "preview.get": (preview, {"sha256": (str_, True), "max_side": ((int,), False)}),
     "job.run": (
         run_job,

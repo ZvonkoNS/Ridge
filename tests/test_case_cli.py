@@ -5,8 +5,11 @@ from __future__ import annotations
 import getpass
 import json
 from pathlib import Path
+from typing import Any
 
+import numpy as np
 import pytest
+from PIL import Image
 
 import ridge.case.cli as case_cli
 from ridge.case.cli import main
@@ -207,3 +210,53 @@ def test_jobs_and_reports(case_dir: Path, tmp_path: Path, capsys: pytest.Capture
     dest.write_bytes(dest.read_bytes().replace(job_id.encode(), job_id[::-1].encode()))  # still canonical
     assert main(["check-report", str(dest)]) == 1
     assert "ridge-case:" in capsys.readouterr().err
+
+
+def test_reference_and_comparison_sheet(case_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["import", str(case_dir), str(photo_file(tmp_path / "in"))]) == 0
+    assert main(["extract", str(case_dir), "--all"]) == 0
+    capsys.readouterr()
+    candidate = tmp_path / "candidate.png"
+    Image.fromarray(np.full((100, 80), 128, np.uint8)).save(candidate, dpi=(500, 500))
+    assert main(["import-reference", str(case_dir), str(candidate), "--source", "NAFIS candidate 1"]) == 0
+    reference = capsys.readouterr().out.split("reference ")[1].split()[0]
+    assert main(["list", str(case_dir)]) == 0
+    listing = capsys.readouterr().out.splitlines()
+    export = next(line.split()[1] for line in listing if line.startswith("export"))
+    assert any(line.startswith("reference") for line in listing)
+    sheet = tmp_path / "sheet.png"
+    assert main(["compare", str(case_dir), export, reference, "--to", str(sheet)]) == 0
+    assert "view aid only, no matching" in capsys.readouterr().out
+    assert main(["compare", str(case_dir), export, reference, "--to", str(sheet)]) == 1
+    assert main(["compare", str(case_dir), export, reference, "--to", str(sheet), "--overwrite", "--ppi", "1000"]) == 0
+
+
+def test_reproduce(
+    case_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ridge.case import jobs  # noqa: PLC0415
+    from ridge.pipeline import extract_fingerprint  # noqa: PLC0415
+
+    assert main(["import", str(case_dir), str(photo_file(tmp_path / "in"))]) == 0
+    assert main(["extract", str(case_dir), "--all"]) == 0
+    capsys.readouterr()
+    assert main(["jobs", str(case_dir)]) == 0
+    job_id = capsys.readouterr().out.split()[0]
+    assert main(["reproduce", str(case_dir), job_id[:8]]) == 0
+    assert "identical outputs" in capsys.readouterr().out
+
+    env = jobs.environment()
+
+    def drifted(*args: Any, **kwargs: Any) -> Any:  # stands in for another platform's floating point
+        result = extract_fingerprint(*args, **kwargs)
+        result.image[0, 0] = 255 - int(result.image[0, 0])
+        return result
+
+    monkeypatch.setattr(jobs, "extract_fingerprint", drifted)
+    monkeypatch.setattr(jobs, "environment", lambda: {**env, "machine": "other\x1b[2J"})
+    assert main(["reproduce", str(case_dir), job_id]) == 1
+    captured = capsys.readouterr()
+    assert "NOT reproduced" in captured.out
+    assert "environment changed: machine" in captured.out
+    assert "\x1b" not in captured.out
+    assert "differs: print:" in captured.err

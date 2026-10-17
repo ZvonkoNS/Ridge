@@ -38,11 +38,14 @@ SCHEMA = "ridge.case/1"
 ERASING_SCHEMA = "ridge.case-erasing/1"  # case.json after crypto-erasure, before deletion
 ROLES = {
     "evidence": "evidence",
+    "reference": "references",  # NAFIS/AFIS candidate images for side-by-side viewing (FR-52), never processed
     "print": "artefacts",
     "debug": "artefacts",
     "export": "artefacts",
     "minutiae": "artefacts",
 }
+IMPORT_ACTIONS = {"evidence": "evidence.import", "reference": "reference.import"}  # stored from outside a job
+ITEM_ACTIONS = (*IMPORT_ACTIONS.values(), "artefact.write")
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 
@@ -76,6 +79,7 @@ class StoredItem:
     size: int
     label: str
     job_id: str | None = None
+    source: str | None = None  # where a reference image came from (examiner's note)
 
 
 def publish_logged(files: Sequence[tuple[Path, bytes]], log: Callable[[], object], *, overwrite: bool) -> None:
@@ -95,6 +99,11 @@ def publish_logged(files: Sequence[tuple[Path, bytes]], log: Callable[[], object
         for path in written:
             path.unlink(missing_ok=True)
         raise
+
+
+def path_label(label: str) -> str:
+    """Shorten a file label for messages (labels are already cleaned when stored)."""
+    return label if len(label) <= 60 else label[:57] + "..."
 
 
 def clean_text(value: str, what: str, limit: int = 200) -> str:
@@ -246,8 +255,10 @@ class OpenCase:
         """Everything stored in the case, from the custody log."""
         found: dict[str, StoredItem] = {}
         for e in self.entries:
-            if e["action"] in ("evidence.import", "artefact.write") and e["result"] == "ok":
-                found[e["sha256"]] = StoredItem(e["sha256"], e["role"], e["size"], e["label"], e.get("job_id"))
+            if e["action"] in ITEM_ACTIONS and e["result"] == "ok":
+                found[e["sha256"]] = StoredItem(
+                    e["sha256"], e["role"], e["size"], e["label"], e.get("job_id"), e.get("source")
+                )
         return list(found.values())
 
     def item(self, sha: str) -> StoredItem:
@@ -257,16 +268,23 @@ class OpenCase:
             raise CaseError(f"no unique stored item matches {sha!r}")
         return matches[0]
 
-    def _put(self, data: bytes, role: str, label: str, job_id: str | None) -> StoredItem:
+    def _put(self, data: bytes, role: str, label: str, job_id: str | None, source: str | None = None) -> StoredItem:
         sha = sha256_hex(data)
-        item = StoredItem(sha, role, len(data), clean_text(label, "label", 255), job_id)
-        if any(i.sha256 == sha for i in self.items()):
-            self._log("artefact.write" if role != "evidence" else "evidence.import", item, result="duplicate")
+        item = StoredItem(sha, role, len(data), clean_text(label, "label", 255), job_id, source)
+        action = IMPORT_ACTIONS.get(role, "artefact.write")
+        existing = next((i for i in self.items() if i.sha256 == sha), None)
+        if existing is not None and existing.role != role and role in IMPORT_ACTIONS:
+            raise ParameterError(  # one blob has one role; a reference must not silently resolve to evidence
+                f"{path_label(label)} is byte-identical to the stored {existing.role} {sha[:12]}; "
+                f"it cannot also be imported as {role}"
+            )
+        if existing is not None:
+            self._log(action, item, result="duplicate")
             return item
         path = self.blob_path(role, sha)
         path.parent.mkdir(mode=0o700, exist_ok=True)
         publish(path, seal(self._data_key, data, self._aad(role, sha)))  # never replaces an existing blob
-        self._log("evidence.import" if role == "evidence" else "artefact.write", item)
+        self._log(action, item)
         return item
 
     def _log(self, action: str, item: StoredItem, result: str = "ok") -> None:
@@ -279,6 +297,7 @@ class OpenCase:
                 size=item.size,
                 label=item.label,
                 job_id=item.job_id,
+                source=item.source,
             )
         )
 
@@ -289,9 +308,19 @@ class OpenCase:
         decode_image(data, limits)  # refuse anything Ridge could not process later
         return self._put(data, "evidence", path.name, None)
 
+    def import_reference(self, path: Path, source: str, limits: ReadLimits | None = None) -> StoredItem:
+        """Import a NAFIS/AFIS candidate image for viewing beside an export (FR-52); hashed and logged like evidence.
+
+        References are never processed: jobs run on evidence only.
+        """
+        limits = limits or ReadLimits()
+        data = read_bounded(path, limits.max_bytes)
+        decode_image(data, limits)
+        return self._put(data, "reference", path.name, None, clean_text(source, "source"))
+
     def store_artefact(self, data: bytes, *, role: str, label: str, job_id: str) -> StoredItem:
         """Store a derived output of a job."""
-        if role == "evidence" or role not in ROLES:
+        if role in IMPORT_ACTIONS or role not in ROLES:
             raise ParameterError(f"invalid artefact role {role!r}")
         return self._put(data, role, label, job_id)
 
