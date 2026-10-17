@@ -3,7 +3,8 @@
 The original report must verify first (FR-28). Its recorded parameters then run as a new job on the
 same evidence. The new job is logged, signed and stored like any other; outputs with identical
 bytes are deduplicated, not stored twice. Every output hash is compared by role and label, and the
-result is logged as ``job.reproduce`` under a fresh signed head.
+result is logged as ``job.reproduce`` under a fresh signed head. A re-run that fails outright is
+logged the same way (``failed``, linked to the original job) before the error is raised.
 
 Results are reproducible per operating system and CPU architecture (NFR-3, ADR-009). A mismatch on
 another platform is expected and is reported with the environment differences rather than hidden.
@@ -20,9 +21,9 @@ from typing import Any
 from ridge.case.export_step import ExportOptions
 from ridge.case.identity import Signer
 from ridge.case.jobs import JobParams, run_extraction_job
-from ridge.case.reports import load_report
+from ridge.case.reports import list_jobs, load_report
 from ridge.case.store import OpenCase
-from ridge.errors import IntegrityError
+from ridge.errors import IntegrityError, RidgeError
 
 
 @dataclass(frozen=True)
@@ -82,7 +83,21 @@ def reproduce_job(
     """Re-run job `ref` with its recorded parameters and compare every output."""
     original = load_report(case, store, ref).report
     params = params_from_report(original["parameters"])
-    outcome = run_extraction_job(case, original["input"]["sha256"], signer, params, nfiq2_command=nfiq2_command)
+    try:
+        outcome = run_extraction_job(case, original["input"]["sha256"], signer, params, nfiq2_command=nfiq2_command)
+    except RidgeError as exc:  # the most important negative result: record it, linked and signed
+        rerun = list_jobs(case.entries)[-1]  # run_extraction_job logged this job as failed
+        case.entries.append(
+            case.custody.append(
+                "job.reproduce",
+                result="failed",
+                job_id=rerun.job_id,
+                original_job_id=original["job_id"],
+                error=str(exc),
+            )
+        )
+        case.entries.append(case.custody.sign_head(signer))
+        raise
     before = {f"{o['role']}:{o['label']}": o["sha256"] for o in original["outputs"]}
     after = {f"{o.role}:{o.label}": o.sha256 for o in outcome.outputs}
     old_env, new_env = _flatten(original["ridge"]), _flatten(outcome.report["ridge"])
