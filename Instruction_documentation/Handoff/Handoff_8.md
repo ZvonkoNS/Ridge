@@ -38,6 +38,14 @@ An **M5 enabler**: metrics for the method validation study (PRD §12), following
 
 Measured on the development workstation (Intel x86-64, Windows 11, OpenCV 14 threads). This is within the NFR-1 targets (p95 ≤ 20 s and ≤ 4 GiB for 12 MP). Repeat on the reference workstation (OQ-11).
 
+**Review fixes (PR #7):**
+
+- With a `group` column, every row needs a group.
+- `all` is reserved.
+- A group without both genuine and impostor comparisons is refused instead of silently dropped from the bias check.
+- The CSV is read through `read_bounded`: regular files only, with the size enforced while reading.
+- CSV parser errors become validation errors.
+
 ## 3. Forensic impact
 
 - None on case processing.
