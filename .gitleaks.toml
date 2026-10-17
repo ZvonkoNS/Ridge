@@ -1,0 +1,15 @@
+# gitleaks configuration: default rules, minus local environments and build output.
+title = "Ridge gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local virtualenvs, caches and generated build artefacts"
+paths = [
+  '''(^|[\\/])\.venv[\\/]''',
+  '''(^|[\\/])build[\\/]''',
+  '''(^|[\\/])\.(mypy|ruff|pytest)_cache[\\/]''',
+  '''(^|[\\/])__pycache__[\\/]''',
+  '''(^|[\\/])Ridge\.bundle$''',
+]

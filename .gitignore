@@ -3,7 +3,18 @@ __pycache__/
 .venv/
 venv/
 
-# Default output folder of fingerprint_extract.py
+# Tool caches and build output
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Default output folder of fingerprint_extract.py / ridge
 fingerprints/
 
 # Finger photos and extracted prints are biometric data: keep them out of git.
@@ -17,3 +28,9 @@ fingerprints/
 *.[tT][iI][fF][fF]
 *.[bB][mM][pP]
 *.[wW][eE][bB][pP]
+*.[gG][iI][fF]
+# Fingerprint interchange formats (WSQ images, ANSI/NIST-ITL transactions)
+*.[wW][sS][qQ]
+*.[nN][iI][sS][tT]
+*.[aA][nN]2
+*.[eE][fF][tT]
