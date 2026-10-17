@@ -16,6 +16,11 @@ Branch: `m5-roi-source` (built on `m5-store-listing`) → PR after the stack bel
 
 The previous branch (`m5-store-listing`, PR #10, Handoff_11) added `ridge-case cases` / `store.cases` (store listing without a passphrase) and `extract --keep-going`.
 
+**Review fixes (PR #11):**
+
+- `input.size_px` is now the size after EXIF orientation, the coordinate space of `roi` and `ruler`, so a whole-photo ROI taken from a report always fits (`test_size_is_reported_after_exif_orientation`, with an orientation-6 JPEG).
+- Re-importing stored bytes with a different source note is refused, so provenance is never silently dropped or rewritten. The same note, or no note, is still a logged duplicate (`test_source_notes_are_never_silently_lost`).
+
 ## 2. Evidence
 
 `tests/test_case_roi.py` covers:

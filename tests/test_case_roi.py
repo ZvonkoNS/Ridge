@@ -99,3 +99,37 @@ def test_roi_round_trips_through_the_report() -> None:
     assert params_from_report(params.to_json()) == params
     legacy = {k: v for k, v in params.to_json().items() if k != "roi"}  # reports from before the roi
     assert params_from_report(legacy).roi is None
+
+
+def test_size_is_reported_after_exif_orientation(case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path) -> None:
+    import cv2  # noqa: PLC0415
+    from PIL import Image  # noqa: PLC0415
+
+    from tests.golden_cases import CASES_BY_NAME  # noqa: PLC0415
+
+    bgr = CASES_BY_NAME["whorl_default"].photo()
+    h, w = bgr.shape[:2]
+    exif = Image.Exif()
+    exif[0x0112] = 6  # rotate 90 degrees on display
+    path = tmp_path / "rotated.jpg"
+    Image.fromarray(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)).save(path, format="JPEG", quality=95, exif=exif)
+    plain = run(case_dir, keystore, path, JobParams())
+    assert plain.report["input"]["size_px"] == [h, w]  # the displayed (rotated) photo, not the stored pixels
+    whole = run(case_dir, keystore, path, JobParams(roi=(0, 0, h, w)))
+    assert outputs(whole) == outputs(plain)
+
+
+def test_source_notes_are_never_silently_lost(case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path) -> None:
+    photo = photo_file(tmp_path / "in")
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        case.import_evidence(photo)
+        with pytest.raises(ParameterError, match="without a source note"):
+            case.import_evidence(photo, source="Exhibit 4")
+        case.import_evidence(photo)  # no note: a plain logged duplicate
+        assert case.entries[-1]["result"] == "duplicate"
+    other = photo_file(tmp_path / "other", "arch_large_period", "arch.png")
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        case.import_evidence(other, source="Exhibit 5")
+        case.import_evidence(other, source="Exhibit 5")  # the same note again is fine
+        with pytest.raises(ParameterError, match="'Exhibit 5'"):
+            case.import_evidence(other, source="Exhibit 6")

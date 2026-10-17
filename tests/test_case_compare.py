@@ -72,8 +72,10 @@ def test_reference_is_hashed_logged_and_never_processed(
             run_extraction_job(case, sha, signer, JobParams())
         with pytest.raises(ParameterError):
             case.store_artefact(b"x", role="reference", label="x", job_id="j")
-        case.import_reference(path, "again")
+        case.import_reference(path, "NAFIS candidate 3")  # the same note again: a logged duplicate
         assert case.entries[-1]["result"] == "duplicate"
+        with pytest.raises(ParameterError, match="source note cannot be changed"):
+            case.import_reference(path, "another note")
         assert verify_case(case, case_dir.parent).ok
 
 

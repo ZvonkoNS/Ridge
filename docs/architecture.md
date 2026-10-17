@@ -257,8 +257,8 @@ There is no custom cryptography: only library AEAD, KDF and signature primitives
   "created_utc": "2026-10-16T19:12:00Z",
   "ridge": {"version": "0.2.0", "python": "3.13.5", "platform": "Windows-11-…", "machine": "AMD64",
             "dependencies": {"numpy": "…", "opencv": "…", "pillow": "…", "cryptography": "…"}},
-  "input": {"sha256": "…", "label": "IMG_0042.HEIC", "format": "HEIF", "size_px": [4032, 3024],
-            "source": "Exhibit 12, phone A"},
+  "input": {"sha256": "…", "label": "IMG_0042.HEIC", "format": "HEIF", "size_px": [3024, 4032],
+            "source": "Exhibit 12, phone A"},   // size after EXIF orientation: the space of roi and ruler
   "parameters": {"period": null, "min_quality": 0.25, "flip": false, "crop": true, "debug": false,
                  "minutiae": false, "roi": [900, 400, 700, 1100],
                  "export": {"enabled": true, "mirror": true, "target_ppi": 500, "ruler": [12, 40, 812, 44, 40]}},

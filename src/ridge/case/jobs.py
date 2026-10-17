@@ -104,9 +104,10 @@ def environment() -> dict[str, Any]:
     }
 
 
-def _probe(data: bytes) -> dict[str, Any]:
+def _probe(data: bytes, decoded: ImageU8) -> dict[str, Any]:
+    """Format and size of the input; the size is after EXIF orientation, the space of `roi` and `ruler`."""
     with Image.open(io.BytesIO(data), formats=ALLOWED_FORMATS) as im:
-        return {"format": im.format, "size_px": list(im.size)}
+        return {"format": im.format, "size_px": [decoded.shape[1], decoded.shape[0]]}
 
 
 def run_extraction_job(
@@ -159,8 +160,9 @@ def _execute(
     nfiq2_command: Sequence[str] | None,
 ) -> JobOutcome:
     data = case.read(evidence.sha256, job_id=job_id)
+    photo = decode_image(data, limits)  # EXIF orientation applied: the coordinate space of roi and ruler
     result = extract_fingerprint(
-        apply_roi(decode_image(data, limits), params.roi),
+        apply_roi(photo, params.roi),
         period=params.period,
         min_quality=params.min_quality,
         flip=params.flip,
@@ -198,7 +200,7 @@ def _execute(
         "input": {
             "sha256": evidence.sha256,
             "label": evidence.label,
-            **_probe(data),
+            **_probe(data, photo),
             **({"source": evidence.source} if evidence.source else {}),
         },
         "parameters": params.to_json(),

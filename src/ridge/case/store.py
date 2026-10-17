@@ -278,6 +278,12 @@ class OpenCase:
                 f"{path_label(label)} is byte-identical to the stored {existing.role} {sha[:12]}; "
                 f"it cannot also be imported as {role}"
             )
+        if existing is not None and source is not None and existing.source != source:
+            had = f"with the source note {existing.source!r}" if existing.source else "without a source note"
+            raise ParameterError(  # provenance is never silently dropped or rewritten
+                f"{path_label(label)} is already stored as {existing.role} {sha[:12]} {had}; "
+                "a stored item's source note cannot be changed"
+            )
         if existing is not None:
             self._log(action, item, result="duplicate")
             return item
