@@ -25,11 +25,11 @@ from PIL import Image
 import ridge
 from ridge.case.crypto import sha256_hex
 from ridge.case.custody import utc_now
-from ridge.case.export_step import ExportOptions, export_and_score
+from ridge.case.export_step import ExportOptions, export_and_score, validate_job_settings
 from ridge.case.identity import Signer
 from ridge.case.keys import b64
 from ridge.case.store import OpenCase, StoredItem
-from ridge.errors import ExtractionError
+from ridge.errors import ExtractionError, RidgeError
 from ridge.image_io import ALLOWED_FORMATS, ReadLimits, decode_image, encode_image
 from ridge.pipeline import extract_fingerprint
 
@@ -100,24 +100,46 @@ def run_extraction_job(
     evidence = case.item(evidence_sha)
     if evidence.role != "evidence":
         raise ExtractionError("jobs run on evidence items only")
+    validate_job_settings(params.export, nfiq2_command)  # nothing is logged or stored for invalid settings
     job_id = str(uuid.uuid4())
     case.entries.append(
         case.custody.append("job.start", job_id=job_id, sha256=evidence.sha256, parameters=params.to_json())
     )
-    data = case.read(evidence.sha256, job_id=job_id)
     try:
-        result = extract_fingerprint(
-            decode_image(data, limits or ReadLimits()),
-            period=params.period,
-            min_quality=params.min_quality,
-            flip=params.flip,
-            crop=params.crop,
-            debug=params.debug,
+        return _execute(
+            case,
+            evidence,
+            job_id=job_id,
+            signer=signer,
+            params=params,
+            limits=limits or ReadLimits(),
+            nfiq2_command=nfiq2_command,
         )
-    except ExtractionError as exc:
-        case.entries.append(case.custody.append("job.end", result="failed", job_id=job_id, error=str(exc)))
+    except BaseException as exc:  # every started job is closed in the custody log
+        error = str(exc) if isinstance(exc, RidgeError) else f"internal error ({type(exc).__name__})"
+        case.entries.append(case.custody.append("job.end", result="failed", job_id=job_id, error=error))
         raise
 
+
+def _execute(
+    case: OpenCase,
+    evidence: StoredItem,
+    *,
+    job_id: str,
+    signer: Signer,
+    params: JobParams,
+    limits: ReadLimits,
+    nfiq2_command: Sequence[str] | None,
+) -> JobOutcome:
+    data = case.read(evidence.sha256, job_id=job_id)
+    result = extract_fingerprint(
+        decode_image(data, limits),
+        period=params.period,
+        min_quality=params.min_quality,
+        flip=params.flip,
+        crop=params.crop,
+        debug=params.debug,
+    )
     stem = evidence.label.rsplit(".", 1)[0]
     outputs = [
         case.store_artefact(

@@ -26,6 +26,7 @@ import os
 import re
 import subprocess  # one configured tool: argv list, absolute path, no shell  # nosec B404
 import tempfile
+import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -67,7 +68,8 @@ class Nfiq2NotComputed:
         return f"not computed: {self.reason}"
 
 
-def _check_command(command: object) -> tuple[str, ...]:
+def check_command(command: object) -> tuple[str, ...]:
+    """Validate a configured NFIQ 2 argv prefix (absolute executable, strings, no NUL)."""
     if isinstance(command, str | bytes) or not isinstance(command, Sequence) or not command:
         raise ParameterError("the NFIQ 2 command must be a non-empty list of arguments")
     argv = tuple(command)
@@ -153,7 +155,7 @@ class Nfiq2:
     """
 
     def __init__(self, command: Sequence[str], timeout_s: float = DEFAULT_TIMEOUT_S, *, work_dir: Path) -> None:
-        self._argv = _check_command(command)
+        self._argv = check_command(command)
         self._timeout = _check_timeout(timeout_s)
         if not Path(work_dir).is_dir():
             raise ParameterError("work_dir must be an existing directory")
@@ -208,21 +210,43 @@ class Nfiq2:
             raise QualityToolError("NFIQ 2 is not installed at the configured path")
 
     def _run(self, argv: list[str]) -> tuple[int, bytes]:
-        """Run the tool once with a timeout; return (exit code, stdout of at most MAX_OUTPUT_BYTES)."""
+        """Run the tool once; return (exit code, stdout).
+
+        Output is read while the process runs and the process is killed as soon as it
+        exceeds MAX_OUTPUT_BYTES or the timeout, so a faulty tool cannot exhaust memory.
+        """
         try:
-            done = subprocess.run(  # noqa: S603  # argv list, absolute executable, no shell  # nosec B603
-                argv,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                timeout=self._timeout,
-                check=False,
-                shell=False,
+            proc = subprocess.Popen(  # noqa: S603  # argv list, absolute executable, no shell  # nosec B603
+                argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, shell=False
             )
-        except subprocess.TimeoutExpired as exc:
-            raise QualityToolError(f"NFIQ 2 did not finish within {self._timeout:g} s") from exc
         except OSError as exc:
             raise QualityToolError(f"NFIQ 2 could not be started ({type(exc).__name__})") from exc
-        if len(done.stdout) > MAX_OUTPUT_BYTES:
+        output = bytearray()
+        too_much = threading.Event()
+
+        def drain() -> None:
+            stream = proc.stdout
+            if stream is None:  # pragma: no cover - stdout is always a pipe here
+                return
+            while chunk := stream.read(64 * 1024):
+                output.extend(chunk)
+                if len(output) > MAX_OUTPUT_BYTES:
+                    too_much.set()
+                    proc.kill()
+                    return
+
+        reader = threading.Thread(target=drain, daemon=True)
+        reader.start()
+        try:
+            proc.wait(timeout=self._timeout)
+        except subprocess.TimeoutExpired as exc:
+            proc.kill()
+            proc.wait()
+            raise QualityToolError(f"NFIQ 2 did not finish within {self._timeout:g} s") from exc
+        finally:
+            reader.join(timeout=5)
+            if proc.stdout is not None:
+                proc.stdout.close()
+        if too_much.is_set():
             raise QualityToolError(f"NFIQ 2 printed more than {MAX_OUTPUT_BYTES // 1024} KiB")
-        return done.returncode, done.stdout
+        return proc.returncode, bytes(output[:MAX_OUTPUT_BYTES])

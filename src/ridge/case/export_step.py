@@ -19,7 +19,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from ridge.case.store import OpenCase, StoredItem
-from ridge.errors import ExportError
+from ridge.errors import ExportError, ParameterError
 from ridge.export import (
     ASSUMED_RIDGE_PERIOD_MM,
     ScaleEstimate,
@@ -28,10 +28,12 @@ from ridge.export import (
     scale_from_ridge_period,
     scale_from_ruler,
 )
+from ridge.export.validate import ppi_value
 from ridge.pipeline import ExtractionResult
-from ridge.quality.nfiq2 import Nfiq2, Nfiq2NotComputed
+from ridge.quality.nfiq2 import Nfiq2, Nfiq2NotComputed, check_command
 
 NFIQ2_LABEL = "indicative only: NFIQ 2 is defined for contact prints, this image is derived from a photo"
+NFIQ2_PPI = 500.0
 
 
 @dataclass(frozen=True)
@@ -48,6 +50,19 @@ class ExportOptions:
         data = asdict(self)
         data["ruler"] = None if self.ruler is None else list(self.ruler)
         return data
+
+
+def validate_job_settings(options: ExportOptions, nfiq2_command: Sequence[str] | None) -> None:
+    """Refuse invalid export or NFIQ 2 settings before a job starts (raises ParameterError)."""
+    if options.enabled:
+        ppi_value(options.target_ppi, "target_ppi")
+        if options.ruler is not None:
+            if len(options.ruler) != 5:
+                raise ParameterError("ruler needs x1, y1, x2, y2 and the distance in mm")
+            x1, y1, x2, y2, mm = options.ruler
+            scale_from_ruler((x1, y1), (x2, y2), mm)
+    if nfiq2_command is not None:
+        check_command(nfiq2_command)
 
 
 def photo_scale(result: ExtractionResult, options: ExportOptions) -> ScaleEstimate:
@@ -93,13 +108,15 @@ def export_and_score(
         "transforms": list(exported.transforms),
         "scale": scale_info,
     }
-    return [item], {"export": export_info, "quality": {"nfiq2": nfiq2_score(case, png, nfiq2_command)}}
+    return [item], {"export": export_info, "quality": {"nfiq2": nfiq2_score(case, png, exported.ppi, nfiq2_command)}}
 
 
-def nfiq2_score(case: OpenCase, png: bytes, command: Sequence[str] | None) -> dict[str, Any]:
+def nfiq2_score(case: OpenCase, png: bytes, ppi: float, command: Sequence[str] | None) -> dict[str, Any]:
     """NFIQ 2 result for the report: score with label, or why it was not computed."""
     if command is None:
         return {"computed": False, "reason": "NFIQ 2 is not configured"}
+    if ppi != NFIQ2_PPI:
+        return {"computed": False, "reason": f"NFIQ 2 is defined for {NFIQ2_PPI:g} ppi; this export is {ppi:g} ppi"}
     work = case.dir / "work"
     work.mkdir(mode=0o700, exist_ok=True)
     try:

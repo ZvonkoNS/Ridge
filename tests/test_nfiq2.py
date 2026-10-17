@@ -21,7 +21,7 @@ import pytest
 from ridge.errors import ParameterError, QualityToolError
 from ridge.export import encode_png
 from ridge.quality import Nfiq2, Nfiq2NotComputed, Nfiq2Result, parse_score
-from ridge.quality.nfiq2 import DEFAULT_TIMEOUT_S, MAX_OUTPUT_BYTES
+from ridge.quality.nfiq2 import DEFAULT_TIMEOUT_S, MAX_OUTPUT_BYTES, PNG_SIGNATURE
 
 PNG = encode_png(np.full((32, 32), 200, np.uint8), 500.0)
 CSV_HEADER = '"Filename","FingerCode","QualityScore","OptionalError","Quantized","Resampled"'
@@ -290,3 +290,16 @@ def test_parse_score_accepts(stdout: bytes, score: int) -> None:
 def test_parse_score_refuses(stdout: bytes) -> None:
     with pytest.raises(QualityToolError):
         parse_score(stdout)
+
+
+def test_endless_output_is_cut_off_while_running(tmp_path: Path) -> None:
+    """The tool is killed as soon as it passes the output cap, long before the timeout."""
+    script = tmp_path / "flood.py"
+    script.write_text("import sys\nwhile True:\n    sys.stdout.write('1' * 65536)\n", encoding="utf-8")
+    work = tmp_path / "work"
+    work.mkdir()
+    tool = Nfiq2([sys.executable, str(script)], timeout_s=60.0, work_dir=work)
+    start = time.perf_counter()
+    with pytest.raises(QualityToolError, match="printed more than"):
+        tool.score(PNG_SIGNATURE + b"x" * 100)
+    assert time.perf_counter() - start < 30
