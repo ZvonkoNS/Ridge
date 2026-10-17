@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import base64
 import json
+import shutil
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -19,6 +21,7 @@ from ridge.case.keys import unb64
 from ridge.case.store import create_case, open_case
 from ridge.case.verify import verify_case
 from ridge.errors import (
+    CaseError,
     CaseLockedError,
     ExtractionError,
     InputRejectedError,
@@ -225,6 +228,14 @@ def test_clean_case_verifies(worked_case: Path, keystore: MemoryKeyStore) -> Non
     assert verify(worked_case, keystore) == []
 
 
+def test_stripped_signed_head_is_detected(worked_case: Path, keystore: MemoryKeyStore) -> None:
+    path = worked_case / "custody.jsonl.enc"
+    lines = path.read_bytes().splitlines(keepends=True)
+    path.write_bytes(b"".join(lines[:-1]))  # drop the final chain.sign entry of the job
+    problems = verify(worked_case, keystore)
+    assert any("not covered by a signed custody head" in p for p in problems)
+
+
 @pytest.mark.parametrize("target", ["artefact", "report", "signature", "stray"])
 def test_verify_reports_tampering(worked_case: Path, keystore: MemoryKeyStore, target: str) -> None:
     if target == "artefact":
@@ -247,27 +258,55 @@ def test_verify_reports_tampering(worked_case: Path, keystore: MemoryKeyStore, t
 # ---------------------------------------------------------------- disposal
 
 
+def dispose(case_dir: Path, keystore: MemoryKeyStore, **kwargs: Any) -> Path:
+    args: dict[str, Any] = {"confirm_case_id": case_dir.name, "reason": "proceedings-closed", "actor_key_id": "k" * 16}
+    args.update(kwargs)
+    return dispose_case(case_dir, PASSPHRASE, keystore, **args)
+
+
 def test_disposal_rules_and_crypto_erase(worked_case: Path, keystore: MemoryKeyStore) -> None:
     case_id = worked_case.name
     with pytest.raises(RetentionError, match="confirmation"):
-        dispose_case(worked_case, PASSPHRASE, keystore, confirm_case_id="wrong", reason="test")
+        dispose(worked_case, keystore, confirm_case_id="wrong")
+    with pytest.raises(RetentionError, match="reason must be one of"):
+        dispose(worked_case, keystore, reason="because a named person asked")
     with open_case(worked_case, PASSPHRASE, keystore) as case:
         case.set_legal_hold(True, "court order (synthetic)")
     with pytest.raises(RetentionError, match="legal hold"):
-        dispose_case(worked_case, PASSPHRASE, keystore, confirm_case_id=case_id, reason="test")
+        dispose(worked_case, keystore)
     with open_case(worked_case, PASSPHRASE, keystore) as case:
         case.set_legal_hold(False, "released")
     with pytest.raises(RetentionError, match="retention period"):
-        dispose_case(worked_case, PASSPHRASE, keystore, confirm_case_id=case_id, reason="test")
+        dispose(worked_case, keystore)
     assert worked_case.is_dir()
 
-    record_path = dispose_case(
-        worked_case, PASSPHRASE, keystore, confirm_case_id=case_id, reason="end of proceedings", before_retention=True
-    )
+    record_path = dispose(worked_case, keystore, before_retention=True)
     assert not worked_case.exists()
     record = json.loads(record_path.read_text(encoding="utf-8"))
     assert record["case_id"] == case_id
     assert record["before_retention"] is True
-    assert "KT-2026-0001" not in record_path.read_text(encoding="utf-8")
+    assert record["examiner_key_id"] == "k" * 16
+    text = record_path.read_text(encoding="utf-8")
+    assert "KT-2026-0001" not in text
+    assert ACTOR not in text  # no OS user name or workstation in the retained record
     assert datetime.fromisoformat(record["disposed_utc"]).tzinfo is not None
     assert datetime.fromisoformat(record["disposed_utc"]) <= datetime.now(UTC)
+
+
+def test_interrupted_disposal_never_leaves_a_readable_case(
+    worked_case: Path, keystore: MemoryKeyStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def crash(path: object) -> None:
+        raise OSError("power loss")
+
+    monkeypatch.setattr(shutil, "rmtree", crash)
+    with pytest.raises(OSError, match="power loss"):
+        dispose(worked_case, keystore, before_retention=True)
+    stub = json.loads((worked_case / "case.json").read_text(encoding="utf-8"))
+    assert "wrapped_dek" not in json.dumps(stub)  # the key was destroyed before anything else
+    with pytest.raises(CaseError, match="interrupted"):
+        open_case(worked_case, PASSPHRASE, keystore)
+    monkeypatch.undo()
+    record_path = dispose(worked_case, keystore)  # finishing needs only the confirmation
+    assert not worked_case.exists()
+    assert json.loads(record_path.read_text(encoding="utf-8"))["reason"] == "proceedings-closed"

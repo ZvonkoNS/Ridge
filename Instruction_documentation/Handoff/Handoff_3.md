@@ -75,6 +75,16 @@ Exceptions, deviations or evidence gaps:
 - New records: job reports and custody entries (formats in architecture §8.3–8.4 and in `jobs.py` / `custody.py`).
 - Examiner-facing wording: every report carries the disclaimer "Image enhancement only. Ridge does not identify anyone and draws no conclusions."
 
+**Review follow-up (PR #2, automated Codex review of `c025ead`):**
+
+| Finding | Change |
+| --- | --- |
+| P1 stripped final `chain.sign` passed verification | `verify` requires a signed head after every completed job (`unsigned_jobs`). Test: `test_stripped_signed_head_is_detected` |
+| P1 disposal record written before the key was destroyed | The key is erased first (`erasing` stub), then the record is published, then files are deleted. Interrupted disposals are resumable. Test: `test_interrupted_disposal_never_leaves_a_readable_case` |
+| P2 personal data in the disposal record | The record keeps the examiner key id and a reason code from a fixed list; no OS user name or free text |
+| P2 unbounded stored Argon2 parameters | Upper bounds enforced and integer type checked before Argon2 runs (CWE-400). Test: `test_stored_kdf_parameters_are_bounded` |
+| P2 `init` accepted a passphrase that cannot unlock the identity | `init` confirms the passphrase and unlocks the identity with it; one examiner passphrase for identity and cases |
+
 ## 5. Files changed
 
 `src/ridge/case/*` (new), `src/ridge/errors.py` (case error types), `src/ridge/cli.py` (R&D notice), `tests/case_helpers.py`, `tests/test_case_{crypto,store,cli}.py` (new), `tests/test_cli.py`, `pyproject.toml` (dependencies, `ridge-case` script), `requirements*.lock`, `tools/gate.py`, `.gitignore`, `.gitleaks.toml`, `README.md`, `docs/prd.md` (v0.4), `docs/architecture.md` (§5, §6, §7.2, §8, §9.3, ADR-004/005/008 accepted), the standards profile, the write-path audit, and this handoff.

@@ -75,10 +75,11 @@ def test_full_workflow(case_dir: Path, tmp_path: Path, capsys: pytest.CaptureFix
 def test_hold_and_dispose(case_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     case_id = case_dir.name
     assert main(["hold", str(case_dir), "--on", "--reason", "synthetic hold"]) == 0
-    assert main(["dispose", str(case_dir), "--confirm", case_id, "--reason", "test", "--before-retention"]) == 1
+    dispose = ["dispose", str(case_dir), "--confirm", case_id, "--reason", "proceedings-closed", "--before-retention"]
+    assert main(dispose) == 1
     assert "legal hold" in capsys.readouterr().err
     assert main(["hold", str(case_dir), "--off", "--reason", "released"]) == 0
-    assert main(["dispose", str(case_dir), "--confirm", case_id, "--reason", "test", "--before-retention"]) == 0
+    assert main(dispose) == 0
     assert not case_dir.exists()
 
 
@@ -123,6 +124,17 @@ def test_init_needs_an_identity(tmp_path: Path, keystore: MemoryKeyStore, capsys
     ]
     assert main(args) == 1
     assert "identity init" in capsys.readouterr().err
+
+
+def test_init_refuses_a_passphrase_that_does_not_unlock_the_identity(
+    case_dir: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    store = case_dir.parent
+    monkeypatch.setattr(getpass, "getpass", lambda prompt="": "a different long passphrase")
+    args = ["init", "--store", str(store), "--reference", "KT-2", "--legal-basis", "b", "--retention", "2099-01-01"]
+    assert main(args) == 1
+    assert "wrong passphrase" in capsys.readouterr().err
+    assert sorted(p.name for p in store.iterdir()) == sorted(["identity.json", case_dir.name])  # no new case
 
 
 def test_extract_needs_a_selection(case_dir: Path) -> None:

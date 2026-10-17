@@ -69,6 +69,22 @@ def test_weak_kdf_parameters_are_refused() -> None:
         KdfParams(time_cost=3, memory_kib=1024, parallelism=1)
 
 
+@pytest.mark.parametrize(
+    "stored",
+    [
+        {"time_cost": 3, "memory_kib": 2**40, "parallelism": 1},  # tampered: exhaust memory before authentication
+        {"time_cost": 10**9, "memory_kib": 65536, "parallelism": 1},
+        {"time_cost": 3, "memory_kib": 65536, "parallelism": 1000},
+        {"time_cost": "3", "memory_kib": 65536, "parallelism": 1},
+        {"time_cost": 3.5, "memory_kib": 65536, "parallelism": 1},
+        {"memory_kib": 65536, "parallelism": 1},
+    ],
+)
+def test_stored_kdf_parameters_are_bounded(stored: dict[str, object]) -> None:
+    with pytest.raises(KeyCustodyError):
+        KdfParams.from_json(stored)
+
+
 def test_kek_needs_both_factors() -> None:
     salt, secret = b"s" * 16, b"d" * 32
     base = derive_kek(PASSPHRASE, salt, FAST_KDF, secret, b"case")

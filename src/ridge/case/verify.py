@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ridge.case.crypto import sha256_hex
-from ridge.case.custody import verify_signed_heads
+from ridge.case.custody import Entry, verify_signed_heads
 from ridge.case.identity import public_identity, verify_signature
 from ridge.case.store import ROLES, OpenCase
 from ridge.errors import IntegrityError
@@ -26,6 +26,16 @@ class VerifyResult:
     def ok(self) -> bool:
         """True when nothing failed."""
         return not self.problems
+
+
+def unsigned_jobs(entries: list[Entry]) -> list[str]:
+    """Completed jobs that no later signed head covers (e.g. a stripped ``chain.sign`` line)."""
+    last_signed = max((i for i, e in enumerate(entries) if e["action"] == "chain.sign"), default=-1)
+    return [
+        f"job {e['job_id']}: completed but not covered by a signed custody head (entries may have been removed)"
+        for i, e in enumerate(entries)
+        if e["action"] == "job.end" and e["result"] == "ok" and i > last_signed
+    ]
 
 
 def verify_case(case: OpenCase, store: Path) -> VerifyResult:
@@ -66,6 +76,7 @@ def verify_case(case: OpenCase, store: Path) -> VerifyResult:
         result.signed_heads = verify_signed_heads(case.entries, keys)
     except IntegrityError as exc:
         result.problems.append(str(exc))
+    result.problems.extend(unsigned_jobs(case.entries))
 
     for folder in {*ROLES.values(), "reports"}:
         for path in sorted((case.dir / folder).glob("*")) if (case.dir / folder).is_dir() else []:

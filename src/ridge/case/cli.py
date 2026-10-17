@@ -25,7 +25,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from ridge.case.dispose import dispose_case
+from ridge.case.dispose import REASONS, dispose_case
 from ridge.case.identity import create_identity, public_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.keys import KdfParams, KeyringKeyStore, KeyStore, b64
@@ -59,15 +59,17 @@ def cmd_identity(args: argparse.Namespace) -> None:
 
 
 def cmd_init(args: argparse.Namespace) -> None:
-    """Create a case."""
+    """Create a case protected by the examiner passphrase (the one that unlocks the identity)."""
     public_identity(args.store)  # a signing identity must exist first
+    passphrase, keystore = read_passphrase(confirm=True), KEYSTORE_FACTORY()
+    unlock_identity(args.store, passphrase, keystore)  # one passphrase for identity and cases (extract needs both)
     case_dir = create_case(
         args.store,
         case_reference=args.reference,
         legal_basis=args.legal_basis,
         retention_until=date.fromisoformat(args.retention),
-        passphrase=read_passphrase(),
-        keystore=KEYSTORE_FACTORY(),
+        passphrase=passphrase,
+        keystore=keystore,
         params=KDF_PARAMS,
     )
     _say(f"case created: {case_dir}")
@@ -141,12 +143,15 @@ def cmd_hold(args: argparse.Namespace) -> None:
 
 def cmd_dispose(args: argparse.Namespace) -> None:
     """Crypto-erase a case."""
+    passphrase, keystore = read_passphrase(), KEYSTORE_FACTORY()
+    signer = unlock_identity(args.case.parent, passphrase, keystore)
     record = dispose_case(
         args.case,
-        read_passphrase(),
-        KEYSTORE_FACTORY(),
+        passphrase,
+        keystore,
         confirm_case_id=args.confirm,
         reason=args.reason,
+        actor_key_id=signer.key_id,
         before_retention=args.before_retention,
     )
     _say(f"case disposed; record kept at {record}")
@@ -215,7 +220,7 @@ def _add_case_commands(sub: Any) -> None:
     p = sub.add_parser("dispose", help="crypto-erase a case")
     p.add_argument("case", type=Path)
     p.add_argument("--confirm", required=True, metavar="CASE_ID")
-    p.add_argument("--reason", required=True)
+    p.add_argument("--reason", required=True, choices=REASONS, help="reason code kept in the disposal record")
     p.add_argument("--before-retention", action="store_true")
     p.set_defaults(func=cmd_dispose)
 

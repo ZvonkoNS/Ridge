@@ -85,7 +85,7 @@ ridge-case export D:/ridge-store/<case-id> <sha> --to print.png   # the only way
 ridge-case verify D:/ridge-store/<case-id>              # hashes, custody chain, report signatures
 ridge-case log D:/ridge-store/<case-id>                 # decrypted custody log (processing record)
 ridge-case hold D:/ridge-store/<case-id> --on --reason "..."
-ridge-case dispose D:/ridge-store/<case-id> --confirm <case-id> --reason "..."
+ridge-case dispose D:/ridge-store/<case-id> --confirm <case-id> --reason retention-expired
 ```
 
 Passphrases (at least 15 characters) are only read interactively. There is no recovery

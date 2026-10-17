@@ -39,10 +39,21 @@ class KdfParams:
 
     MIN_TIME_COST: ClassVar[int] = 3
     MIN_MEMORY_KIB: ClassVar[int] = 64 * 1024  # RFC 9106 second recommended option
+    # Upper bounds: parameters are read from case.json before anything is authenticated, so a
+    # tampered file must not be able to make unlocking exhaust memory or stall (CWE-400).
+    MAX_TIME_COST: ClassVar[int] = 10
+    MAX_MEMORY_KIB: ClassVar[int] = 1024 * 1024
+    MAX_PARALLELISM: ClassVar[int] = 16
 
     def __post_init__(self) -> None:
-        if self.time_cost < self.MIN_TIME_COST or self.memory_kib < self.MIN_MEMORY_KIB or self.parallelism < 1:
-            raise KeyCustodyError("Argon2id parameters are below the minimum (t>=3, m>=64 MiB, p>=1)")
+        if not (
+            self.MIN_TIME_COST <= self.time_cost <= self.MAX_TIME_COST
+            and self.MIN_MEMORY_KIB <= self.memory_kib <= self.MAX_MEMORY_KIB
+            and 1 <= self.parallelism <= self.MAX_PARALLELISM
+        ):
+            raise KeyCustodyError(
+                "Argon2id parameters are out of range (t 3-10, m 64 MiB-1 GiB, p 1-16): the key file may be damaged"
+            )
 
     def to_json(self) -> dict[str, int]:
         """JSON form stored next to the wrapped key."""
@@ -50,8 +61,14 @@ class KdfParams:
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> KdfParams:
-        """Parse and validate stored parameters."""
-        return cls(int(data["time_cost"]), int(data["memory_kib"]), int(data["parallelism"]))
+        """Parse and validate stored (unauthenticated) parameters."""
+        try:
+            values = [data["time_cost"], data["memory_kib"], data["parallelism"]]
+        except (KeyError, TypeError):
+            raise KeyCustodyError("the key file has no valid Argon2id parameters") from None
+        if not all(type(v) is int for v in values):
+            raise KeyCustodyError("the key file's Argon2id parameters are not integers")
+        return cls(*values)
 
 
 class KeyStore(Protocol):

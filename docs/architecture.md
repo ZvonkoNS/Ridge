@@ -202,11 +202,11 @@ Writes are atomic and never replace existing blobs (`image_io.publish`). The cus
 | Associated data | `ridge-blob-v1 \| case_id \| role \| plaintext sha256` for blobs, `ridge-custody-v1 \| case_id \| seq` per custody line, `ridge-dek-v1 \| case_id` for the wrapped key. A blob cannot be swapped between cases, roles or positions. |
 | Format | `magic "RDG1" \| version \| nonce \| ciphertext+tag`. |
 | DEK | 256-bit from `secrets.token_bytes`, one per case. |
-| KEK | `HKDF-SHA256(Argon2id(passphrase, salt; t=3, m=256 MiB, p=4) ‖ device_secret, info="ridge-kek-v1\|<purpose>")`, purpose = `case\|<case_id>` or `identity`. Parameters below t=3, m=64 MiB are refused. |
+| KEK | `HKDF-SHA256(Argon2id(passphrase, salt; t=3, m=256 MiB, p=4) ‖ device_secret, info="ridge-kek-v1\|<purpose>")`, purpose = `case\|<case_id>` or `identity`. Stored parameters are unauthenticated, so they are bounded both ways (t 3-10, m 64 MiB-1 GiB, p 1-16) before Argon2 runs. One examiner passphrase unlocks the identity and all of that examiner's cases (`init` checks this). |
 | Sub-keys | HKDF from the DEK: `ridge-data-v1` (blobs, metadata, reports), `ridge-names-v1` (keyed file names), `ridge-custody-v1` (custody lines). |
 | Device secret | 256-bit random, one per OS account, stored in the OS keystore via `keyring` (Windows Credential Locker / Keychain / Secret Service). |
 | Recovery | **Not implemented**: without the passphrase and the OS account a case is unrecoverable. An optional sealed recovery key waits for the Security Owner's decision (OQ-12). |
-| Disposal | `ridge-case dispose`: refused under legal hold or before the retention date (unless `--before-retention`), needs the case id typed back; the wrapped DEK is destroyed first (case.json replaced), then the files; a `<case_id>.disposal.json` record without personal data is kept. The device secret is shared by all cases of the account and is not deleted. |
+| Disposal | `ridge-case dispose`: refused under legal hold or before the retention date (unless `--before-retention`); needs the case id typed back and a reason code from a fixed list. Order: (1) `case.json` becomes an `erasing` stub without the wrapped DEK (crypto-erasure), (2) the `<case_id>.disposal.json` record is published, (3) the folder is deleted; re-running finishes an interrupted disposal. The record holds the examiner's key id and the reason code, no names or free text. The device secret is shared by all cases of the account and is not deleted. |
 
 There is no custom cryptography: only library AEAD, KDF and signature primitives, with parameters recorded in `case.json` and `identity.json`.
 

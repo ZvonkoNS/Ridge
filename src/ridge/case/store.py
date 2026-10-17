@@ -34,6 +34,7 @@ from ridge.image_io import ReadLimits, decode_image, publish, read_bounded
 
 CASE_FILE, META_FILE, LOCK_FILE = "case.json", "meta.enc", "LOCK"
 SCHEMA = "ridge.case/1"
+ERASING_SCHEMA = "ridge.case-erasing/1"  # case.json after crypto-erasure, before deletion
 ROLES = {"evidence": "evidence", "print": "artefacts", "debug": "artefacts", "export": "artefacts"}
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
@@ -141,6 +142,8 @@ def read_case_record(case_dir: Path) -> dict[str, Any]:
     if not path.is_file():
         raise CaseError(f"{case_dir} is not a Ridge case (no {CASE_FILE})")
     record = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(record, dict) and record.get("schema") == ERASING_SCHEMA:
+        raise CaseError("this case was crypto-erased but its disposal was interrupted: run `ridge-case dispose` again")
     if not isinstance(record, dict) or record.get("schema") != SCHEMA or record.get("case_id") != case_dir.name:
         raise IntegrityError(f"{CASE_FILE} does not describe this case folder")
     return record
