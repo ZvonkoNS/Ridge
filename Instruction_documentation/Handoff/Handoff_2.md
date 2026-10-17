@@ -89,6 +89,11 @@ Debug images (whorl_default) between architectures: the mean absolute difference
 
 Revalidation decision required / recorded: none for M0. OQ-15 must be answered before M5.
 
+**Review follow-up (PR #1, automated Codex review of `6021c40`):**
+
+- "Commit the arm64 golden files": already done in `5dcbf44`.
+- "Keep enforcing the cross-architecture acceptance threshold": the threshold was changed on the product owner's instruction, not dropped. A cross-architecture envelope check was added: `tests/cross_arch.py` and `tests/test_cross_architecture.py`, with drift-rejection tests, plus `tools/compare_goldens.py` for release handoffs. The approval is recorded in PRD NFR-3 and the standards profile; Forensic Quality Manager confirmation is pending.
+
 ## 5. Files changed
 
 | File | Purpose of change |
@@ -97,6 +102,7 @@ Revalidation decision required / recorded: none for M0. OQ-15 must be answered b
 | `tests/conftest.py` | Per-architecture golden fixture; live v0 fixture |
 | `tests/test_characterization.py` | Live v0 bit-identical test; per-architecture golden test with grey-level tolerance for debug images |
 | `tests/golden_cases.py` | Uses the shared reference constant |
+| `tests/cross_arch.py`, `tests/test_cross_architecture.py`, `tools/compare_goldens.py` | Cross-architecture envelope check and report |
 | `tests/golden/v0-x86_64.*`, `tests/golden/v0-arm64.*` | Per-architecture goldens (replace `v0.*`) |
 | `tools/make_golden.py` | Writes `v0-<arch>.*` and records the architecture; `--out-dir` |
 | `.github/workflows/ci.yml`, `.github/workflows/golden.yml` | Full history for the live v0 test; golden-generation workflow |
