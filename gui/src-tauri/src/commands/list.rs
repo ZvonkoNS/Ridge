@@ -27,6 +27,8 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "reproduce_job",
     "export_log",
     "export_comparison",
+    "get_minutiae",
+    "limits_of_use",
 ];
 
 /// Commands of the passphrase window (capability `passphrase`).

@@ -116,3 +116,11 @@ pub async fn session_status(app: AppHandle, window: WebviewWindow) -> Result<Val
     require(&window, MAIN_LABEL)?;
     call(&app, "session.status", json!({}), QUICK).await
 }
+
+/// The chosen store's limits of use (PRD §12 item 8), shown before any case is unlocked.
+#[tauri::command]
+pub async fn limits_of_use(app: AppHandle, window: WebviewWindow) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    let store = path_text(&state::store(&app)?)?;
+    call(&app, "store.limits", json!({"store": store}), QUICK).await
+}

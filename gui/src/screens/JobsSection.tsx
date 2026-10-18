@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { ExhibitLabel } from "../components/ExhibitLabel";
 import { ImageViewer } from "../components/ImageViewer";
+import { MinutiaeNote, MinutiaeToggle, useMinutiaeOverlay } from "../components/MinutiaeToggle";
 import { Button, Hash, Notice, StaggerItem, StaggerList, utc } from "../components/ui";
 import { ipc } from "../ipc/commands";
 import type { Item, JobRecord, Reproduction, VerifiedReport } from "../ipc/types";
@@ -50,6 +51,8 @@ function ReportView({ shown, items, onFailure, onChanged, notify }: { shown: Ver
   const [busy, setBusy] = useState<"export" | "reproduce" | null>(null);
   const current = images.find((o) => o.sha256 === selected) ?? null;
   const preview = usePreview(current?.sha256 ?? null, onFailure);
+  const minutiaeSha = report.outputs.find((o) => o.role === "minutiae")?.sha256 ?? null;
+  const overlay = useMinutiaeOverlay(minutiaeSha, current?.role ?? null, preview.source, onFailure);
   const item = items.find((i) => i.sha256 === current?.sha256);
   const result = report;
 
@@ -129,12 +132,15 @@ function ReportView({ shown, items, onFailure, onChanged, notify }: { shown: Ver
                 {o.role === "debug" ? o.label : o.role}
               </button>
             ))}
+            <MinutiaeToggle overlay={overlay} />
           </div>
+          <MinutiaeNote overlay={overlay} />
           <ImageViewer
             title={`${current.role} output of the job`}
             url={preview.url}
             bitmap={preview.bitmap}
             source={preview.source}
+            marks={overlay.marks}
             label={(zoom) => (
               <ExhibitLabel
                 role={current.role}

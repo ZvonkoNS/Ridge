@@ -5,16 +5,19 @@ import { useState } from "react";
 
 import { Button, Notice } from "../components/ui";
 import { ipc } from "../ipc/commands";
-import type { CaseInfo, Verification } from "../ipc/types";
+import type { CaseInfo, Item, LimitsStatus, Verification } from "../ipc/types";
+import { Inventory, LimitsCard } from "./Inventory";
 
 interface Props {
   info: CaseInfo | null;
+  items: Item[];
+  limits: LimitsStatus | null;
   onInfo: (info: CaseInfo) => void;
   onFailure: (error: unknown) => void;
   notify: (message: string) => void;
 }
 
-export function RecordsSection({ info, onInfo, onFailure, notify }: Props) {
+export function RecordsSection({ info, items, limits, onInfo, onFailure, notify }: Props) {
   const [verification, setVerification] = useState<Verification | null>(null);
   const [busy, setBusy] = useState<"verify" | "log" | "hold" | null>(null);
   const [reason, setReason] = useState("");
@@ -117,6 +120,8 @@ export function RecordsSection({ info, onInfo, onFailure, notify }: Props) {
           </Button>
         </form>
       </section>
+      <LimitsCard limits={limits} />
+      <Inventory items={items} limits={limits} onFailure={onFailure} notify={notify} />
     </div>
   );
 }

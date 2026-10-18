@@ -79,6 +79,8 @@ pub fn run() {
             commands::jobs::reproduce_job,
             commands::jobs::export_log,
             commands::jobs::export_comparison,
+            commands::jobs::get_minutiae,
+            commands::store::limits_of_use,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

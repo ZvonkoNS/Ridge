@@ -15,6 +15,7 @@ const QUICK: Duration = Duration::from_secs(30);
 const IMAGE_IO: Duration = Duration::from_secs(120);
 const VERIFY: Duration = Duration::from_secs(15 * 60);
 const PNG: (&str, &[&str]) = ("PNG image", &["png"]);
+const JSON_FILE: (&str, &[&str]) = ("JSON", &["json"]);
 const ANY_IMAGE: (&str, &[&str]) = (
     "Image",
     &[
@@ -132,11 +133,18 @@ pub async fn export_item(
 ) -> Result<Value, IpcError> {
     require(&window, MAIN_LABEL)?;
     let sha256 = validate::sha256(&request.sha256)?;
-    let is_png = request
+    let suggested = request
         .suggested_name
         .as_deref()
-        .is_some_and(|n| n.to_ascii_lowercase().ends_with(".png"));
-    let filter = if is_png { PNG } else { ANY_IMAGE };
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let filter = if suggested.ends_with(".png") {
+        PNG
+    } else if suggested.ends_with(".json") {
+        JSON_FILE // minutiae artefacts
+    } else {
+        ANY_IMAGE
+    };
     let dest =
         path_text(&dialogs::save_file(&app, "Export to", request.suggested_name, filter).await?)?;
     call(

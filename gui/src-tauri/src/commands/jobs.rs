@@ -224,6 +224,24 @@ pub async fn export_comparison(
     call(&app, "compare.export", params, RECORD_IO).await
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MinutiaeRef {
+    sha256: String,
+}
+
+/// A job's minutiae for the viewer overlay (unvalidated, orientation only; a logged read).
+#[tauri::command]
+pub async fn get_minutiae(
+    app: AppHandle,
+    window: WebviewWindow,
+    request: MinutiaeRef,
+) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    let sha256 = validate::sha256(&request.sha256)?;
+    call(&app, "minutiae.get", json!({"sha256": sha256}), QUICK).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

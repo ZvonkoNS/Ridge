@@ -1,7 +1,7 @@
 // What a job measured and produced, in the report's own terms. Ridge describes processing only:
 // no score here is a match score, and the quality value is labelled indicative.
 import { Hash } from "../components/ui";
-import type { ExportInfo, Measurements, MinutiaeSummary, Quality } from "../ipc/types";
+import type { ExportInfo, LimitsSection, Measurements, MinutiaeSummary, Quality } from "../ipc/types";
 
 interface Props {
   result: {
@@ -10,7 +10,33 @@ interface Props {
     export: ExportInfo | null;
     quality: Quality | null;
     minutiae?: MinutiaeSummary | null | undefined;
+    limits_of_use?: LimitsSection | null | undefined;
   };
+}
+
+/** The limits-of-use outcome of a job (PRD §12 item 8); warnings stand out, nothing is refused. */
+export function LimitsOutcome({ section }: { section: LimitsSection | null | undefined }) {
+  if (!section) {
+    return null;
+  }
+  if (!section.configured) {
+    return <p className="muted">No limits of use are configured for this store.</p>;
+  }
+  if (section.within) {
+    return <p className="badge badge-ok">Within the limits of use ({section.source})</p>;
+  }
+  return (
+    <div className="notice notice-caution" role="status">
+      <div className="notice-body">
+        <strong>Outside the limits of use</strong> ({section.source}):
+        <ul className="limits-warnings">
+          {section.warnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
 }
 
 const METHOD: Record<string, string> = {
@@ -39,6 +65,7 @@ export function JobSummary({ result }: Props) {
       <h3>
         Job <Hash value={result.job_id} length={8} />
       </h3>
+      <LimitsOutcome section={result.limits_of_use} />
       <dl>
         <dt>Ridge period</dt>
         <dd>{m ? `${m.ridge_period_px.toFixed(2)} px` : "-"}</dd>

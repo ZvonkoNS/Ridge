@@ -27,6 +27,8 @@
     "allow-export-report",
     "allow-reproduce-job",
     "allow-export-log",
-    "allow-export-comparison"
+    "allow-export-comparison",
+    "allow-get-minutiae",
+    "allow-limits-of-use"
   ]
 }

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button, Notice } from "../components/ui";
 import { IpcError, ipc, isLocked } from "../ipc/commands";
 import { revokeAll } from "../ipc/images";
-import type { CaseInfo, Item, SessionInfo } from "../ipc/types";
+import type { CaseInfo, Item, LimitsStatus, SessionInfo } from "../ipc/types";
 import { EvidenceSection } from "./EvidenceSection";
 import { JobsSection } from "./JobsSection";
 import { RecordsSection } from "./RecordsSection";
@@ -31,6 +31,7 @@ export function CaseScreen({ session, storePath, onClosed }: Props) {
   const [section, setSection] = useState<SectionId>("evidence");
   const [items, setItems] = useState<Item[]>([]);
   const [info, setInfo] = useState<CaseInfo | null>(null);
+  const [limits, setLimits] = useState<LimitsStatus | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const close = useCallback(
@@ -63,6 +64,7 @@ export function CaseScreen({ session, storePath, onClosed }: Props) {
   useEffect(() => {
     refresh();
     ipc.caseInfo().then(setInfo, onFailure);
+    ipc.limitsOfUse().then(setLimits, onFailure);
   }, [refresh, onFailure]);
 
   const notify = (text: string) => {
@@ -151,7 +153,14 @@ export function CaseScreen({ session, storePath, onClosed }: Props) {
             <ReferencesSection items={items} onFailure={onFailure} onChanged={refresh} notify={notify} />
           ) : null}
           {section === "records" ? (
-            <RecordsSection info={info} onInfo={setInfo} onFailure={onFailure} notify={notify} />
+            <RecordsSection
+              info={info}
+              items={items}
+              limits={limits}
+              onInfo={setInfo}
+              onFailure={onFailure}
+              notify={notify}
+            />
           ) : null}
         </main>
       </div>

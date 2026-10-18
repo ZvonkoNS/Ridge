@@ -80,6 +80,7 @@ describe("store screen", () => {
       },
       list_items: () => [],
       case_info: () => INFO,
+      limits_of_use: () => ({ configured: false }),
     });
     render(<App />);
     await userEvent.click(screen.getByRole("button", { name: "Choose case store..." }));
@@ -112,6 +113,7 @@ describe("case screen", () => {
     routes({
       list_items: () => [EVIDENCE],
       case_info: () => INFO,
+      limits_of_use: () => ({ configured: false }),
       preview: () => ipcError("refused", "no case is unlocked"),
     });
     const onClosed = vi.fn();
@@ -127,6 +129,7 @@ describe("case screen", () => {
     routes({
       list_items: () => [],
       case_info: () => INFO,
+      limits_of_use: () => ({ configured: false }),
       verify_case: () => ipcError("refused", "custody entry 12 does not match its hash"),
     });
     render(<CaseScreen session={SESSION} storePath="C:/cases" onClosed={vi.fn()} />);
@@ -137,7 +140,12 @@ describe("case screen", () => {
 
   it("never writes case data to WebView storage", async () => {
     const setItem = vi.spyOn(Storage.prototype, "setItem");
-    routes({ list_items: () => [EVIDENCE], case_info: () => INFO, preview: () => ipcError("refused", "x") });
+    routes({
+      list_items: () => [EVIDENCE],
+      case_info: () => INFO,
+      limits_of_use: () => ({ configured: false }),
+      preview: () => ipcError("refused", "x"),
+    });
     render(<CaseScreen session={SESSION} storePath="C:/cases" onClosed={vi.fn()} />);
     await userEvent.click(await screen.findByRole("button", { name: /finger\.png/ }));
     expect(setItem).not.toHaveBeenCalled();

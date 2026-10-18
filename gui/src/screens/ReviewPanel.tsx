@@ -4,6 +4,7 @@
 import { useState } from "react";
 
 import { ExhibitLabel } from "../components/ExhibitLabel";
+import { MinutiaeNote, MinutiaeToggle, useMinutiaeOverlay } from "../components/MinutiaeToggle";
 import { ImageViewer, type Detail, type Tool } from "../components/ImageViewer";
 import type { ScaleSource } from "../components/ScaleBar";
 import { Button, Hash } from "../components/ui";
@@ -72,6 +73,8 @@ export function ReviewPanel({ evidence, onFailure, onJobDone }: Props) {
   const images = result?.outputs.filter((o) => o.role !== "minutiae") ?? [];
   const current = images.find((o) => o.sha256 === selected) ?? images[0] ?? null;
   const output = usePreview(current?.sha256 ?? null, onFailure);
+  const minutiaeSha = result?.outputs.find((o) => o.role === "minutiae")?.sha256 ?? null;
+  const overlay = useMinutiaeOverlay(minutiaeSha, current?.role ?? null, output.source, onFailure);
 
   const loadDetail = async (rect: Rect): Promise<Detail> => {
     const region = await ipc.previewRegion(evidence.sha256, rect.x, rect.y, rect.width, rect.height);
@@ -179,13 +182,16 @@ export function ReviewPanel({ evidence, onFailure, onJobDone }: Props) {
                 {o.role === "debug" ? o.label : o.role}
               </button>
             ))}
+            <MinutiaeToggle overlay={overlay} />
           </div>
+          <MinutiaeNote overlay={overlay} />
           {current && result ? (
             <ImageViewer
               title={`${current.role} output`}
               url={output.url}
               bitmap={output.bitmap}
               source={output.source}
+              marks={overlay.marks}
               label={(zoom) => (
                 <ExhibitLabel
                   role={current.role}

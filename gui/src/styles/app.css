@@ -550,8 +550,8 @@ code,
 }
 
 .review-side {
-  display: grid;
-  grid-template-rows: auto 1fr;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
@@ -675,6 +675,75 @@ code,
   stroke: #000000;
   stroke-width: 1px;
   vector-effect: non-scaling-stroke;
+}
+
+/* Minutiae overlay: shape tells the kind (circle = ending, square = bifurcation), colour only helps. */
+.ov-mark circle,
+.ov-mark rect,
+.ov-mark line {
+  fill: none;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.ov-ending circle,
+.ov-ending line {
+  stroke: #00b8ff;
+}
+
+.ov-bifurcation rect,
+.ov-bifurcation line {
+  stroke: #ff3dbb;
+}
+
+.overlay-toggle {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 2rem;
+  margin-left: auto;
+  font-size: var(--step--1);
+}
+
+.overlay-note {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: 3px;
+  background: var(--caution-bg);
+  color: var(--caution-ink);
+  font-size: var(--step--1);
+}
+
+.limits-warnings {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}
+
+.inventory {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--step--1);
+}
+
+.inventory th,
+.inventory td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.inventory th {
+  color: var(--ink-2);
+}
+
+.inventory-sub {
+  display: block;
+  color: var(--ink-2);
+}
+
+.card-wide {
+  max-width: none;
 }
 
 .viewer-empty {
@@ -931,7 +1000,7 @@ code,
   align-items: end;
 }
 
-.records .card {
+.records .card:not(.card-wide) {
   max-width: 48rem;
 }
 

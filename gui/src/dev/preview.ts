@@ -2,7 +2,7 @@
 // mocked IPC bridge and SYNTHETIC images drawn here (concentric sine ridges, no biometric data).
 // main.tsx installs it only when import.meta.env.DEV is true and no Tauri core is present, so
 // production builds drop this module entirely (checked by the GUI gate).
-import type { Item, JobRecord, JobReport, JobResult, Preview } from "../ipc/types";
+import type { Item, JobRecord, JobReport, JobResult, MinutiaeSpace, Preview } from "../ipc/types";
 
 const CASE_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 const KEY_ID = "5a1c09e3b47d2f68";
@@ -114,6 +114,16 @@ function runJob(request: Record<string, unknown>): JobResult {
   ];
   SIZES[hex(10 + n)] = [1180, 1500, "print"];
   SIZES[hex(20 + n)] = [760, 966, "export"];
+  if (request.minutiae === true) {
+    outputs.push({
+      sha256: hex(50 + n),
+      role: "minutiae",
+      size: 4_096,
+      label: "IMG_0042_minutiae.json",
+      job_id: jobId,
+      source: null,
+    });
+  }
   items.push(...outputs);
   const ruler = request.ruler !== null;
   const result: JobResult = {
@@ -135,7 +145,18 @@ function runJob(request: Record<string, unknown>): JobResult {
         : { method: "ridge-period", px_per_mm: 38.1, uncertainty_pct: 15, assumed_ridge_period_mm: 0.47 },
     },
     quality: { nfiq2: { computed: false, reason: "NFIQ 2 is not configured on this workstation" } },
-    minutiae: null,
+    minutiae:
+      request.minutiae === true
+        ? {
+            produced: true,
+            sha256: hex(50 + n),
+            count: 24,
+            endings: 15,
+            bifurcations: 9,
+            label: "unvalidated automatic minutiae for examiner review; not used for any matching",
+          }
+        : null,
+    limits_of_use: ruler ? LIMITS_WITHIN : LIMITS_OUTSIDE,
   };
   jobs.push({
     job_id: jobId,
@@ -165,6 +186,36 @@ function runJob(request: Record<string, unknown>): JobResult {
     disclaimer: "Image enhancement only. Ridge does not identify anyone and draws no conclusions.",
   });
   return result;
+}
+
+const LIMITS = { min_ridge_period_px: 7, require_ruler: true, architectures: ["AMD64"] };
+const LIMITS_WITHIN = {
+  configured: true as const,
+  source: "VR-2027-01 (synthetic preview)",
+  sha256: hex(60),
+  limits: LIMITS,
+  within: true,
+  warnings: [],
+};
+const LIMITS_OUTSIDE = {
+  ...LIMITS_WITHIN,
+  within: false,
+  warnings: ["the export scale comes from ridge-period; the limits require a ruler in the photo"],
+};
+
+function marks(width: number, height: number, period: number): MinutiaeSpace {
+  const minutiae = Array.from({ length: 24 }, (_, i) => {
+    const t = (i / 24) * 2 * Math.PI;
+    const r = 0.12 + (0.3 * ((i * 7) % 10)) / 10;
+    return {
+      x: Math.round(width * (0.5 + r * 0.45 * Math.cos(t))),
+      y: Math.round(height * (0.55 + r * 0.6 * Math.sin(t))),
+      type: i % 3 === 0 ? ("bifurcation" as const) : ("ending" as const),
+      angle_deg: (i * 47) % 360,
+      quality: 60,
+    };
+  });
+  return { width, height, ridge_period_px: period, minutiae };
 }
 
 type Handler = (request: Record<string, unknown>) => unknown;
@@ -214,6 +265,19 @@ const handlers: Record<string, Handler> = {
     return { ...p, sha256: sha };
   },
   export_item: () => ({ exported: "D:\\Exports\\IMG_0042_comparison_500ppi.png" }),
+  get_minutiae: (r) => ({
+    sha256: r.sha256,
+    job_id: null,
+    label: "unvalidated automatic minutiae for examiner review; not used for any matching",
+    print: marks(1180, 1500, 17.9),
+    export: marks(760, 966, 11.5),
+  }),
+  limits_of_use: () => ({
+    configured: true,
+    source: LIMITS_WITHIN.source,
+    sha256: LIMITS_WITHIN.sha256,
+    limits: LIMITS,
+  }),
   export_log: () => ({ exported: "D:\\Exports\\record.json", entries: 42, key_id: KEY_ID }),
 };
 

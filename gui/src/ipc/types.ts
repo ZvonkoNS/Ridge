@@ -108,6 +108,23 @@ export type MinutiaeSummary =
   | { produced: true; sha256: string; count: number; endings: number; bifurcations: number; label: string }
   | { produced: false; reason: string; label: string };
 
+/** The limits-of-use section of a job report (PRD §12 item 8); absent in reports made before it. */
+export type LimitsSection =
+  | { configured: false }
+  | {
+      configured: true;
+      source: string;
+      sha256: string;
+      limits: Record<string, number | boolean | string[]>;
+      within: boolean;
+      warnings: string[];
+    };
+
+/** The store's limits of use, as `store.limits` returns them. */
+export type LimitsStatus =
+  | { configured: false }
+  | { configured: true; source: string; sha256: string; limits: Record<string, number | boolean | string[]> };
+
 export interface JobResult {
   job_id: string;
   outputs: Item[];
@@ -115,6 +132,30 @@ export interface JobResult {
   export: ExportInfo | null;
   quality: Quality | null;
   minutiae: MinutiaeSummary | null;
+  limits_of_use: LimitsSection | null;
+}
+
+export interface MinutiaPoint {
+  x: number;
+  y: number;
+  type: "ending" | "bifurcation";
+  angle_deg: number;
+  quality: number;
+}
+
+export interface MinutiaeSpace {
+  width: number;
+  height: number;
+  ridge_period_px: number;
+  minutiae: MinutiaPoint[];
+}
+
+export interface MinutiaeView {
+  sha256: string;
+  job_id: string | null;
+  label: string;
+  print: MinutiaeSpace | null;
+  export: MinutiaeSpace | null;
 }
 
 /** Options sent with `run_job`; every field is explicit, nothing is defaulted on the way. */
@@ -169,6 +210,7 @@ export interface JobReport {
   export: ExportInfo | null;
   quality: Quality | null;
   minutiae?: MinutiaeSummary | null;
+  limits_of_use?: LimitsSection | null;
   outputs: { role: Role; label: string; sha256: string; size: number }[];
   custody_head: string;
   signer: { key_id: string; public_key: string };
