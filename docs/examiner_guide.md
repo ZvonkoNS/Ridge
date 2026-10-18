@@ -47,7 +47,7 @@ Tick the key-register box to also check that your signing key is registered. The
 3. **Measure** shows the distance between two points in pixels and, on a scaled export, in millimetres with its uncertainty. It is for orientation and is not recorded.
 4. The minutiae overlay is off by default. It is unvalidated, for orientation only, and never used for matching.
 
-Every job is logged and its report is signed. In **Jobs**:
+Every job is logged, and a failed job is logged with its reason. Only a job that succeeds has a signed report. In **Jobs**:
 
 - **Export signed report...** writes the report with its signature;
 - **Save readable copy...** writes an HTML page for the case file. The page is not signed: the JSON report is the record;
@@ -62,7 +62,7 @@ If the laboratory has set limits of use, each report says whether the job stayed
 
 ## Exports
 
-Decrypted files leave the case only through the export buttons, and every export is written to the custody log with its hash and destination.
+Decrypted files leave the case only through the export buttons, and every export is written to the custody log with its destination. An exported image or comparison sheet is logged with its SHA-256. An exported report, processing record, custody head or package is logged with its job, package or case: its own signature protects its content.
 
 - **Export shown image** saves the image on screen.
 - **Export all N comparison exports...** / **processed prints...** write every item of that kind into a new folder, with an `EXPORTS.csv` index of names, hashes, jobs and labels.

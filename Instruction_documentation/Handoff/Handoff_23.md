@@ -20,6 +20,11 @@ Completed work on this branch:
 | Development preview | The preview answers `case_status`, so Records shows the case summary instead of an error |
 | Types | The GUI's file-check type includes the `backup` kind added in #21 |
 
+Codex review of PR #22 (two P2 findings on the guide's wording), fixed on this branch:
+
+- only a job that succeeds has a signed report; a failed job is logged with its reason;
+- the custody log records a SHA-256 for exported images and comparison sheets. Exported reports, processing records, custody heads and packages are logged with their job, package or case and destination, and their own signatures protect their content.
+
 Out of scope (unchanged):
 
 - installer build and code signing. The first `tauri build` downloads WiX/NSIS; a follow-up session card describes the dry run and asks before downloading;
