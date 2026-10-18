@@ -121,7 +121,7 @@ def test_sidecar_identity_card(tmp_path: Path) -> None:
     message = {"jsonrpc": "2.0", "id": 1, "method": "identity.card", "params": params}
     reply = json.loads(handle(json.dumps(message).encode(), session))
     assert check_card(tmp_path / "card.json").key_id == reply["result"]["key_id"]
-    params["passphrase"] = "not the right passphrase at all"
+    params["passphrase"] = "not the right passphrase at all"  # noqa: S105  # synthetic wrong passphrase
     params["dest"] = str((tmp_path / "other.json").resolve())
     message["params"] = params
     assert "error" in json.loads(handle(json.dumps(message).encode(), session))
