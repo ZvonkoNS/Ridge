@@ -12,7 +12,8 @@ export function versionText(info: AppInfo | null): string | null {
   if (!info) {
     return null;
   }
-  const commit = info.engine.commit && info.engine.commit !== "unknown" ? ` ${info.engine.commit.slice(0, 8)}` : "";
+  const commit =
+    info.engine.commit && info.engine.commit !== "unknown" ? ` ${info.engine.commit.slice(0, 8)}` : "";
   return `Ridge ${info.engine.ridge}${commit} (GUI ${info.gui}, ${info.engine.protocol})`;
 }
 
