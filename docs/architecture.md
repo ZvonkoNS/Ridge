@@ -419,6 +419,15 @@ The full ASVS 5.0 L3 mapping (applicable chapters only, with N/A rationale for s
 | M0–M3 | Python wheel + hashed lock file | Offline: `pip install --no-index --require-hashes -r requirements.lock` from a vetted wheelhouse, then `pip install --no-deps ridge-*.whl`. |
 | M4+ | Tauri bundle (MSI / DMG / AppImage) with the signed PyInstaller sidecar | Signed installer; Tauri updater disabled (offline only). |
 
+Packaging the GUI release (implemented 2026-10-18, bundle build not yet exercised):
+
+1. `tools/build_sidecar.py` freezes `ridge-sidecar` with PyInstaller 6.22.3 into a one-folder build (`build/sidecar/ridge-sidecar/`). PyInstaller is pinned with hashes in `requirements-build.lock`, which development and pull-request CI never install.
+2. It checks that this platform's OS keystore backend is in the frozen archive.
+3. It smoke-tests the frozen sidecar over stdio: protocol version, then an empty synthetic store.
+4. `tauri build --config src-tauri/tauri.release.conf.json` turns the bundle on and ships the folder as `resources/sidecar/`. The default configuration stays bundle-off, so development builds never need a frozen sidecar.
+5. A release build of the Rust core looks for the sidecar in its resource folder only (`sidecar::locate`).
+6. The frozen build is about 210 MB on Windows. It is not bit-reproducible (PyInstaller embeds build timestamps); the release records the SHA-256 of every shipped file instead.
+
 The reference workstation is to be specified (OQ-11).
 
 ## 11. Cross-cutting concepts

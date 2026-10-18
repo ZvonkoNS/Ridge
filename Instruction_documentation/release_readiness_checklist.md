@@ -34,16 +34,14 @@ Also required in GitHub Actions for the release commit: CodeQL, dependency revie
 From M4 (GUI):
 
 ```bash
-npm run lint
-npm run typecheck
-npm run test
-npm run build
-npm run test:e2e
-npm audit --audit-level=moderate
-cargo clippy -- -D warnings
-cargo audit
-cargo deny check
+python tools/gate.py gui      # npm lint, typecheck, format, test, build, audit, licences; cargo fmt, clippy, test, audit, deny
+npm run test:e2e              # Tauri WebDriver E2E: not implemented yet (standards profile exception)
+python -m pip install --require-hashes --no-deps -r requirements-build.lock
+python tools/build_sidecar.py # freezes the sidecar, checks the archive (keystore backend) and smoke-tests it over stdio
+cd gui && npx tauri build --config src-tauri/tauri.release.conf.json   # bundle with resources/sidecar/
 ```
+
+In GitHub Actions the GUI gate runs for the release tag (`gui.yml`). The frozen sidecar and the installer are code-signed before release; the bundle build has not been exercised yet (standards profile exception).
 
 ## Forensic release gates
 

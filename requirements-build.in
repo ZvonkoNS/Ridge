@@ -1,0 +1,8 @@
+# Release build tools: freeze the GUI sidecar (architecture §10). Not needed for development or
+# pull-request CI. Compiled with hashes into requirements-build.lock:
+#   uv pip compile requirements-build.in --universal --python-version 3.12 --generate-hashes -o requirements-build.lock
+# Runtime pins come from requirements.lock (constraint), so the frozen sidecar matches it.
+-c requirements.lock
+
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.8

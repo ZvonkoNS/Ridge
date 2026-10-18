@@ -152,8 +152,12 @@ npm run tauri dev
 ```
 
 `npm run dev` alone serves a **preview with synthetic data** in a normal browser, for UI
-work. It never touches a case store and is compiled out of production builds. Release
-packaging of the sidecar is not built yet (see the standards profile).
+work. It never touches a case store and is compiled out of production builds.
+
+Release packaging: `python tools/build_sidecar.py` (after installing
+`requirements-build.lock`) freezes the sidecar, checks it and smoke-tests it. Then
+`npx tauri build --config src-tauri/tauri.release.conf.json` bundles it. The installer
+build and code signing are not exercised yet (see the standards profile).
 
 ## Validation metrics (`ridge-validate`)
 

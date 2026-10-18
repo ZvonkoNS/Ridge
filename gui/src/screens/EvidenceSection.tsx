@@ -94,7 +94,14 @@ export function EvidenceSection({ items, onFailure, onChanged, notify }: Props) 
       </aside>
       <div className="section-main">
         {chosen ? (
-          <ReviewPanel key={chosen.sha256} evidence={chosen} onFailure={onFailure} onJobDone={onChanged} />
+          <ReviewPanel
+            key={chosen.sha256}
+            evidence={chosen}
+            allEvidence={evidence}
+            onFailure={onFailure}
+            onJobDone={onChanged}
+            notify={notify}
+          />
         ) : (
           <p className="empty empty-main">Choose an evidence photo to review it and run extraction jobs.</p>
         )}
