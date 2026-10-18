@@ -34,16 +34,14 @@ Also required in GitHub Actions for the release commit: CodeQL, dependency revie
 From M4 (GUI):
 
 ```bash
-npm run lint
-npm run typecheck
-npm run test
-npm run build
-npm run test:e2e
-npm audit --audit-level=moderate
-cargo clippy -- -D warnings
-cargo audit
-cargo deny check
+python tools/gate.py gui      # npm lint, typecheck, format, test, build, audit, licences; cargo fmt, clippy, test, audit, deny
+npm run test:e2e              # Tauri WebDriver E2E: not implemented yet (standards profile exception)
+python -m pip install --require-hashes --no-deps -r requirements-build.lock
+python tools/build_sidecar.py # freezes the sidecar, checks the archive (keystore backend) and smoke-tests it over stdio
+cd gui && npx tauri build --config src-tauri/tauri.release.conf.json   # bundle with resources/sidecar/
 ```
+
+In GitHub Actions the GUI gate runs for the release tag (`gui.yml`). The frozen sidecar and the installer are code-signed before release; the bundle build has not been exercised yet (standards profile exception).
 
 ## Forensic release gates
 
@@ -63,7 +61,7 @@ cargo deny check
 
 - Built from a clean checkout of the tagged commit with hashed lock files (`pip install --require-hashes`).
 - `SHA256SUMS` for every artifact and a detached signature by the release key (`environment_configuration_and_secrets.md`); OS code signing for installers (M4).
-- CycloneDX SBOM for Python dependencies (and npm/Cargo from M4) attached.
+- CycloneDX SBOMs attached: Python (`build/sbom.cdx.json`, `sbom` gate), npm runtime packages (`build/sbom-npm.cdx.json`) and Cargo (`build/sbom-cargo.cdx.json`), both from the `gui` gate.
 - Release notes include version, commit, forensic impact (pixels changed or not), exceptions, known issues.
 
 ## Manual delivery gates

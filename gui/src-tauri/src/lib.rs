@@ -62,6 +62,7 @@ pub fn run() {
                 )),
             };
             app.manage(AppState::new(Sidecar::new(Box::new(launch))));
+            state::start_idle_watchdog(app.handle().clone());
             if let Some(store) = settings::load(app.handle()) {
                 state::set_store(app.handle(), store)?;
             }
@@ -107,6 +108,7 @@ pub fn run() {
             commands::jobs::export_comparison,
             commands::jobs::get_minutiae,
             commands::store::limits_of_use,
+            commands::jobs::export_head,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

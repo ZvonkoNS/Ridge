@@ -3,6 +3,8 @@
 // passphrase is entered in the separate prompt window (ADR-010).
 import { invoke } from "@tauri-apps/api/core";
 
+import { noteActivity } from "../lib/idle";
+
 import type {
   AppInfo,
   CaseCreated,
@@ -16,6 +18,7 @@ import type {
   JobResult,
   LimitsStatus,
   MinutiaeView,
+  HeadExported,
   LogExported,
   Preview,
   PromptContext,
@@ -58,9 +61,15 @@ function toIpcError(raw: unknown): IpcError {
 
 async function call<T>(command: string, request?: Record<string, unknown>): Promise<T> {
   try {
-    return await invoke<T>(command, request === undefined ? {} : { request });
+    const result = await invoke<T>(command, request === undefined ? {} : { request });
+    noteActivity(); // the engine answered: its idle clock restarted
+    return result;
   } catch (raw) {
-    throw toIpcError(raw);
+    const error = toIpcError(raw);
+    if (error.kind === "refused") {
+      noteActivity(); // a refusal is an answer from the engine too
+    }
+    throw error;
   }
 }
 
@@ -86,6 +95,7 @@ export const ipc = {
     }),
   unlockCase: (caseId: string) => call<SessionInfo>("unlock_case", { case_id: caseId }),
   lockCase: () => call<{ locked: true }>("lock_case"),
+  sessionStatus: () => call<{ unlocked: boolean; idle_timeout_s: number }>("session_status"),
   caseInfo: () => call<CaseInfo>("case_info"),
   setLegalHold: (on: boolean, reason: string) => call<CaseInfo>("set_legal_hold", { on, reason }),
   listItems: () => call<Item[]>("list_items"),
@@ -103,6 +113,7 @@ export const ipc = {
   exportReport: (jobId: string) => call<ReportExported>("export_report", { job_id: jobId }),
   reproduceJob: (jobId: string) => call<Reproduction>("reproduce_job", { job_id: jobId }),
   exportLog: () => call<LogExported>("export_log"),
+  exportHead: () => call<HeadExported>("export_head"),
   minutiae: (sha256: string) => call<MinutiaeView>("get_minutiae", { sha256 }),
   limitsOfUse: () => call<LimitsStatus>("limits_of_use"),
   exportComparison: (exportSha: string, referenceSha: string, referencePpi: number | null) =>

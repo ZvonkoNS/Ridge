@@ -8,6 +8,7 @@ import { CaseScreen } from "../screens/CaseScreen";
 import { axeViolations, ipcError, routes } from "./ipc";
 
 const CASE_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
+const APP_INFO = () => ({ gui: "0.2.0", engine: { ridge: "0.2.0", protocol: "ridge.sidecar/1" } });
 const SESSION = {
   case_id: CASE_ID,
   reference: "KT-2026-0001",
@@ -28,6 +29,7 @@ describe("store screen", () => {
   it("leads a first run to the identity and keeps the passphrase out of this window", async () => {
     let identity = false;
     const mocked = routes({
+      app_info: APP_INFO,
       choose_store: () => ({ path: "C:/cases", identity: { exists: false }, cases: [] }),
       create_identity: () => {
         identity = true;
@@ -54,6 +56,7 @@ describe("store screen", () => {
 
   it("shows the store the core remembered, without a dialog", async () => {
     routes({
+      app_info: APP_INFO,
       refresh_store: () => ({
         path: "C:/cases",
         identity: { exists: true, key_id: "0123456789abcdef", public_key: "AAAA" },
@@ -67,6 +70,7 @@ describe("store screen", () => {
 
   it("unlocks a listed case and shows its tag", async () => {
     routes({
+      app_info: APP_INFO,
       choose_store: () => ({
         path: "C:/cases",
         identity: { exists: true, key_id: "0123456789abcdef", public_key: "AAAA" },
@@ -81,6 +85,7 @@ describe("store screen", () => {
       list_items: () => [],
       case_info: () => INFO,
       limits_of_use: () => ({ configured: false }),
+      session_status: () => ({ unlocked: true, idle_timeout_s: 900 }),
     });
     render(<App />);
     await userEvent.click(screen.getByRole("button", { name: "Choose case store..." }));
@@ -91,6 +96,7 @@ describe("store screen", () => {
 
   it("says nothing when the examiner cancels the prompt", async () => {
     routes({
+      app_info: APP_INFO,
       choose_store: () => ({
         path: "C:/cases",
         identity: { exists: true, key_id: "0123456789abcdef", public_key: "AAAA" },
@@ -106,6 +112,16 @@ describe("store screen", () => {
     });
     expect(screen.queryByRole("alert")).toBeNull();
   });
+
+  it("reports an engine that cannot start before any work, with the versions otherwise", async () => {
+    routes({ app_info: () => ipcError("unavailable", "the processing engine could not be started") });
+    const { unmount } = render(<App />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("could not be started");
+    unmount();
+    routes({ app_info: APP_INFO });
+    render(<App />);
+    expect(await screen.findByText("Ridge 0.2.0 (GUI 0.2.0, ridge.sidecar/1)")).toBeInTheDocument();
+  });
 });
 
 describe("case screen", () => {
@@ -114,6 +130,7 @@ describe("case screen", () => {
       list_items: () => [EVIDENCE],
       case_info: () => INFO,
       limits_of_use: () => ({ configured: false }),
+      session_status: () => ({ unlocked: true, idle_timeout_s: 900 }),
       preview: () => ipcError("refused", "no case is unlocked"),
     });
     const onClosed = vi.fn();
@@ -130,6 +147,7 @@ describe("case screen", () => {
       list_items: () => [],
       case_info: () => INFO,
       limits_of_use: () => ({ configured: false }),
+      session_status: () => ({ unlocked: true, idle_timeout_s: 900 }),
       verify_case: () => ipcError("refused", "custody entry 12 does not match its hash"),
     });
     render(<CaseScreen session={SESSION} storePath="C:/cases" onClosed={vi.fn()} />);
@@ -144,6 +162,7 @@ describe("case screen", () => {
       list_items: () => [EVIDENCE],
       case_info: () => INFO,
       limits_of_use: () => ({ configured: false }),
+      session_status: () => ({ unlocked: true, idle_timeout_s: 900 }),
       preview: () => ipcError("refused", "x"),
     });
     render(<CaseScreen session={SESSION} storePath="C:/cases" onClosed={vi.fn()} />);

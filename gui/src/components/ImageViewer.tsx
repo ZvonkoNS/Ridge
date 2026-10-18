@@ -43,6 +43,9 @@ interface Props {
   loadDetail?: (rect: Rect) => Promise<Detail>;
   /** Minutiae overlay (unvalidated, orientation only), in the shown image's pixels. */
   marks?: Marks | null;
+  /** Controlled zoom (screen pixels per image pixel), for viewers linked at equal scale. */
+  zoom?: number | undefined;
+  onZoom?: ((zoom: number) => void) | undefined;
   label: (zoom: number) => ReactNode;
 }
 
@@ -115,18 +118,32 @@ export function ImageViewer(props: Props) {
     setDetail(null);
   }
   const fitted = source ? fitZoom(source, viewer) : 1;
-  const zoom = manual?.zoom ?? fitted;
-  const pan = manual?.pan ?? (source ? centre(source, viewer, fitted) : { x: 0, y: 0 });
+  // With `zoom`/`onZoom` the zoom is controlled by the parent (linked viewers at equal scale).
+  const controlled = props.zoom !== undefined;
+  const zoom = controlled ? clampZoom(props.zoom ?? fitted) : (manual?.zoom ?? fitted);
+  const middle = { x: viewer.width / 2, y: viewer.height / 2 };
+  const [seenZoom, setSeenZoom] = useState(zoom);
+  if (zoom !== seenZoom) {
+    // a zoom set from outside keeps the point in the middle of the viewer in place
+    setSeenZoom(zoom);
+    if (controlled && manual) {
+      setManual({ zoom, pan: zoomAround(manual.pan, seenZoom, zoom, middle) });
+    }
+  }
+  const pan = manual?.pan ?? (source ? centre(source, viewer, zoom) : { x: 0, y: 0 });
   const setPan = (next: Point) => {
     setManual({ zoom, pan: next });
   };
   const fit = () => {
     setManual(null);
+    props.onZoom?.(fitted);
   };
 
-  const zoomTo = (next: number, anchor: Point = { x: viewer.width / 2, y: viewer.height / 2 }) => {
+  const zoomTo = (next: number, anchor: Point = middle) => {
     const z = clampZoom(next);
     setManual({ zoom: z, pan: zoomAround(pan, zoom, z, anchor) });
+    setSeenZoom(z);
+    props.onZoom?.(z);
   };
 
   const local = (event: { clientX: number; clientY: number }): Point => {

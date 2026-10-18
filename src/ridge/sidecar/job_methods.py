@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import cast
 
 from ridge.case.compare import SHEET_PPI, export_sheet
+from ridge.case.custody_head import export_head
 from ridge.case.export_step import ExportOptions
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.processing_record import export_log
@@ -103,6 +104,14 @@ def log_export(session: Session, params: dict[str, Json]) -> Json:
     dest = absolute(params["dest"], "dest")
     count = export_log(case, session.require_store(), signer, dest, overwrite=params.get("overwrite", False))
     return {"exported": str(dest), "entries": count, "key_id": signer.key_id}
+
+
+def head_export(session: Session, params: dict[str, Json]) -> Json:
+    """Export the signed custody head for out-of-band countersigning to a native-dialog path (logged)."""
+    case, signer = session.require()
+    dest = absolute(params["dest"], "dest")
+    doc = export_head(case, session.require_store(), signer, dest, overwrite=params.get("overwrite", False))
+    return {"exported": str(dest), "seq": doc["seq"], "head": doc["head"], "key_id": doc["key_id"]}
 
 
 def compare_export(session: Session, params: dict[str, Json]) -> Json:

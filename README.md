@@ -99,6 +99,8 @@ ridge-case check-report report.json --key-id <key-id>   # anyone can verify an e
 ridge-case reproduce D:/ridge-store/<case-id> <job-id>  # re-run from the report; exit 1 if any output differs
 ridge-case log D:/ridge-store/<case-id> --to record.json # signed processing record for the DPO (logged)
 ridge-case check-log record.json --key-id <key-id>      # chain, sequence and signed heads, no store needed
+ridge-case head D:/ridge-store/<case-id> --to head.json  # signed custody head for the lab to countersign (logged)
+ridge-case check-head head.json --record record.json    # a later record still contains that head (no truncation)
 ridge-case hold D:/ridge-store/<case-id> --on --reason "..."
 ridge-case limits --store D:/ridge-store                 # limits of use from the lab's validation, if configured
 ridge-case limits --check limits-of-use.json             # validate a limits file before placing it in a store
@@ -152,8 +154,12 @@ npm run tauri dev
 ```
 
 `npm run dev` alone serves a **preview with synthetic data** in a normal browser, for UI
-work. It never touches a case store and is compiled out of production builds. Release
-packaging of the sidecar is not built yet (see the standards profile).
+work. It never touches a case store and is compiled out of production builds.
+
+Release packaging: `python tools/build_sidecar.py` (after installing
+`requirements-build.lock`) freezes the sidecar, checks it and smoke-tests it. Then
+`npx tauri build --config src-tauri/tauri.release.conf.json` bundles it. The installer
+build and code signing are not exercised yet (see the standards profile).
 
 ## Validation metrics (`ridge-validate`)
 
@@ -205,8 +211,9 @@ These apply when photos are taken for validation; case photos are what they are.
 .venv/Scripts/python tools/gate.py all     # docs lint format typecheck test sast deps secrets licenses sbom gui
 ```
 
-The `gui` gate needs Node.js and npm, the Rust toolchain, `cargo-audit` and `cargo-deny`
-(`cargo install cargo-audit cargo-deny --locked`).
+The `gui` gate needs Node.js and npm, the Rust toolchain, `cargo-audit`, `cargo-deny` and
+`cargo-cyclonedx` (`cargo install cargo-audit cargo-deny cargo-cyclonedx --locked`). It writes
+the npm and Cargo SBOMs to `build/`.
 
 The `secrets` gate needs [gitleaks](https://github.com/gitleaks/gitleaks) on PATH, and
 `deps` needs network access. Tests use synthetic images only (`tests/synthetic.py`).

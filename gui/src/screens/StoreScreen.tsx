@@ -9,6 +9,8 @@ import type { CaseSummary, SessionInfo, StoreView } from "../ipc/types";
 interface Props {
   store: StoreView | null;
   notice: string | null;
+  engineProblem?: string | null;
+  versions?: string | null;
   onStore: (store: StoreView) => void;
   onOpened: (session: SessionInfo) => void;
 }
@@ -28,7 +30,14 @@ function message(error: unknown): string | null {
   return error instanceof Error ? error.message : "Something went wrong.";
 }
 
-export function StoreScreen({ store, notice, onStore, onOpened }: Props) {
+export function StoreScreen({
+  store,
+  notice,
+  engineProblem = null,
+  versions = null,
+  onStore,
+  onOpened,
+}: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [form, setForm] = useState({ reference: "", legalBasis: "", retention: "" });
@@ -75,6 +84,11 @@ export function StoreScreen({ store, notice, onStore, onOpened }: Props) {
           Fingerprint image enhancement for examiners. Offline, encrypted, every step logged and signed.
         </p>
       </header>
+      {engineProblem ? (
+        <Notice tone="error">
+          The processing engine is not available: {engineProblem}. Restart Ridge; if this persists, report it.
+        </Notice>
+      ) : null}
       {notice ? <Notice tone="info">{notice}</Notice> : null}
       {problem ? (
         <Notice
@@ -187,6 +201,7 @@ export function StoreScreen({ store, notice, onStore, onOpened }: Props) {
           </section>
         </>
       ) : null}
+      {versions ? <p className="versions">{versions}</p> : null}
     </main>
   );
 }

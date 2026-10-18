@@ -271,7 +271,7 @@ Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 
 | R-2 | The algorithm invents ridge detail (artefacts) in poor regions. | Medium | High | Quality gating (FR-4); region overlay in reports; validation of false-detail rates; conservative default `--min-quality`. |
 | R-3 | Scale (500 ppi) error when no ruler is present. | High | Medium | Calibration preferred (FR-31); uncertainty in report; validation of the period-based assumption. |
 | R-4 | Biometric data leak from a workstation or export. | Low | Critical | Encryption at rest, offline operation, export logging, minimisation, crypto-erase. |
-| R-5 | Custody record challenged in court (e.g. clock manipulation, no trusted timestamping offline). | Medium | High | Hash chain + signatures; monotonic sequence numbers; optional lab-side countersigning (OQ-8). |
+| R-5 | Custody record challenged in court (e.g. clock manipulation, no trusted timestamping offline). | Medium | High | Hash chain + signatures; monotonic sequence numbers; optional lab-side countersigning (OQ-8): signed custody heads can be exported (`ridge-case head`, 2026-10-18) and later records checked against them (`ridge-case check-head --record`), which detects truncation after a countersigned head. |
 | R-6 | Supply-chain compromise of a dependency or image decoder (e.g. libheif, libtiff). | Medium | High | Hash-pinned lock, audits, SBOM, minimal decoder allow-list, headless OpenCV, CI on tagged commits only. |
 | R-7 | Cross-architecture numerical differences (x86-64 vs arm64). **Materialised 2026-10-17:** on Apple silicon one golden case agreed on 99.85% of output pixels and one measured ridge spacing differed by +0.5% (Handoff_2). | High (observed) | Medium | Reproducibility and validation per architecture (NFR-3, §12); casework workstations limited to validated architectures (OQ-15); cross-architecture deltas reported per release. |
 | R-8 | One-week timeline pressure reduces rigour. | High | High | Gates are blocking; behaviour-preserving refactor first; M5 is separate; open items tracked in handoffs. |
@@ -291,7 +291,7 @@ Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 
 | OQ-5 | Is ISO/IEC 17025 accreditation in place, and will Ridge be included in the accreditation scope? | Forensic Quality Manager | M5 |
 | OQ-6 | Validation dataset: number of volunteers, consent form, capture protocol, storage location and access. | Forensic Quality Manager + DPO | Before M5 |
 | OQ-7 | Accept or adjust the provisional benchmark targets after the baseline run. | Product Owner + Forensic Quality Manager | After baseline |
-| OQ-8 | Can custody chain heads be countersigned or timestamped by a lab system **out of band** (e.g. exported on removable media)? Ridge itself stays offline (SEC-1). | Security Owner | M1 design, M5 |
+| OQ-8 | Can custody chain heads be countersigned or timestamped by a lab system **out of band** (e.g. exported on removable media)? Ridge itself stays offline (SEC-1). Ridge side ready since 2026-10-18 (`ridge-case head`, `check-head`); the lab process is open. | Security Owner | M1 design, M5 |
 | OQ-9 | Signing key model: one key per workstation or per examiner, and where public keys are registered. | Security Owner | M1 |
 | OQ-10 | Names of the Product, Security, Quality/Release, DPO and Forensic Quality owners. | Product Owner | Before any release |
 | OQ-11 | Reference workstation specification (CPU, RAM, OS) for performance targets. | Security Owner / IT | M0 baseline |

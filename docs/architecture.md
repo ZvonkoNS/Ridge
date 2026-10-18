@@ -204,6 +204,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `report.export` | `job_id`, `dest` (absolute), `overwrite` | Logged export of the canonical report and its detached signature (`dest.sig`) |
 | `job.reproduce` | `job_id` | Re-run from the verified report; per-output comparison and environment changes (logged, signed) |
 | `log.export` | `dest` (absolute), `overwrite` | Logged, signed processing record (PRIV-3) |
+| `head.export` | `dest` (absolute), `overwrite` | Logged, signed custody head for out-of-band countersigning (§8.4) |
 | `case.import_reference` | `path` (absolute), `source` | Reference item (NAFIS/AFIS candidate; view only, never processed) |
 | `compare.export` | `export`, `reference`, `dest` (absolute), `reference_ppi`, `ppi`, `overwrite` | Logged equal-scale side-by-side sheet (FR-52) |
 
@@ -225,6 +226,7 @@ The **Rust core** (`gui/src-tauri/src`, trusted, `#![forbid(unsafe_code)]` throu
   - removes the `PYTHON*` variables and `PYTHON_KEYRING_BACKEND` from its environment;
   - reads response lines of at most 32 MiB on a reader thread, with per-method timeouts of 30 s to 20 min;
   - on a timeout, a transport failure or a protocol violation, stops the sidecar (the case locks). The next call restarts it, at most three times per run. A failed request is never resent.
+  - enforces the idle lock itself: a watchdog thread sends `session.lock` once 15 minutes pass without a request (`Sidecar::lock_if_idle`). The sidecar checks its own deadline only when a request arrives, and the WebView's timers may not run while the window is minimised or suspended.
 - Commands (`commands/`): 27 thin commands; the list in `commands/list.rs` is shared by `build.rs` (ACL manifest) and the capability tests. Each command:
   - deserialises a `deny_unknown_fields` request;
   - validates every value: SHA-256 handles, UUIDs, free text, dates, numeric ranges;
@@ -349,7 +351,14 @@ A job outside the limits is **not refused**: the examiner decides, informed. Rep
  "target": {"sha256": "…", "role": "export"}, "job_id": "uuid", "result": "ok"}
 ```
 
-`seq` is strictly increasing and `prev` links the chain. The chain head is signed at the end of each job and on `verify`. Clock trust is limited offline, so out-of-band countersigning or timestamping by a lab system is an open item (OQ-8, R-5); Ridge never contacts a timestamp server itself.
+`seq` is strictly increasing and `prev` links the chain. The chain head is signed at the end of each job and on `verify`. Clock trust is limited offline. Ridge never contacts a timestamp server itself.
+
+**Custody heads for out-of-band countersigning (OQ-8, R-5; `src/ridge/case/custody_head.py`, implemented 2026-10-18).** `ridge-case head --to head.json` (or GUI → Records) logs `head.export`, signs the current head and writes a small file, schema `ridge.custody-head/1`. The file holds the case id, the sequence number, the chain hash, the times, the key and its public part. Two signatures cover it:
+
+- the log's own `chain.sign` signature over the head hash;
+- a second signature over the whole file.
+
+The file holds no images and no personal data. The laboratory can countersign or timestamp it in its own systems. `ridge-case check-head head.json --record record.json` verifies the file and requires that a later processing record contains exactly that `chain.sign` entry at that sequence number. A log that was truncated after the head and continued fails this check, although its chain is internally consistent and the record alone would pass. Whether a lab system will countersign heads is still the Security Owner's decision (OQ-8).
 
 ## 9. Security architecture
 
@@ -419,6 +428,15 @@ The full ASVS 5.0 L3 mapping (applicable chapters only, with N/A rationale for s
 | --- | --- | --- |
 | M0–M3 | Python wheel + hashed lock file | Offline: `pip install --no-index --require-hashes -r requirements.lock` from a vetted wheelhouse, then `pip install --no-deps ridge-*.whl`. |
 | M4+ | Tauri bundle (MSI / DMG / AppImage) with the signed PyInstaller sidecar | Signed installer; Tauri updater disabled (offline only). |
+
+Packaging the GUI release (implemented 2026-10-18, bundle build not yet exercised):
+
+1. `tools/build_sidecar.py` freezes `ridge-sidecar` with PyInstaller 6.22.3 into a one-folder build (`build/sidecar/ridge-sidecar/`). PyInstaller is pinned with hashes in `requirements-build.lock`, which development and pull-request CI never install.
+2. It checks that this platform's OS keystore backend is in the frozen archive.
+3. It smoke-tests the frozen sidecar over stdio: protocol version, then an empty synthetic store.
+4. `tauri build --config src-tauri/tauri.release.conf.json` turns the bundle on and ships the folder as `resources/sidecar/`. The default configuration stays bundle-off, so development builds never need a frozen sidecar.
+5. A release build of the Rust core looks for the sidecar in its resource folder only (`sidecar::locate`).
+6. The frozen build is about 210 MB on Windows. It is not bit-reproducible (PyInstaller embeds build timestamps); the release records the SHA-256 of every shipped file instead.
 
 The reference workstation is to be specified (OQ-11).
 

@@ -6,7 +6,8 @@ export interface ScaleSource {
   /** Pixels of the shown image per millimetre on the finger. */
   pxPerMm: number;
   method: string;
-  uncertaintyPct: number;
+  /** Relative uncertainty of `pxPerMm` in percent, or null when no uncertainty is known. */
+  uncertaintyPct: number | null;
 }
 
 const LENGTHS_MM = [1, 2, 5, 10, 20, 50];
@@ -22,6 +23,8 @@ const METHOD_NAMES: Record<string, string> = {
   ruler: "ruler",
   "ridge-period": "ridge-period estimate",
   manual: "examiner value",
+  file: "resolution in the file",
+  examiner: "resolution typed by the examiner",
 };
 
 interface Props {
@@ -39,7 +42,8 @@ export function ScaleBar({ source, zoom }: Props) {
   const segment = (mm * screenPxPerMm) / segments;
   const width = Math.max(1, Math.round(mm * screenPxPerMm));
   const method = METHOD_NAMES[source.method] ?? source.method;
-  const text = `${mm} mm, ${method}, ±${source.uncertaintyPct.toFixed(source.uncertaintyPct < 1 ? 2 : 0)} %`;
+  const u = source.uncertaintyPct;
+  const text = `${mm} mm, ${method}${u === null ? "" : `, ±${u.toFixed(u < 1 ? 2 : 0)} %`}`;
   return (
     <figure className="scalebar" aria-label={`Scale bar: ${text}`}>
       <svg width={width + 2} height={10} viewBox={`0 0 ${width + 2} 10`} aria-hidden="true" focusable="false">

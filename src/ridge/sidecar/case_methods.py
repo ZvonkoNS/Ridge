@@ -13,6 +13,7 @@ from typing import cast
 import cv2
 
 from ridge.arrays import ImageU8
+from ridge.case.compare import PLAUSIBLE_PPI, file_ppi
 from ridge.case.export_step import MINUTIAE_LABEL
 from ridge.case.store import OpenCase, StoredItem
 from ridge.case.verify import verify_case
@@ -78,12 +79,23 @@ def export_item(session: Session, params: dict[str, Json]) -> Json:
     return {"exported": str(dest)}
 
 
-def _image(case: OpenCase, sha: str) -> tuple[StoredItem, ImageU8]:
+def declared_ppi(data: bytes) -> float | None:
+    """Return the resolution the file declares if it is a plausible fingerprint resolution, else None.
+
+    72 or 96 ppi defaults and other implausible values are never passed on as a scale.
+    """
+    ppi = file_ppi(data)
+    low, high = PLAUSIBLE_PPI
+    return ppi if ppi is not None and low <= ppi <= high else None
+
+
+def _image(case: OpenCase, sha: str) -> tuple[StoredItem, ImageU8, bytes]:
     """Decrypt (logged) and decode a stored image; minutiae are JSON and refused."""
     item = case.item(sha)
     if item.role == "minutiae":
         raise ParameterError("minutiae are JSON, not an image")
-    return item, decode_image(case.read(item.sha256), ReadLimits())
+    data = case.read(item.sha256)
+    return item, decode_image(data, ReadLimits()), data
 
 
 def _png(image: ImageU8) -> str:
@@ -95,12 +107,14 @@ def preview(session: Session, params: dict[str, Json]) -> Json:
 
     `source_width` and `source_height` are the size of the full image after EXIF orientation: the
     coordinate space of a job's ``roi`` and ``ruler``, so the GUI can map clicks on the preview.
+    `ppi` is the resolution the file declares when it is a plausible fingerprint resolution
+    (exports carry 500 ppi; scanned references often declare theirs), otherwise None.
     """
     case, _ = session.require()
     max_side = params.get("max_side", PREVIEW_DEFAULT)
     if not 16 <= max_side <= PREVIEW_MAX:
         raise ParameterError(f"max_side must be between 16 and {PREVIEW_MAX}")
-    item, image = _image(case, params["sha256"])
+    item, image, data = _image(case, params["sha256"])
     h, w = image.shape[:2]
     scale = min(1.0, max_side / max(h, w))
     if scale < 1.0:
@@ -114,6 +128,7 @@ def preview(session: Session, params: dict[str, Json]) -> Json:
         "height": image.shape[0],
         "source_width": w,
         "source_height": h,
+        "ppi": declared_ppi(data),
         "png_base64": _png(image),
     }
 
@@ -128,7 +143,7 @@ def preview_region(session: Session, params: dict[str, Json]) -> Json:
     x, y, width, height = (params[k] for k in ("x", "y", "width", "height"))
     if min(x, y) < 0 or not (1 <= width <= REGION_MAX_SIDE and 1 <= height <= REGION_MAX_SIDE):
         raise ParameterError(f"region must start at x, y >= 0 and be 1-{REGION_MAX_SIDE} pixels per side")
-    item, image = _image(case, params["sha256"])
+    item, image, _ = _image(case, params["sha256"])
     h, w = image.shape[:2]
     if x >= w or y >= h:
         raise ParameterError(f"region starts outside the {w} x {h} image")

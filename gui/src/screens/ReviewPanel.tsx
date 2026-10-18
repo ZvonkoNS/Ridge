@@ -8,7 +8,7 @@ import { MinutiaeNote, MinutiaeToggle, useMinutiaeOverlay } from "../components/
 import { ImageViewer, type Detail, type Tool } from "../components/ImageViewer";
 import type { ScaleSource } from "../components/ScaleBar";
 import { Button, Hash } from "../components/ui";
-import { ipc } from "../ipc/commands";
+import { ipc, isLocked } from "../ipc/commands";
 import { pngUrl } from "../ipc/images";
 import type { Item, JobResult } from "../ipc/types";
 import { usePreview } from "../lib/usePreview";
@@ -20,8 +20,11 @@ const CLICK_ERROR_PX = 1; // as ridge.export.transforms.CLICK_ERROR_PX
 
 interface Props {
   evidence: Item;
+  /** Every evidence photo of the case, for "Run on all photos". */
+  allEvidence?: Item[];
   onFailure: (error: unknown) => void;
   onJobDone: () => void;
+  notify?: (message: string) => void;
 }
 
 const TOOLS: { id: Tool; label: string }[] = [
@@ -62,7 +65,7 @@ export function outputScale(
   return null;
 }
 
-export function ReviewPanel({ evidence, onFailure, onJobDone }: Props) {
+export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, notify }: Props) {
   const [params, setParams] = useState<Params>(DEFAULT_PARAMS);
   const [tool, setTool] = useState<Tool>("pan");
   const [result, setResult] = useState<JobResult | null>(null);
@@ -82,6 +85,40 @@ export function ReviewPanel({ evidence, onFailure, onJobDone }: Props) {
       url: pngUrl(region.png_base64),
       rect: { x: region.x, y: region.y, width: region.width, height: region.height },
     };
+  };
+
+  const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
+
+  /** The same settings on every photo, one job each; region and ruler belong to one photo and are left out. */
+  const runAll = async () => {
+    const options = toOptions(evidence.sha256, { ...params, roi: null, ruler: [] });
+    if (typeof options === "string") {
+      setProblem(options);
+      return;
+    }
+    setProblem(null);
+    const refused: string[] = [];
+    setBatch({ done: 0, total: allEvidence.length });
+    for (const [i, photo] of allEvidence.entries()) {
+      try {
+        await ipc.runJob({ ...options, evidence: photo.sha256 });
+      } catch (error) {
+        if (isLocked(error)) {
+          setBatch(null);
+          onFailure(error);
+          return;
+        }
+        refused.push(`${photo.label}: ${error instanceof Error ? error.message : "refused"}`);
+      }
+      setBatch({ done: i + 1, total: allEvidence.length });
+    }
+    setBatch(null);
+    onJobDone();
+    const ok = allEvidence.length - refused.length;
+    notify?.(
+      `${ok} of ${allEvidence.length} jobs done; see Jobs for their signed reports.` +
+        (refused.length ? ` Refused: ${refused.join("; ")}` : ""),
+    );
   };
 
   const run = async () => {
@@ -214,9 +251,21 @@ export function ReviewPanel({ evidence, onFailure, onJobDone }: Props) {
               {problem}
             </p>
           ) : null}
-          <Button variant="primary" onClick={() => void run()} busy={running}>
+          <Button variant="primary" onClick={() => void run()} busy={running} disabled={batch !== null}>
             {running ? "Running job..." : "Run job"}
           </Button>
+          {allEvidence.length > 1 ? (
+            <Button
+              onClick={() => void runAll()}
+              busy={batch !== null}
+              disabled={running}
+              title="Region and ruler belong to one photo and are left out"
+            >
+              {batch
+                ? `Job ${Math.min(batch.done + 1, batch.total)} of ${batch.total}...`
+                : `Run on all ${allEvidence.length} photos`}
+            </Button>
+          ) : null}
           <Button onClick={() => void exportCurrent()} disabled={!current || running}>
             Export shown image
           </Button>
