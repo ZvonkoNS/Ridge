@@ -94,6 +94,7 @@ See the pull request. Main areas:
 - Internal engineering build.
 - Not ready for casework (M5).
 - Blockers unchanged.
+- Frozen sidecar rebuilt from this branch (`4ef5a20`) with `python tools/build_sidecar.py`: 896 modules, the Windows keystore backend present, and the smoke test answered with that commit over stdio. The installer build itself was not run (see §1).
 
 ## 11. Open risks and known issues
 
