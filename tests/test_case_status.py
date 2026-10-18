@@ -48,6 +48,8 @@ def test_status_counts_and_dates(
     shown = capsys.readouterr().out
     assert "1 signed report(s)" in shown
     assert "Verified" in shown
+    assert main(["status", str(case_dir), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["signed_reports"] == 1
 
 
 def test_sidecar_status(tmp_path: Path) -> None:

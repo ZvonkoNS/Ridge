@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,10 @@ def cmd_overview(args: argparse.Namespace) -> None:
     cases = store_overview(args.store, common.read_passphrase(), common.KEYSTORE_FACTORY())
     if args.due:
         cases = [c for c in cases if c.due]
+    if args.json:
+        common.say(json.dumps([c.to_json() for c in cases], ensure_ascii=False, indent=2))
+        return
+    if args.due:
         common.say(f"{len(cases)} case(s) past their retention date without a legal hold")
     for c in cases:
         if c.reference is None:
@@ -53,6 +58,9 @@ def cmd_status(args: argparse.Namespace) -> None:
     """Summarise one case: what is stored, jobs, notes, retention and the last verification."""
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
         status = case_status(case)
+    if args.json:
+        common.say(json.dumps(status.to_json(), ensure_ascii=False, indent=2))
+        return
     for line in render_status(status):
         common.say(printable(line))
 
@@ -64,8 +72,10 @@ def add_commands(sub: Any) -> None:
     p.set_defaults(func=cmd_verify_store)
     p = sub.add_parser("status", help="a one-screen summary of a case (reads only)")
     p.add_argument("case", type=Path)
+    p.add_argument("--json", action="store_true", help="print the summary as JSON (for laboratory scripts)")
     p.set_defaults(func=cmd_status)
     p = sub.add_parser("overview", help="every case with its reference, retention date and legal hold")
     p.add_argument("--store", type=Path, required=True)
     p.add_argument("--due", action="store_true", help="only cases past their retention date without a legal hold")
+    p.add_argument("--json", action="store_true", help="print the cases as JSON (for laboratory scripts)")
     p.set_defaults(func=cmd_overview)
