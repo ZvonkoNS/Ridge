@@ -99,6 +99,7 @@ ridge-case verify-store --store D:/ridge-store           # every case of the sto
 ridge-case overview --store D:/ridge-store              # references, retention dates, legal holds (reads only)
 ridge-case overview --store D:/ridge-store --due        # only cases past retention without a hold (retention review)
 ridge-case backup --store D:/ridge-store --to E:/backup-2026-10-18   # encrypted byte copy with a hash manifest
+ridge-case workstation --store D:/ridge-store          # build, OS keystore, store, limits: what to fix before casework
 ridge-case check-backup E:/backup-2026-10-18            # every file against the manifest
 ridge-case note D:/ridge-store/<case-id> "text" --job <job-id>   # examiner note in the custody log (--corrects SEQ)
 ridge-case notes D:/ridge-store/<case-id>               # every note, with time and examiner
@@ -111,7 +112,8 @@ ridge-case check-report report.json --register lab-keys.json   # name the holder
 ridge-case check-log record.json --html record.html     # verify, then write a readable copy for the DPO
 ridge-case check <file-or-package-folder> --register lab-keys.json   # verify any exported Ridge file by its kind
 ridge-case log D:/ridge-store/<case-id>                 # decrypted custody log (processing record)
-ridge-case jobs D:/ridge-store/<case-id>                # jobs: started, result, signed report or not
+ridge-case log D:/ridge-store/<case-id> --find <sha>     # only entries containing a hash, a job id or note words
+ridge-case jobs D:/ridge-store/<case-id>                # jobs: started, result, signed report or not (--json)
 ridge-case report D:/ridge-store/<case-id> <job-id>     # verified report as text (--json for the signed JSON)
 ridge-case report D:/ridge-store/<case-id> <job-id> --to report.json   # + report.json.sig (logged)
 ridge-case report D:/ridge-store/<case-id> <job-id> --html report.html # readable copy, not signed (logged)

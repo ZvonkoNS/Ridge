@@ -38,6 +38,7 @@ import type {
   StoreView,
   VerifiedReport,
   Verification,
+  WorkstationFinding,
 } from "./types";
 
 /** A failed command, with the category the Rust core assigned (no paths, no internals). */
@@ -122,8 +123,8 @@ export const ipc = {
   listNotes: (jobId: string | null, sha256: string | null = null) =>
     call<Note[]>("list_notes", { job_id: jobId, sha256 }),
   exportPackage: () => call<PackageExported>("export_package"),
-  custodyLog: (offset: number, limit: number, action: string | null) =>
-    call<CustodyPage>("custody_log", { offset, limit, action }),
+  custodyLog: (offset: number, limit: number, action: string | null, text: string | null = null) =>
+    call<CustodyPage>("custody_log", { offset, limit, action, text }),
   exportReportHtml: (jobId: string) =>
     call<{ exported: string; job_id: string }>("export_report_html", { job_id: jobId }),
   importEvidence: (source: string | null) => call<ImportBatch>("import_evidence", { source }),
@@ -143,6 +144,7 @@ export const ipc = {
   exportHead: () => call<HeadExported>("export_head"),
   minutiae: (sha256: string) => call<MinutiaeView>("get_minutiae", { sha256 }),
   limitsOfUse: () => call<LimitsStatus>("limits_of_use"),
+  workstationCheck: () => call<WorkstationFinding[]>("workstation_check"),
   exportComparison: (exportSha: string, referenceSha: string, referencePpi: number | null) =>
     call<SheetExported>("export_comparison", {
       export: exportSha,

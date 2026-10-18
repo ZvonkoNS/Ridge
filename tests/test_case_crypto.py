@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import base64
 import json
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import keyring
 import pytest
@@ -177,5 +179,36 @@ def test_tampered_identity_is_detected(tmp_path: Path) -> None:
     record = json.loads((tmp_path / "identity.json").read_text(encoding="utf-8"))
     record["public_key"] = json.loads((other / "identity.json").read_text(encoding="utf-8"))["public_key"]
     (tmp_path / "identity.json").write_text(json.dumps(record), encoding="utf-8")
+    with pytest.raises(IntegrityError):
+        unlock_identity(tmp_path, PASSPHRASE, keystore)
+
+
+def _without(record: dict[str, Any], key: str) -> dict[str, Any]:
+    return {k: v for k, v in record.items() if k != key}
+
+
+MALFORMED: list[Callable[[dict[str, Any]], bytes]] = [
+    lambda r: b"{",
+    lambda r: bytes([0xFF, 0xFE]),  # not UTF-8
+    lambda r: b"[]",
+    lambda r: json.dumps(_without(r, "public_key")).encode(),
+    lambda r: json.dumps({**r, "public_key": 5}).encode(),
+    lambda r: json.dumps({**r, "public_key": "not base64!"}).encode(),
+    lambda r: json.dumps({**r, "key_id": 5}).encode(),
+    lambda r: json.dumps(_without(r, "salt")).encode(),
+    lambda r: json.dumps({**r, "sealed_private_key": "%%%"}).encode(),
+    lambda r: json.dumps(_without(r, "kdf")).encode(),
+    lambda r: json.dumps({**r, "pad": "x" * 70_000}).encode(),  # over the size bound
+]
+
+
+@pytest.mark.parametrize("change", MALFORMED)
+def test_a_malformed_identity_file_is_refused_cleanly(
+    tmp_path: Path, change: Callable[[dict[str, Any]], bytes]
+) -> None:
+    keystore = MemoryKeyStore()
+    create_identity(tmp_path, PASSPHRASE, keystore, FAST_KDF)
+    record = json.loads((tmp_path / "identity.json").read_text(encoding="utf-8"))
+    (tmp_path / "identity.json").write_bytes(change(record))
     with pytest.raises(IntegrityError):
         unlock_identity(tmp_path, PASSPHRASE, keystore)

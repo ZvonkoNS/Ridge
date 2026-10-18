@@ -26,9 +26,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from ridge.case.case_model import CASE_FILE, ERASING_SCHEMA
 from ridge.case.custody import utc_now
 from ridge.case.keys import KeyStore
-from ridge.case.store import CASE_FILE, ERASING_SCHEMA, open_case
+from ridge.case.store import open_case
 from ridge.errors import IntegrityError, RetentionError
 from ridge.image_io import publish
 

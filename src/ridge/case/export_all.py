@@ -16,7 +16,8 @@ import io
 import re
 from pathlib import Path
 
-from ridge.case.store import OpenCase, StoredItem
+from ridge.case.case_model import StoredItem
+from ridge.case.store import OpenCase
 from ridge.errors import OutputError, OutputExistsError, ParameterError, RidgeError
 from ridge.image_io import publish
 

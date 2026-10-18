@@ -44,6 +44,30 @@ describe("case keyboard shortcuts", () => {
     expect(opener).toHaveFocus(); // focus returns to where it was
   });
 
+  it("says what Ridge is and is not in About Ridge", async () => {
+    caseRoutes("2099-01-31");
+    const { container } = render(
+      <CaseScreen
+        session={SESSION}
+        storePath="C:/cases"
+        versions="Ridge 0.4.0 (abc1234)"
+        onClosed={vi.fn()}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "About Ridge" }));
+    const dialog = screen.getByRole("dialog", { name: "About Ridge" });
+    expect(dialog).toHaveTextContent("Ridge 0.4.0 (abc1234)");
+    expect(dialog).toHaveTextContent("does not identify anyone");
+    expect(dialog).toHaveTextContent("C:/cases");
+    expect(dialog).toHaveTextContent("ridge-case check FILE");
+    expect(await axeViolations(container)).toEqual([]);
+    await user.keyboard("{Alt>}2{/Alt}"); // section keys are off while a dialog is open
+    expect(screen.getByRole("button", { name: /Evidence/ })).toHaveAttribute("aria-current", "page");
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("ignores shortcuts while the examiner types", async () => {
     caseRoutes("2099-01-31");
     render(<CaseScreen session={SESSION} storePath="C:/cases" onClosed={vi.fn()} />);

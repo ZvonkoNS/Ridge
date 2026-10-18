@@ -21,6 +21,7 @@ from ridge.case.listing import list_cases
 from ridge.case.store import create_case, open_case
 from ridge.case.store_overview import store_overview
 from ridge.case.store_verify import verify_store
+from ridge.case.workstation import check_workstation
 from ridge.errors import ParameterError
 from ridge.sidecar.protocol import Json
 from ridge.sidecar.session import Session, absolute
@@ -111,6 +112,14 @@ def files_check(session: Session, params: dict[str, Json]) -> Json:
     register = params.get("register")
     path = absolute(params["path"], "path")
     return check_exported(path, absolute(register, "register") if register else None).to_json()
+
+
+def workstation(session: Session, params: dict[str, Json]) -> Json:
+    """Check the installation, the OS keystore, the store and its limits (read-only; nothing decrypted)."""
+    register = params.get("register")
+    store = absolute(params["store"], "store")
+    found = check_workstation(store, session.keystore_factory(), absolute(register, "register") if register else None)
+    return [f.to_json() for f in found]
 
 
 def identity_card(session: Session, params: dict[str, Json]) -> Json:

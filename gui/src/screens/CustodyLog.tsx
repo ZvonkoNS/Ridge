@@ -49,22 +49,24 @@ export function CustodyLog({
   onFailure: (error: unknown) => void;
 }) {
   const [filter, setFilter] = useState("");
+  const [draft, setDraft] = useState("");
+  const [search, setSearch] = useState("");
   const [entries, setEntries] = useState<CustodyEntry[] | null>(null);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    ipc.custodyLog(0, PAGE, filter || null).then((page) => {
+    ipc.custodyLog(0, PAGE, filter || null, search || null).then((page) => {
       setEntries(page.entries);
       setTotal(page.total);
     }, onFailure);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, refresh]);
+  }, [filter, search, refresh]);
 
   const more = async () => {
     setBusy(true);
     try {
-      const page = await ipc.custodyLog(entries?.length ?? 0, PAGE, filter || null);
+      const page = await ipc.custodyLog(entries?.length ?? 0, PAGE, filter || null, search || null);
       setEntries([...(entries ?? []), ...page.entries]);
       setTotal(page.total);
     } catch (error) {
@@ -95,6 +97,28 @@ export function CustodyLog({
           ))}
         </select>
       </label>
+      <form
+        className="custody-search"
+        role="search"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setSearch(draft.trim());
+        }}
+      >
+        <label className="field field-inline">
+          <span>Find</span>
+          <input
+            type="search"
+            value={draft}
+            maxLength={100}
+            placeholder="hash, job id, note text"
+            onChange={(e) => {
+              setDraft(e.target.value);
+            }}
+          />
+        </label>
+        <Button type="submit">Search</Button>
+      </form>
       {entries === null ? <p className="muted">Reading the custody log...</p> : null}
       {entries?.length === 0 ? <p className="empty">No entries of this kind.</p> : null}
       {entries && entries.length > 0 ? (

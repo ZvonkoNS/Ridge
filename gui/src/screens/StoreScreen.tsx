@@ -7,6 +7,7 @@ import { Button, Hash, Notice } from "../components/ui";
 import { IpcError, ipc } from "../ipc/commands";
 import type { CaseOverview, SessionInfo, StoreCheck, StoreView } from "../ipc/types";
 import { CheckFiles } from "./CheckFiles";
+import { WorkstationCheck } from "./WorkstationCheck";
 import { CaseList, StoreChecks, findCases } from "./StoreCases";
 
 interface Props {
@@ -312,6 +313,8 @@ export function StoreScreen({
         </>
       ) : null}
       <CheckFiles />
+      {/* keyed by store: findings belong to the store they were read from */}
+      {store ? <WorkstationCheck key={store.path} /> : null}
       {versions ? <p className="versions">{versions}</p> : null}
     </main>
   );

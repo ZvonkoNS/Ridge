@@ -1,4 +1,4 @@
-"""Store-level ``ridge-case`` commands: verify every case of a store with one passphrase."""
+"""Store-level ``ridge-case`` commands: verify, overview, status, backup and the workstation check."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from ridge.case.reports import printable
 from ridge.case.store import open_case
 from ridge.case.store_overview import store_overview
 from ridge.case.store_verify import verify_store
+from ridge.case.workstation import check_workstation
 
 
 def cmd_verify_store(args: argparse.Namespace) -> int:
@@ -84,6 +85,18 @@ def cmd_check_backup(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_workstation(args: argparse.Namespace) -> int:
+    """Check the installation, the OS keystore, the store and its limits; exit 1 on any problem."""
+    found = check_workstation(args.store, common.KEYSTORE_FACTORY(), args.register)
+    if args.json:
+        common.say(json.dumps([f.to_json() for f in found], ensure_ascii=False, indent=2))
+    else:
+        for f in found:
+            common.say(printable(f"{f.level.upper():8} {f.topic}: {f.text}"))
+        common.say("this checks the setup; it does not validate the method or the installation")
+    return 1 if any(f.level == "problem" for f in found) else 0
+
+
 def add_commands(sub: Any) -> None:
     """Register the store commands on the ``ridge-case`` sub-parser."""
     p = sub.add_parser("verify-store", help="verify every case of a store (hashes, custody chains, signatures)")
@@ -106,3 +119,8 @@ def add_commands(sub: Any) -> None:
     p.add_argument("--due", action="store_true", help="only cases past their retention date without a legal hold")
     p.add_argument("--json", action="store_true", help="print the cases as JSON (for laboratory scripts)")
     p.set_defaults(func=cmd_overview)
+    p = sub.add_parser("workstation", help="check this installation, the OS keystore, the store and its limits")
+    p.add_argument("--store", type=Path, required=True)
+    p.add_argument("--register", type=Path, help="also check that this store's signing key is in a key register")
+    p.add_argument("--json", action="store_true", help="print the findings as JSON (for laboratory scripts)")
+    p.set_defaults(func=cmd_workstation)

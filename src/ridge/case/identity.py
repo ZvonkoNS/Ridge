@@ -19,12 +19,14 @@ from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption,
 
 from ridge.case.crypto import open_sealed, seal, sha256_hex
 from ridge.case.keys import SALT_LEN, KdfParams, KeyStore, b64, check_passphrase, derive_kek, device_secret, unb64
-from ridge.errors import CaseError, IntegrityError, KeyCustodyError
-from ridge.image_io import publish
+from ridge.errors import CaseError, InputRejectedError, IntegrityError, KeyCustodyError
+from ridge.image_io import publish, read_bounded
 
 IDENTITY_FILE = "identity.json"
 SCHEMA = "ridge.identity/1"
 _PURPOSE = b"identity"
+MAX_BYTES = 64 * 1024  # an identity file is well under 1 KiB
+_MALFORMED = "identity.json is malformed"
 
 
 @dataclass(frozen=True)
@@ -78,26 +80,20 @@ def create_identity(store: Path, passphrase: str, keystore: KeyStore, params: Kd
 
 def public_identity(store: Path) -> tuple[str, bytes]:
     """(key_id, public key) of the store's identity, without unlocking it."""
-    record = _read(store)
-    public = unb64(record["public_key"])
-    if key_id_for(public) != record["key_id"]:
-        raise IntegrityError("identity.json key id does not match its public key")
-    return record["key_id"], public
+    return _public(_read(store))
 
 
 def unlock_identity(store: Path, passphrase: str, keystore: KeyStore) -> Signer:
     """Unlock the signing key; KeyCustodyError on a wrong passphrase or missing device secret."""
     record = _read(store)
-    key_id, public = public_identity(store)
-    kek = derive_kek(
-        passphrase,
-        unb64(record["salt"]),
-        KdfParams.from_json(record["kdf"]),
-        device_secret(keystore, create=False),
-        _PURPOSE,
-    )
+    key_id, public = _public(record)  # one read: the file cannot change between the checks
     try:
-        raw = open_sealed(kek, unb64(record["sealed_private_key"]), _aad(public))
+        salt, sealed, kdf = unb64(record["salt"]), unb64(record["sealed_private_key"]), record["kdf"]
+    except (KeyError, TypeError, ValueError, AttributeError):  # binascii.Error is a ValueError
+        raise IntegrityError(_MALFORMED) from None
+    kek = derive_kek(passphrase, salt, KdfParams.from_json(kdf), device_secret(keystore, create=False), _PURPOSE)
+    try:
+        raw = open_sealed(kek, sealed, _aad(public))
     except IntegrityError:
         raise KeyCustodyError("cannot unlock the signing identity: wrong passphrase or wrong OS account") from None
     private = Ed25519PrivateKey.from_private_bytes(raw)
@@ -114,7 +110,20 @@ def _read(store: Path) -> dict[str, Any]:
     path = store / IDENTITY_FILE
     if not path.is_file():
         raise CaseError(f"no examiner identity in {store}: run `ridge-case identity init --store {store}` first")
-    record = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        record = json.loads(read_bounded(path, MAX_BYTES).decode("utf-8"))
+    except (InputRejectedError, UnicodeDecodeError, json.JSONDecodeError):
+        raise IntegrityError(_MALFORMED) from None
     if not isinstance(record, dict) or record.get("schema") != SCHEMA:
         raise IntegrityError("identity.json has an unknown format")
     return record
+
+
+def _public(record: dict[str, Any]) -> tuple[str, bytes]:
+    try:
+        key_id, public = record["key_id"], unb64(record["public_key"])
+    except (KeyError, TypeError, ValueError, AttributeError):
+        raise IntegrityError(_MALFORMED) from None
+    if not isinstance(key_id, str) or key_id_for(public) != key_id:
+        raise IntegrityError("identity.json key id does not match its public key")
+    return key_id, public

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import cast
 
 from ridge.case.compare import SHEET_PPI, export_sheet
+from ridge.case.custody import select_entries
 from ridge.case.custody_head import export_head
 from ridge.case.export_step import ExportOptions
 from ridge.case.jobs import JobParams, run_extraction_job
@@ -112,7 +113,7 @@ def report_export_html(session: Session, params: dict[str, Json]) -> Json:
 
 
 def log_entries(session: Session, params: dict[str, Json]) -> Json:
-    """Return a page of the custody log, newest first, optionally one kind of action (read only).
+    """Return a page of the custody log, newest first, optionally one kind of action or matching text (read only).
 
     The hash chain was verified when the case was opened; entries hold no image data.
     """
@@ -120,8 +121,7 @@ def log_entries(session: Session, params: dict[str, Json]) -> Json:
     offset, limit = params.get("offset", 0), params.get("limit", 100)
     if not (0 <= offset <= 10_000_000 and 1 <= limit <= LOG_PAGE_MAX):
         raise ParameterError(f"offset must be 0 or more and limit 1-{LOG_PAGE_MAX}")
-    kind = params.get("action")
-    entries = [e for e in case.entries if kind is None or e["action"] == kind or e["action"].startswith(f"{kind}.")]
+    entries = select_entries(case.entries, params.get("action"), params.get("text"))
     return {"total": len(entries), "entries": entries[::-1][offset : offset + limit]}
 
 

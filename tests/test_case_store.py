@@ -90,6 +90,26 @@ def test_wrong_passphrase_or_account_is_denied(case_dir: Path, keystore: MemoryK
     assert not (case_dir / "LOCK").exists()
 
 
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda r: b"{",
+        lambda r: bytes([0xFF, 0xFE]),  # not UTF-8
+        lambda r: json.dumps({k: v for k, v in r.items() if k != "salt"}).encode(),
+        lambda r: json.dumps({**r, "wrapped_dek": 5}).encode(),
+        lambda r: json.dumps({**r, "salt": "not base64!"}).encode(),
+        lambda r: json.dumps({k: v for k, v in r.items() if k != "kdf"}).encode(),
+        lambda r: json.dumps({**r, "pad": "x" * 70_000}).encode(),  # over the size bound
+    ],
+)
+def test_a_malformed_case_file_is_refused_cleanly(case_dir: Path, keystore: MemoryKeyStore, change: Any) -> None:
+    record = json.loads((case_dir / "case.json").read_text(encoding="utf-8"))
+    (case_dir / "case.json").write_bytes(change(record))
+    with pytest.raises(IntegrityError, match="is malformed"):
+        open_case(case_dir, PASSPHRASE, keystore)
+    assert not (case_dir / "LOCK").exists()
+
+
 def test_single_writer_lock(case_dir: Path, keystore: MemoryKeyStore) -> None:
     with open_case(case_dir, PASSPHRASE, keystore), pytest.raises(CaseLockedError):
         open_case(case_dir, PASSPHRASE, keystore)

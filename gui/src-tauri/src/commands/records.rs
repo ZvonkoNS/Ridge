@@ -25,6 +25,7 @@ pub struct LogPage {
     offset: u32,
     limit: u32,
     action: Option<String>,
+    text: Option<String>,
 }
 
 /// An action kind like `job` or `examiner.note`: lower-case words joined by one dot.
@@ -53,7 +54,9 @@ pub async fn custody_log(
         ));
     }
     let action = request.action.as_deref().map(action_kind).transpose()?;
-    let params = json!({"offset": request.offset, "limit": request.limit, "action": action});
+    let text = validate::optional_text(request.text.as_deref(), "search text", 100)?;
+    let params =
+        json!({"offset": request.offset, "limit": request.limit, "action": action, "text": text});
     call(&app, "log.entries", params, QUICK).await
 }
 

@@ -20,7 +20,8 @@ from typing import Any
 
 import rfc8785
 
-from ridge.case.store import OpenCase, StoredItem
+from ridge.case.case_model import StoredItem
+from ridge.case.store import OpenCase
 from ridge.errors import ExportError, ExtractionError, ParameterError
 from ridge.export import (
     ASSUMED_RIDGE_PERIOD_MM,

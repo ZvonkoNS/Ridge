@@ -17,101 +17,35 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import secrets
 import uuid
-from collections.abc import Callable, Sequence
-from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
 
+from ridge.case.case_model import (
+    CASE_FILE,
+    ERASING_SCHEMA,
+    IMPORT_ACTIONS,
+    ITEM_ACTIONS,
+    LOCK_FILE,
+    META_FILE,
+    ROLES,
+    SCHEMA,
+    CaseMeta,
+    StoredItem,
+    clean_text,
+    path_label,
+    publish_logged,
+)
 from ridge.case.crypto import derive_subkey, keyed_name, open_sealed, random_key, seal, sha256_hex
 from ridge.case.custody import CustodyLog, Entry, default_actor, utc_now
 from ridge.case.keys import SALT_LEN, KdfParams, KeyStore, b64, check_passphrase, derive_kek, device_secret, unb64
-from ridge.errors import CaseError, CaseLockedError, IntegrityError, KeyCustodyError, ParameterError
+from ridge.errors import CaseError, CaseLockedError, InputRejectedError, IntegrityError, KeyCustodyError, ParameterError
 from ridge.image_io import ReadLimits, decode_image, publish, read_bounded
 
-CASE_FILE, META_FILE, LOCK_FILE = "case.json", "meta.enc", "LOCK"
-SCHEMA = "ridge.case/1"
-ERASING_SCHEMA = "ridge.case-erasing/1"  # case.json after crypto-erasure, before deletion
-ROLES = {
-    "evidence": "evidence",
-    "reference": "references",  # NAFIS/AFIS candidate images for side-by-side viewing (FR-52), never processed
-    "print": "artefacts",
-    "debug": "artefacts",
-    "export": "artefacts",
-    "minutiae": "artefacts",
-}
-IMPORT_ACTIONS = {"evidence": "evidence.import", "reference": "reference.import"}  # stored from outside a job
-ITEM_ACTIONS = (*IMPORT_ACTIONS.values(), "artefact.write")
-_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
-
-
-@dataclass(frozen=True)
-class CaseMeta:
-    """Case metadata kept encrypted in meta.enc."""
-
-    case_reference: str
-    legal_basis: str
-    retention_until: date
-    legal_hold: bool = False
-
-    def to_json(self) -> dict[str, Any]:
-        """JSON form."""
-        return {**asdict(self), "retention_until": self.retention_until.isoformat()}
-
-    @classmethod
-    def from_json(cls, data: dict[str, Any]) -> CaseMeta:
-        """Parse stored metadata."""
-        return cls(
-            data["case_reference"], data["legal_basis"], date.fromisoformat(data["retention_until"]), data["legal_hold"]
-        )
-
-
-@dataclass(frozen=True)
-class StoredItem:
-    """One stored blob as recorded in the custody log."""
-
-    sha256: str
-    role: str
-    size: int
-    label: str
-    job_id: str | None = None
-    source: str | None = None  # where a reference image came from (examiner's note)
-
-
-def publish_logged(files: Sequence[tuple[Path, bytes]], log: Callable[[], object], *, overwrite: bool) -> None:
-    """Write plaintext files, then log the export; if anything fails, remove what was written.
-
-    Data leaves the store only together with its custody entry (FR-22, FR-25): a failed second
-    file or a failed log append never leaves an unlogged plaintext copy behind. Files that existed
-    before are never removed unless this call replaced them (`overwrite`).
-    """
-    written: list[Path] = []
-    try:
-        for path, data in files:
-            publish(path, data, overwrite=overwrite)
-            written.append(path)
-        log()
-    except BaseException:
-        for path in written:
-            path.unlink(missing_ok=True)
-        raise
-
-
-def path_label(label: str) -> str:
-    """Shorten a file label for messages (labels are already cleaned when stored)."""
-    return label if len(label) <= 60 else label[:57] + "..."
-
-
-def clean_text(value: str, what: str, limit: int = 200) -> str:
-    """Validate free text: trimmed, 1..limit characters, no control characters."""
-    value = value.strip()
-    if not value or len(value) > limit or _CONTROL.search(value):
-        raise ParameterError(f"{what} must be 1-{limit} printable characters")
-    return value
+MAX_CASE_FILE_BYTES = 64 * 1024  # case.json is well under 1 KiB
 
 
 def create_case(
@@ -157,15 +91,15 @@ def open_case(case_dir: Path, passphrase: str, keystore: KeyStore, actor: str | 
     """Unlock a case. Use as a context manager so the lock is always released."""
     record = read_case_record(case_dir)
     case_id = record["case_id"]
-    kek = derive_kek(
-        passphrase,
-        unb64(record["salt"]),
-        KdfParams.from_json(record["kdf"]),
-        device_secret(keystore, create=False),
-        b"case|" + case_id.encode(),
-    )
     try:
-        dek = open_sealed(kek, unb64(record["wrapped_dek"]), _dek_aad(case_id))
+        salt, wrapped, kdf = unb64(record["salt"]), unb64(record["wrapped_dek"]), record["kdf"]
+    except (KeyError, TypeError, ValueError, AttributeError):  # binascii.Error is a ValueError
+        raise IntegrityError(f"{CASE_FILE} is malformed") from None
+    params = KdfParams.from_json(kdf)  # validates the fields (KeyCustodyError)
+    secret = device_secret(keystore, create=False)
+    kek = derive_kek(passphrase, salt, params, secret, b"case|" + case_id.encode())
+    try:
+        dek = open_sealed(kek, wrapped, _dek_aad(case_id))
     except IntegrityError:
         raise KeyCustodyError("cannot unlock the case: wrong passphrase or wrong OS account") from None
     return OpenCase(case_dir, dek, actor or default_actor())
@@ -176,7 +110,10 @@ def read_case_record(case_dir: Path) -> dict[str, Any]:
     path = case_dir / CASE_FILE
     if not path.is_file():
         raise CaseError(f"{case_dir} is not a Ridge case (no {CASE_FILE})")
-    record = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        record = json.loads(read_bounded(path, MAX_CASE_FILE_BYTES).decode("utf-8"))
+    except (InputRejectedError, UnicodeDecodeError, json.JSONDecodeError):
+        raise IntegrityError(f"{CASE_FILE} is malformed") from None
     if isinstance(record, dict) and record.get("schema") == ERASING_SCHEMA:
         raise CaseError("this case was crypto-erased but its disposal was interrupted: run `ridge-case dispose` again")
     if not isinstance(record, dict) or record.get("schema") != SCHEMA or record.get("case_id") != case_dir.name:

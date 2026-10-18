@@ -25,13 +25,14 @@ from PIL import Image
 import ridge
 from ridge.arrays import ImageU8
 from ridge.build_info import source_commit
+from ridge.case.case_model import StoredItem
 from ridge.case.crypto import sha256_hex
 from ridge.case.custody import utc_now
 from ridge.case.export_step import ExportOptions, export_and_score, minutiae_step, validate_job_settings
 from ridge.case.identity import Signer
 from ridge.case.keys import b64
 from ridge.case.limits import LimitsOfUse, load_limits, report_section
-from ridge.case.store import OpenCase, StoredItem
+from ridge.case.store import OpenCase
 from ridge.errors import ExtractionError, ParameterError, RidgeError
 from ridge.image_io import ALLOWED_FORMATS, ReadLimits, decode_image, encode_image
 from ridge.pipeline import extract_fingerprint

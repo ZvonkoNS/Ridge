@@ -18,6 +18,8 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 - `ridge-case check PATH` and GUI "Check exported files" verify any exported file or package by its kind.
 - Export every item of one role at once (`ridge-case export-all`, GUI "Export all N comparison exports"): one logged export each, with an `EXPORTS.csv` index.
 - Store backups (`ridge-case backup`, `check-backup`, GUI "Back up this store"): an encrypted byte copy with a hash manifest. A backup does **not** hold the OS-keystore device secret.
+- Workstation check (`ridge-case workstation`, GUI "This workstation"): the build, the OS keystore, the store and its limits of use, with what to fix before casework. It reads only, and it validates nothing.
+- `jobs --json` and `notes --json` for laboratory scripts.
 
 ### Keys
 
@@ -27,7 +29,9 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 
 ### GUI
 
-- Copy buttons for full SHA-256 values and the signing key id.
+- Copy buttons for full SHA-256 values and the signing key id. The result is announced to screen readers.
+- Custody log search for a hash, a job id or note text (also `ridge-case log --find`).
+- "About Ridge": what Ridge is and is not, where the data lives, and how exported files are checked.
 - Custody log view, case summary, note counts per job, job settings comparison (`ridge-case compare-jobs` in the CLI), and a view-only Measure tool on the comparison export.
 - Batch import of up to 50 photos. Only a refusal of a photo itself lets the batch continue.
 - Keyboard shortcuts (`?`, Alt+1–4), a retention-date reminder, case search, and an idle lock mirrored from the engine.
@@ -38,6 +42,8 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 - Strict input validation in the Rust core for every new command. Bidirectional overrides are refused in notes, names and register text.
 - Release builds ignore the WebView debugging environment variables.
 - Property-based fuzzing of the record formats a reviewer receives.
+- A malformed `identity.json` is refused cleanly, and it is read within a 64 KiB bound.
+- Bulk-export folders are private, and their file names stay distinct without regard to case.
 
 ### Known issues
 

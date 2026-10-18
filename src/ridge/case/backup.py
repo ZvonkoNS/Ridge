@@ -23,10 +23,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ridge.case.case_model import LOCK_FILE
 from ridge.case.custody import utc_now
 from ridge.case.identity import IDENTITY_FILE
 from ridge.case.listing import list_cases
-from ridge.case.store import LOCK_FILE
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
 from ridge.image_io import publish, read_bounded
 

@@ -131,6 +131,13 @@ export type LimitsSection =
     };
 
 /** The store's limits of use, as `store.limits` returns them. */
+/** One line of the read-only workstation check. */
+export interface WorkstationFinding {
+  topic: string;
+  level: "ok" | "note" | "problem";
+  text: string;
+}
+
 export type LimitsStatus =
   | { configured: false }
   | {

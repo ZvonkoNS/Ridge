@@ -27,11 +27,28 @@ import rfc8785
 
 from ridge.case.crypto import open_sealed, seal, sha256_hex
 from ridge.case.identity import Signer, verify_signature
-from ridge.errors import IntegrityError
+from ridge.errors import IntegrityError, ParameterError
 
 LOG_FILE = "custody.jsonl.enc"
 GENESIS = "0" * 64
 type Entry = dict[str, Any]
+MAX_FIND = 100
+
+
+def select_entries(entries: list[Entry], kind: str | None = None, text: str | None = None) -> list[Entry]:
+    """Entries of one kind (``job`` matches ``job.start``) and/or containing `text`, ignoring case.
+
+    The text is looked for in the entry's JSON, so a hash, a job id or words of a note all match.
+    """
+    if text is not None and not 1 <= len(text) <= MAX_FIND:
+        raise ParameterError(f"search text must be 1-{MAX_FIND} characters")
+    needle = text.casefold() if text else None
+    return [
+        e
+        for e in entries
+        if (kind is None or e["action"] == kind or e["action"].startswith(f"{kind}."))
+        and (needle is None or needle in json.dumps(e, ensure_ascii=False).casefold())
+    ]
 
 
 def utc_now() -> str:

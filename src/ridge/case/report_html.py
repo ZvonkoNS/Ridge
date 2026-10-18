@@ -14,6 +14,7 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
+from ridge.case.case_model import publish_logged
 from ridge.case.crypto import sha256_hex
 from ridge.case.limits import render_lines as render_limits
 from ridge.case.notes import Note, list_notes
@@ -30,7 +31,7 @@ from ridge.case.reports import (
     printable,
     signature_path,
 )
-from ridge.case.store import OpenCase, publish_logged
+from ridge.case.store import OpenCase
 from ridge.errors import OutputExistsError
 from ridge.image_io import publish, read_bounded
 

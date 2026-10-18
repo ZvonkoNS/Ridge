@@ -22,12 +22,13 @@ from typing import Any
 
 import rfc8785
 
+from ridge.case.case_model import publish_logged
 from ridge.case.crypto import sha256_hex
 from ridge.case.custody import Entry
 from ridge.case.identity import key_id_for, public_identity, verify_signature
 from ridge.case.jobs import REPORT_SCHEMA
 from ridge.case.limits import render_lines as render_limits
-from ridge.case.store import OpenCase, publish_logged
+from ridge.case.store import OpenCase
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
 from ridge.image_io import read_bounded
 

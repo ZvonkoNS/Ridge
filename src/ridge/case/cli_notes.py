@@ -7,6 +7,7 @@ ridge-case notes CASE [--job JOB] [--item SHA]
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,9 @@ def cmd_notes(args: argparse.Namespace) -> None:
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
         item = case.item(args.item).sha256 if args.item else None  # a unique prefix is enough
         notes = list_notes(case.entries, job_id=args.job, sha256=item)
+    if args.json:
+        common.say(json.dumps([n.to_json() for n in notes], ensure_ascii=False, indent=2))
+        return
     common.say("\n".join(_line(n) for n in notes) if notes else "no notes")
 
 
@@ -53,4 +57,5 @@ def add_commands(sub: Any) -> None:
     p.add_argument("case", type=Path)
     p.add_argument("--job")
     p.add_argument("--item", metavar="SHA", help="only the notes on this stored item")
+    p.add_argument("--json", action="store_true", help="print the notes as JSON (for laboratory scripts)")
     p.set_defaults(func=cmd_notes)
