@@ -92,6 +92,7 @@ ridge-case list D:/ridge-store/<case-id>                # evidence, outputs, job
 ridge-case import-reference D:/ridge-store/<case-id> candidate.png --source "NAFIS candidate 3"
 ridge-case compare D:/ridge-store/<case-id> <export-sha> <reference-sha> --to sheet.png   # equal scale, view only
 ridge-case export D:/ridge-store/<case-id> <sha> --to print.png   # the only way plaintext leaves the store (logged)
+ridge-case export-all D:/ridge-store/<case-id> --to D:/for-afis   # every comparison export, one logged export each, with EXPORTS.csv
 ridge-case verify D:/ridge-store/<case-id>              # hashes, custody chain, report signatures
 ridge-case status D:/ridge-store/<case-id>              # one-screen summary: stored items, jobs, notes, last verify
 ridge-case verify-store --store D:/ridge-store           # every case of the store, one passphrase

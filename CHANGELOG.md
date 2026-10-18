@@ -16,6 +16,7 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 - Custody heads carry a whole-file signature; `check-head --record` detects truncation after a head.
 - Reports record the source commit (`commit`, `commit_source`), stamped by the release build or read from git's files in a development checkout. The engine reports it too, the GUI footer shows it, and the frozen-sidecar build refuses a bundle without the stamp.
 - `ridge-case check PATH` and GUI "Check exported files" verify any exported file or package by its kind.
+- Export every item of one role at once (`ridge-case export-all`, GUI "Export all N comparison exports"): one logged export each, with an `EXPORTS.csv` index.
 - Store backups (`ridge-case backup`, `check-backup`, GUI "Back up this store"): an encrypted byte copy with a hash manifest. A backup does **not** hold the OS-keystore device secret.
 
 ### Keys
