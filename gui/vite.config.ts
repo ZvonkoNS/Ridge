@@ -25,5 +25,8 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     restoreMocks: true,
     css: false,
+    // Flows type passphrases and notes key by key and run axe: on a loaded Windows machine some take
+    // over the 5 s default, so a time-out is never mistaken for a failure of what is tested.
+    testTimeout: 15_000,
   },
 });
