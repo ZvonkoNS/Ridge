@@ -30,6 +30,7 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "get_minutiae",
     "limits_of_use",
     "export_head",
+    "verify_store",
 ];
 
 /// Commands of the passphrase window (capability `passphrase`).

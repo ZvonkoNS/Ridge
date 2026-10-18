@@ -22,6 +22,8 @@ use crate::windows;
 const MAX_ATTEMPTS: u32 = 5;
 const PROMPT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 const KDF_TIMEOUT: Duration = Duration::from_secs(180);
+/// Every case is decrypted and checked: allow for a large store.
+const STORE_VERIFY_TIMEOUT: Duration = Duration::from_secs(60 * 60);
 /// NIST SP 800-63B-style minimum for new passphrases (architecture §9.3; the sidecar enforces it too).
 pub const MIN_NEW_CHARS: usize = 15;
 const MAX_CHARS: usize = 1024;
@@ -41,6 +43,10 @@ pub enum Purpose {
     Unlock {
         store: PathBuf,
         case_id: String,
+    },
+    /// Verify every case of the store (one passphrase for all of the examiner's cases).
+    VerifyStore {
+        store: PathBuf,
     },
 }
 
@@ -131,6 +137,12 @@ fn describe(purpose: &Purpose, attempts_left: u32) -> Context {
             "unlock",
             "Unlock case".to_owned(),
             format!("Case {}. Enter your examiner passphrase.", &case_id[..8.min(case_id.len())]),
+        ),
+        Purpose::VerifyStore { .. } => (
+            "verify_store",
+            "Verify all cases".to_owned(),
+            "Enter your examiner passphrase to check every case of this store. Each check is recorded in that case's custody log."
+                .to_owned(),
         ),
     };
     let confirm = matches!(purpose, "create_identity");
@@ -223,6 +235,15 @@ struct WithSecret<'a> {
 
 fn perform(app: &AppHandle, purpose: &Purpose, passphrase: &str) -> Result<Value, IpcError> {
     match purpose {
+        Purpose::VerifyStore { store } => {
+            let store = path_text(store)?;
+            let params = WithSecret {
+                store: &store,
+                case_id: None,
+                passphrase,
+            };
+            state::call_now(app, "store.verify", &params, STORE_VERIFY_TIMEOUT)
+        }
         Purpose::CreateIdentity { store } => {
             let store = path_text(store)?;
             let params = WithSecret {
@@ -331,5 +352,18 @@ mod tests {
             retention_until: "2030-01-01".into(),
         };
         assert!(describe(&case, 3).title.contains("KT-2026-7"));
+    }
+
+    #[test]
+    fn verifying_a_store_asks_for_the_existing_passphrase_only() {
+        let verify = Purpose::VerifyStore {
+            store: PathBuf::from("/s"),
+        };
+        let shown = describe(&verify, 5);
+        assert_eq!(
+            (shown.purpose, shown.confirm, shown.min_chars),
+            ("verify_store", false, 1)
+        );
+        assert!(check(&verify, &secret("x"), &secret("")).is_ok());
     }
 }

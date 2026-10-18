@@ -272,8 +272,20 @@ export interface SheetExported extends Exported {
   reference_ppi_source: string;
 }
 
+/** One case of a store-wide verification (`store.verify`). */
+export interface StoreCheck {
+  case_id: string;
+  state: CaseState;
+  checked: boolean;
+  ok: boolean;
+  reference: string | null;
+  items: number;
+  reports: number;
+  problems: string[];
+}
+
 export interface PromptContext {
-  purpose: "create_identity" | "create_case" | "unlock";
+  purpose: "create_identity" | "create_case" | "unlock" | "verify_store";
   title: string;
   detail: string;
   confirm: boolean;

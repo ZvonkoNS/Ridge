@@ -108,6 +108,7 @@ pub fn run() {
             commands::jobs::get_minutiae,
             commands::store::limits_of_use,
             commands::jobs::export_head,
+            commands::store::verify_store,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

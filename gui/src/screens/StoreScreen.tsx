@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Button, Hash, Notice, StaggerItem, StaggerList, utc } from "../components/ui";
 import { IpcError, ipc } from "../ipc/commands";
-import type { CaseSummary, SessionInfo, StoreView } from "../ipc/types";
+import type { CaseSummary, SessionInfo, StoreCheck, StoreView } from "../ipc/types";
 
 interface Props {
   store: StoreView | null;
@@ -22,6 +22,28 @@ const STATE_TEXT: Record<CaseSummary["state"], string> = {
   disposed: "disposed",
   invalid: "unreadable",
 };
+
+/** The outcome of "Verify all cases": every case named, failures with their problems. */
+export function StoreChecks({ checks }: { checks: StoreCheck[] }) {
+  const checked = checks.filter((c) => c.checked);
+  const failed = checks.filter((c) => !c.ok);
+  return (
+    <Notice tone={failed.length ? "error" : "ok"}>
+      {checked.filter((c) => c.ok).length} of {checked.length} cases verified
+      {failed.length ? `; ${failed.length} with problems` : ""}.
+      <ul className="limits-warnings">
+        {checks.map((c) => (
+          <li key={c.case_id}>
+            <Hash value={c.case_id} length={8} /> {c.reference ?? ""}{" "}
+            {c.checked && c.ok
+              ? `verified: ${c.items} items, ${c.reports} signed reports`
+              : `${c.ok ? "not checked" : "FAILED"}: ${c.problems.join("; ")}`}
+          </li>
+        ))}
+      </ul>
+    </Notice>
+  );
+}
 
 function message(error: unknown): string | null {
   if (error instanceof IpcError && error.kind === "cancelled") {
@@ -41,6 +63,7 @@ export function StoreScreen({
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [form, setForm] = useState({ reference: "", legalBasis: "", retention: "" });
+  const [checks, setChecks] = useState<StoreCheck[] | null>(null);
 
   const attempt = async (key: string, work: () => Promise<void>) => {
     setBusy(key);
@@ -66,6 +89,11 @@ export function StoreScreen({
   const unlock = (caseId: string) =>
     attempt(caseId, async () => {
       onOpened(await ipc.unlockCase(caseId));
+    });
+  const verifyAll = () =>
+    attempt("verify", async () => {
+      setChecks(await ipc.verifyStore());
+      onStore(await ipc.refreshStore());
     });
   const create = () =>
     attempt("create", async () => {
@@ -149,6 +177,12 @@ export function StoreScreen({
                 </StaggerItem>
               ))}
             </StaggerList>
+            {store.cases.length > 0 ? (
+              <Button onClick={() => void verifyAll()} busy={busy === "verify"}>
+                Verify all cases...
+              </Button>
+            ) : null}
+            {checks ? <StoreChecks checks={checks} /> : null}
           </section>
           <section className="card" aria-labelledby="new-title">
             <h2 id="new-title">New case</h2>

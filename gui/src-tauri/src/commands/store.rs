@@ -103,6 +103,14 @@ pub async fn unlock_case(
     prompt::ask(&app, purpose).await
 }
 
+/// Verify every case of the chosen store; the passphrase is entered in the prompt window.
+#[tauri::command]
+pub async fn verify_store(app: AppHandle, window: WebviewWindow) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    let store = state::store(&app)?;
+    prompt::ask(&app, Purpose::VerifyStore { store }).await
+}
+
 /// Lock the open case.
 #[tauri::command]
 pub async fn lock_case(app: AppHandle, window: WebviewWindow) -> Result<Value, IpcError> {

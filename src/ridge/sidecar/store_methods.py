@@ -15,6 +15,7 @@ from ridge.case.keys import b64
 from ridge.case.limits import load_limits
 from ridge.case.listing import list_cases
 from ridge.case.store import create_case, open_case
+from ridge.case.store_verify import verify_store
 from ridge.errors import ParameterError
 from ridge.sidecar.protocol import Json
 from ridge.sidecar.session import Session, absolute
@@ -54,6 +55,16 @@ def limits_of_use(session: Session, params: dict[str, Json]) -> Json:
     if limits is None:
         return {"configured": False}
     return {"configured": True, "source": limits.source, "sha256": limits.sha256, "limits": limits.to_json()}
+
+
+def verify_all(session: Session, params: dict[str, Json]) -> Json:
+    """Verify every case of a store with the examiner passphrase (sent by the Rust core only).
+
+    The open case, if any, is locked first: a store check never runs beside an unlocked case.
+    """
+    session.close()
+    store = absolute(params["store"], "store")
+    return [check.to_json() for check in verify_store(store, params["passphrase"], session.keystore_factory())]
 
 
 def identity_create(session: Session, params: dict[str, Json]) -> Json:
