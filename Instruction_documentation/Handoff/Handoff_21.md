@@ -19,7 +19,7 @@ Completed work on this branch:
 | Hardening | `identity.json` and `case.json` are read within a 64 KiB bound. Every malformed form is an `IntegrityError`: not JSON, not UTF-8, missing fields, or broken base64. Before, they raised a raw JSON, key or base64 error, which was an internal error in the sidecar and stopped `verify-store`. `unlock_identity` reads the file once |
 | Custody log search | Sidecar `log.entries` takes `text` (1–100 characters, case-insensitive); GUI Records search box for a hash, a job id or note text |
 | JSON for scripts | `ridge-case jobs --json`, `ridge-case notes --json` |
-| About Ridge | Case-screen dialog: version and commit, what Ridge is and is not, where data lives, how exported files are checked. One `Dialog` component now holds the focus, Escape and Tab handling for it and the shortcut list |
+| About Ridge | Case-screen dialog: version and commit, what Ridge is and is not, where data lives, how exported files are checked. One `Dialog` component now holds the focus, Escape and Tab handling for it and the shortcut list. Self-review after the pull request opened found that a re-render briefly moved focus to the opener; `1ac2e5e` keeps the latest `onClose` in a ref, so the focus handling runs once per opening (`dialog.test.tsx`) |
 | Code health | `src/ridge/case/case_model.py` takes the case records and rules out of `store.py` (381 → 317 lines): file names and schemas, roles, `CaseMeta`, `StoredItem`, text validation and `publish_logged`. Callers import them from there |
 
 Out of scope (unchanged):
@@ -80,7 +80,7 @@ See the pull request. Main areas:
 
 - Added:
   - Python: `test_workstation.py` (8), malformed identity (10) and case files (6), `jobs`/`notes --json`, log search;
-  - Vitest: workstation card (2), About Ridge (1), log search (1).
+  - Vitest: workstation card (2), About Ridge (1), log search (1), dialog focus across re-renders (1).
 - Changed: the notes Vitest flow (it types two notes and runs axe) has a 15 s timeout. It took 5.27 s against the 5 s default in the first gate run, while other test runs loaded the machine.
 - Commands: `python tools/gate.py all` on this branch; the result is recorded in the pull request.
 - Not run:
