@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import sys
 import uuid
 from pathlib import Path
 from typing import Any
@@ -172,3 +173,35 @@ def test_unknown_commit_other_cpu_bad_identity_and_store_state(tmp_path: Path, m
     monkeypatch.setattr(os, "access", lambda path, mode: False)
     store = {f.topic: f for f in check_workstation(root, MemoryKeyStore())}["Store"]
     assert (store.level, "cannot be written" in store.text) == ("problem", True)
+
+
+def fake_tool(folder: Path, version_code: int) -> list[str]:
+    """A stand-in NFIQ 2 that answers --version (synthetic: it never sees an image)."""
+    script = folder / "fake_nfiq2.py"
+    lines = ["import sys", "print('NFIQ2 Version: 2.3.0')", f"sys.exit({version_code})"]
+    script.write_text("\n".join(lines), encoding="utf-8")
+    return [sys.executable, str(script)]
+
+
+def test_the_nfiq2_tool_is_found_and_reports_its_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = tmp_path / "store"
+    root.mkdir()
+
+    def nfiq2(command: list[str]) -> Finding:
+        (found,) = [f for f in check_workstation(root, MemoryKeyStore(), nfiq2=command) if f.topic == "NFIQ 2"]
+        return found
+
+    working = nfiq2(fake_tool(tmp_path, 0))
+    assert working.level == "ok"
+    assert "NFIQ2 Version: 2.3.0" in working.text
+    assert "indicative only" in working.text
+    assert nfiq2(fake_tool(tmp_path, 1)).level == "note"  # there, but no version
+    assert nfiq2([str(tmp_path / "missing.exe")]).level == "problem"
+    assert nfiq2(["nfiq2"]).level == "problem"  # not an absolute path: never searched on PATH
+    monkeypatch.setattr(cli_common, "KEYSTORE_FACTORY", MemoryKeyStore)
+    command = fake_tool(tmp_path, 0)
+    args = ["workstation", "--store", str(root), "--nfiq2", command[0], "--nfiq2-arg", command[1]]
+    assert main(args) == 0
+    assert "OK       NFIQ 2: NFIQ2 Version: 2.3.0" in capsys.readouterr().out

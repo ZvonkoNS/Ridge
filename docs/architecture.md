@@ -309,7 +309,8 @@ Workstation check (`src/ridge/case/workstation.py`, added 2026-10-18): `ridge-ca
 - whether this account's OS keystore holds the device secret (only looked up, never shown);
 - the examiner identity and the store's cases by state;
 - the limits of use: signed or not, whether they cover this CPU architecture, and an NFIQ 2 minimum;
-- optionally, whether the store's key is in a key register.
+- optionally, whether the store's key is in a key register (also from the GUI, with a native dialog);
+- optionally (CLI `--nfiq2`), whether the NFIQ 2 tool is at its absolute path and reports a version. It is asked only `--version` and never sees an image.
 
 Each finding is `ok`, `note` or `problem`; the command exits 1 on a problem. Nothing is created, decrypted or logged. The check is not a validation of the method or of the installation (NFR-3, OQ-15).
 

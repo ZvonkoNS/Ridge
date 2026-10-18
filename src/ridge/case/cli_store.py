@@ -87,7 +87,7 @@ def cmd_check_backup(args: argparse.Namespace) -> int:
 
 def cmd_workstation(args: argparse.Namespace) -> int:
     """Check the installation, the OS keystore, the store and its limits; exit 1 on any problem."""
-    found = check_workstation(args.store, common.KEYSTORE_FACTORY(), args.register)
+    found = check_workstation(args.store, common.KEYSTORE_FACTORY(), args.register, common.nfiq2_command(args))
     if args.json:
         common.say(json.dumps([f.to_json() for f in found], ensure_ascii=False, indent=2))
     else:
@@ -122,5 +122,7 @@ def add_commands(sub: Any) -> None:
     p = sub.add_parser("workstation", help="check this installation, the OS keystore, the store and its limits")
     p.add_argument("--store", type=Path, required=True)
     p.add_argument("--register", type=Path, help="also check that this store's signing key is in a key register")
+    p.add_argument("--nfiq2", type=Path, help="also check the NIST NFIQ 2 executable at this absolute path")
+    p.add_argument("--nfiq2-arg", action="append", default=[], help="extra argument for the NFIQ 2 command")
     p.add_argument("--json", action="store_true", help="print the findings as JSON (for laboratory scripts)")
     p.set_defaults(func=cmd_workstation)
