@@ -120,6 +120,7 @@ pub fn run() {
             commands::records::export_report_html,
             commands::store::export_key_card,
             commands::records::check_exported,
+            commands::store::backup_store,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

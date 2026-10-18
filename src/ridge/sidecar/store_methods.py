@@ -10,6 +10,7 @@ import uuid
 from datetime import date
 
 import ridge
+from ridge.case.backup import backup_store
 from ridge.case.file_check import check_exported
 from ridge.case.identity import IDENTITY_FILE, create_identity, public_identity, unlock_identity
 from ridge.case.key_card import write_card
@@ -92,6 +93,16 @@ def identity_create(session: Session, params: dict[str, Json]) -> Json:
     store = absolute(params["store"], "store")
     signer = create_identity(store, params["passphrase"], session.keystore_factory(), session.kdf_params)
     return {"key_id": signer.key_id, "public_key": b64(signer.public_key)}
+
+
+def backup(session: Session, params: dict[str, Json]) -> Json:
+    """Copy the encrypted store to a new native-dialog folder with a hash manifest (no passphrase)."""
+    manifest = backup_store(absolute(params["store"], "store"), absolute(params["dest"], "dest"))
+    return {
+        "exported": params["dest"],
+        "files": len(manifest["files"]),
+        "bytes": sum(f["size"] for f in manifest["files"]),
+    }
 
 
 def files_check(session: Session, params: dict[str, Json]) -> Json:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from ridge.case.cli import main
 from ridge.case.identity import create_identity
 from ridge.case.store import open_case
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
+from ridge.sidecar.handlers import Session
+from ridge.sidecar.server import handle
 from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, new_case, photo_file
 
 
@@ -73,3 +76,12 @@ def test_cli(store: tuple[Path, MemoryKeyStore, Path], tmp_path: Path, capsys: p
     assert "backup verified" in capsys.readouterr().out
     (tmp_path / "b" / "extra").write_text("x", encoding="utf-8")
     assert main(["check-backup", str(tmp_path / "b")]) == 1
+
+
+def test_sidecar_backup(store: tuple[Path, MemoryKeyStore, Path], tmp_path: Path) -> None:
+    root, keystore, _ = store
+    session = Session(keystore_factory=lambda: keystore)
+    params = {"store": str(root.resolve()), "dest": str((tmp_path / "gui-backup").resolve())}
+    message = {"jsonrpc": "2.0", "id": 1, "method": "store.backup", "params": params}
+    reply = json.loads(handle(json.dumps(message).encode(), session))
+    assert reply["result"]["files"] == check_backup(tmp_path / "gui-backup").files

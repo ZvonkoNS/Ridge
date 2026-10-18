@@ -197,6 +197,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `session.unlock` | `store` (absolute), `case_id` (UUID), `passphrase` | Case reference, retention, hold. **Only the Rust core sends this**, from a native prompt, never from the WebView |
 | `store.cases` | `store` (absolute) | Case ids, creation time and state (active, locked, erasing, disposed, invalid) from plaintext files only; nothing is decrypted |
 | `identity.create` | `store` (absolute), `passphrase` | Key id and public key of the new examiner identity (first run). **Rust core only**, from a native prompt |
+| `store.backup` | `store` (absolute), `dest` (absolute, a new folder named in a native dialog) | Encrypted byte copy of the store with `BACKUP-MANIFEST.json`; nothing decrypted, no passphrase; refused while a case is open |
 | `files.check` | `path` (absolute, from a native dialog; a folder is a package), `register` (optional) | Verifies an exported report, processing record, custody head, key card, key register, limits file or disclosure package with the CLI's verifiers; names the signer from a key register. No store needed, nothing written |
 | `identity.card` | `store` (absolute), `passphrase`, `holder`, `dest` (absolute, from a native dialog) | Writes a self-signed key card (`ridge.key-card/1`) for the laboratory's key register. **Rust core only**, from the prompt window |
 | `case.create` | `store`, `reference`, `legal_basis`, `retention_until` (YYYY-MM-DD), `passphrase` | New case id; the passphrase must unlock the identity. **Rust core only** |

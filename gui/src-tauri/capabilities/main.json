@@ -40,6 +40,7 @@
     "allow-custody-log",
     "allow-export-report-html",
     "allow-export-key-card",
-    "allow-check-exported"
+    "allow-check-exported",
+    "allow-backup-store"
   ]
 }

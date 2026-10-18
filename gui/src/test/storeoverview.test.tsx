@@ -103,4 +103,12 @@ describe("case details", () => {
     expect(await screen.findByText(/Key card for key 0123456789abcdef saved/)).toBeInTheDocument();
     expect(mocked).toHaveBeenCalledWith("export_key_card", { request: { holder: "Examiner A" } });
   });
+
+  it("backs up the store to a new folder", async () => {
+    const mocked = routes({ backup_store: () => ({ exported: "E:/backup", files: 12, bytes: 4096 }) });
+    render(<StoreScreen store={STORE} notice={null} onStore={vi.fn()} onOpened={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: "Back up this store..." }));
+    expect(await screen.findByText(/Backup written: 12 encrypted file\(s\)/)).toBeInTheDocument();
+    expect(mocked).toHaveBeenCalledWith("backup_store", {});
+  });
 });
