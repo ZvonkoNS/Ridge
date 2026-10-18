@@ -41,7 +41,13 @@ export function entryDetails(entry: CustodyEntry): string {
   return parts.join(" · ");
 }
 
-export function CustodyLog({ onFailure }: { onFailure: (error: unknown) => void }) {
+export function CustodyLog({
+  refresh,
+  onFailure,
+}: {
+  refresh?: unknown;
+  onFailure: (error: unknown) => void;
+}) {
   const [filter, setFilter] = useState("");
   const [entries, setEntries] = useState<CustodyEntry[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -53,7 +59,7 @@ export function CustodyLog({ onFailure }: { onFailure: (error: unknown) => void 
       setTotal(page.total);
     }, onFailure);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  }, [filter, refresh]);
 
   const more = async () => {
     setBusy(true);

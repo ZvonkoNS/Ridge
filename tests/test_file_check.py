@@ -103,3 +103,18 @@ def test_cli(files: dict[str, Path], capsys: pytest.CaptureFixture[str]) -> None
     assert "Processing record: verified" in shown
     assert "registered to Examiner A" in shown
     assert main(["check", str(files["card"])]) == 0
+
+
+def test_a_card_is_checked_against_a_register(files: dict[str, Path], tmp_path: Path) -> None:
+    result = check_exported(files["card"], files["register"])
+    assert result.holder == "Examiner A"
+    doc = json.loads(files["register"].read_bytes())
+    doc["keys"][0]["holder"] = "Someone Else"
+    (tmp_path / "other.json").write_text(json.dumps(doc), encoding="utf-8")
+    with pytest.raises(IntegrityError, match="the register lists"):
+        check_exported(files["card"], tmp_path / "other.json")
+    doc["keys"][0]["revoked"] = "2000-01-01"
+    doc["keys"][0]["holder"] = "Examiner A"
+    (tmp_path / "revoked.json").write_text(json.dumps(doc), encoding="utf-8")
+    with pytest.raises(IntegrityError, match="revoked"):
+        check_exported(files["card"], tmp_path / "revoked.json")

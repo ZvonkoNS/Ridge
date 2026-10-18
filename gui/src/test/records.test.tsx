@@ -144,4 +144,37 @@ describe("records", () => {
     expect(await screen.findByText("2 evidence photo(s), 1 processed print(s)")).toBeInTheDocument();
     expect(screen.getByText("1 ok; 1 signed report(s)")).toBeInTheDocument();
   });
+
+  it("reloads the summary and the log after an action that changes the custody log", async () => {
+    const status = vi.fn(() => STATUS);
+    const log = vi.fn(() => ({ total: 0, entries: [] }));
+    routes({
+      list_notes: () => [],
+      case_status: status,
+      custody_log: log,
+      export_head: () => ({
+        exported: "D:/h.json",
+        seq: 41,
+        head: "a".repeat(64),
+        key_id: "0123456789abcdef",
+      }),
+    });
+    render(
+      <RecordsSection
+        info={INFO}
+        items={[]}
+        limits={{ configured: false }}
+        onInfo={vi.fn()}
+        onFailure={vi.fn()}
+        notify={vi.fn()}
+      />,
+    );
+    await screen.findByText("2 evidence photo(s), 1 processed print(s)");
+    const before = status.mock.calls.length;
+    await userEvent.click(screen.getByRole("button", { name: "Export custody head..." }));
+    await waitFor(() => {
+      expect(status.mock.calls.length).toBeGreaterThan(before);
+    });
+    expect(log.mock.calls.length).toBeGreaterThan(2); // the log view and the last-verified line reloaded
+  });
 });

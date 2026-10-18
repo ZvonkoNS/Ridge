@@ -51,6 +51,14 @@ def test_only_a_ridge_store_is_backed_up(tmp_path: Path) -> None:
     assert not (tmp_path / "backup").exists()
 
 
+def test_a_backup_inside_the_store_is_refused(store: tuple[Path, MemoryKeyStore, Path]) -> None:
+    root, _, case_dir = store
+    for inside in (root / "backup", case_dir / "backup"):
+        with pytest.raises(ParameterError, match="outside the case store"):
+            backup_store(root, inside)
+        assert not inside.exists()
+
+
 def test_an_open_case_is_not_backed_up(store: tuple[Path, MemoryKeyStore, Path], tmp_path: Path) -> None:
     root, keystore, case_dir = store
     with open_case(case_dir, PASSPHRASE, keystore), pytest.raises(ParameterError, match="open"):

@@ -113,6 +113,8 @@ def backup_store(store: Path, dest: Path) -> dict[str, Any]:
         raise ParameterError(f"{store} is not a Ridge case store (no {IDENTITY_FILE})")
     if dest.exists():
         raise OutputExistsError(f"{dest.name} already exists: choose a new folder for the backup")
+    if dest.resolve().is_relative_to(store.resolve()):  # a backup inside the store would copy itself
+        raise ParameterError("choose a backup folder outside the case store")
     held = _lock_cases(store)
     try:
         try:

@@ -29,6 +29,7 @@ Completed work on this branch:
 | JSON outputs | `overview --json`, `status --json`, `verify --json`, `verify-store --json`, for laboratory scripts and monitoring |
 | CLI parity | `notes --item`, `log --kind`, and note counts per job in the GUI jobs list |
 | Docs | `docs/verification_guide.md` for reviewers, the DPO and the FQM; `CHANGELOG.md` (forensic impact, known issues); four STRIDE rows covering keys, packages and limits, HTML copies and backdating |
+| Review fixes (PR #18, Codex) | A key card checked with a register must be registered for its role, valid on its signed date, and registered to the holder it names. A backup destination inside the store is refused, as is a folder that is not a store, and every case is locked during the copy. The case summary, last-verified line and custody log reload after every logged action. Measure points are cleared when a new job result replaces the image |
 | Code health | `prompt.rs` split into the broker and `prompt_calls.rs`, one sidecar call per purpose |
 
 Out of scope (unchanged):

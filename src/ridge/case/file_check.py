@@ -27,7 +27,7 @@ from ridge.case.package import check_package
 from ridge.case.processing_record import MAX_RECORD_BYTES, check_exported_log
 from ridge.case.processing_record import SCHEMA as RECORD_SCHEMA
 from ridge.case.reports import check_exported_report
-from ridge.errors import ParameterError
+from ridge.errors import IntegrityError, ParameterError
 from ridge.image_io import read_bounded
 
 
@@ -42,10 +42,11 @@ class FileCheck:
     role: str | None = None
     signed_utc: str | None = None
     holder: str | None = None
+    claimed_holder: str | None = None  # a key card's own claim, checked against a register
 
     def to_json(self) -> dict[str, Any]:
         """JSON-friendly form."""
-        return {k: v for k, v in self.__dict__.items() if k not in ("role", "signed_utc")}
+        return {k: v for k, v in self.__dict__.items() if k not in ("role", "signed_utc", "claimed_holder")}
 
 
 def _schema(path: Path) -> str:
@@ -80,7 +81,9 @@ def _head(path: Path) -> FileCheck:
 def _card(path: Path) -> FileCheck:
     c = check_card(path)
     lines = [f"{c.role} key of {c.holder}, made {c.created_utc}", "The card was signed with its own key (possession)"]
-    return FileCheck("card", "Key card", lines, c.key_id)
+    result = FileCheck("card", "Key card", lines, c.key_id, c.role, c.created_utc)
+    result.claimed_holder = c.holder
+    return result
 
 
 def _register(path: Path) -> FileCheck:
@@ -127,6 +130,8 @@ def check_exported(path: Path, register: Path | None = None) -> FileCheck:
     if register is not None and result.key_id and result.role and result.signed_utc:
         reg = load_register(register)
         key = confirm_key(reg, result.key_id, result.role, result.signed_utc)
+        if result.claimed_holder is not None and result.claimed_holder != key.holder:
+            raise IntegrityError(f"the card names {result.claimed_holder!r}; the register lists {key.holder!r}")
         result.holder = key.holder
         result.details.append(f"Key {result.key_id} {describe(reg, key)}")
     elif result.key_id and result.role:

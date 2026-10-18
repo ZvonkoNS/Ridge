@@ -134,6 +134,7 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
     try {
       const done = await ipc.runJob(options);
       setResult(done);
+      measure.reset(); // points belong to the previous output
       const preferred =
         done.outputs.find((o) => o.role === "export") ?? done.outputs.find((o) => o.role === "print");
       setSelected(preferred?.sha256 ?? null);
