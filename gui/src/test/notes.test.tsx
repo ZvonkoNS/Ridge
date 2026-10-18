@@ -40,7 +40,7 @@ describe("examiner notes", () => {
     expect(await screen.findByText(/corrects #12/)).toBeInTheDocument();
     expect(screen.getByText(FIRST.text)).toBeInTheDocument(); // the original stays
     expect(await axeViolations(container)).toEqual([]);
-  });
+  }, 15_000); // types two notes key by key and runs axe: over 5 s on a loaded machine
 
   it("keeps a photo's notes with that photo", async () => {
     const sha = "c".repeat(64);
