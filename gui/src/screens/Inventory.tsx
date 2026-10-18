@@ -36,6 +36,17 @@ export function LimitsCard({ limits }: { limits: LimitsStatus | null }) {
             From <strong>{limits.source}</strong> · <abbr title="SHA-256">sha256</abbr>{" "}
             <Hash value={limits.sha256} />
           </p>
+          {limits.signed_by ? (
+            <p>
+              Signed with key <Hash value={limits.signed_by.key_id} length={16} />. Confirm with the
+              laboratory that this is the Forensic Quality Manager&apos;s key.
+            </p>
+          ) : (
+            <p className="muted">
+              Not signed. The Forensic Quality Manager can sign the file with{" "}
+              <code>ridge-case limits --sign</code>; reports then name the signing key.
+            </p>
+          )}
           <ul className="paramlist">
             {Object.entries(limits.limits).map(([key, value]) => (
               <li key={key}>

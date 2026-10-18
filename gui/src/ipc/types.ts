@@ -111,6 +111,12 @@ export type MinutiaeSummary =
   | { produced: false; reason: string; label: string };
 
 /** The limits-of-use section of a job report (PRD §12 item 8); absent in reports made before it. */
+/** The Forensic Quality Manager key that signed the limits file (to be matched against the lab's register). */
+export interface LimitsSigner {
+  key_id: string;
+  public_key: string;
+}
+
 export type LimitsSection =
   | { configured: false }
   | {
@@ -120,12 +126,20 @@ export type LimitsSection =
       limits: Record<string, number | boolean | string[]>;
       within: boolean;
       warnings: string[];
+      /** Absent in reports made before limits could be signed. */
+      signed_by?: LimitsSigner | null;
     };
 
 /** The store's limits of use, as `store.limits` returns them. */
 export type LimitsStatus =
   | { configured: false }
-  | { configured: true; source: string; sha256: string; limits: Record<string, number | boolean | string[]> };
+  | {
+      configured: true;
+      source: string;
+      sha256: string;
+      limits: Record<string, number | boolean | string[]>;
+      signed_by: LimitsSigner | null;
+    };
 
 export interface JobResult {
   job_id: string;

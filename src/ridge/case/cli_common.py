@@ -17,9 +17,9 @@ KEYSTORE_FACTORY: Callable[[], KeyStore] = KeyringKeyStore  # replaced in tests
 KDF_PARAMS = KdfParams()  # replaced in tests with the minimum allowed cost
 
 
-def read_passphrase(*, confirm: bool = False) -> str:
-    """Prompt for the examiner passphrase (twice when setting it); never from arguments or the environment."""
-    first = getpass.getpass("Examiner passphrase: ")
+def read_passphrase(*, confirm: bool = False, prompt: str = "Examiner passphrase: ") -> str:
+    """Prompt for a passphrase (twice when setting it); never from arguments or the environment."""
+    first = getpass.getpass(prompt)
     if confirm and getpass.getpass("Repeat passphrase: ") != first:
         raise ParameterError("the passphrases do not match")
     return first

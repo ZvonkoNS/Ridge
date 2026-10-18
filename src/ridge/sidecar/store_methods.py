@@ -50,12 +50,19 @@ def identity_status(session: Session, params: dict[str, Json]) -> Json:
 def limits_of_use(session: Session, params: dict[str, Json]) -> Json:
     """Return the store's limits of use (PRD §12 item 8): source, file hash, limits; nothing is decrypted.
 
-    A malformed limits file is refused here as it is by every job, so the examiner sees it at once.
+    A malformed limits file, or a signature that does not verify, is refused here as it is by every
+    job, so the examiner sees it at once.
     """
     limits = load_limits(absolute(params["store"], "store"))
     if limits is None:
         return {"configured": False}
-    return {"configured": True, "source": limits.source, "sha256": limits.sha256, "limits": limits.to_json()}
+    return {
+        "configured": True,
+        "source": limits.source,
+        "sha256": limits.sha256,
+        "limits": limits.to_json(),
+        "signed_by": limits.signed_by,
+    }
 
 
 def verify_all(session: Session, params: dict[str, Json]) -> Json:

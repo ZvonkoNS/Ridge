@@ -267,6 +267,7 @@ A development preview (`gui/src/dev/preview.ts`: mocked IPC and synthetic drawn 
 <store_root>/                       examiner-chosen, on an FDE-protected volume
   identity.json                     examiner Ed25519 public key + sealed private key (§9.3)
   limits-of-use.json                optional, placed by the Forensic Quality Manager: limits from the validation report (§8.3); no personal data
+  limits-of-use.json.sig            optional: the FQM's Ed25519 signature over it (ridge.limits-signature/1, §8.3)
   <case_uuid>.disposal.json         kept after disposal: no personal data (§8.2)
   <case_uuid>/
     case.json                       schema, case id, KDF parameters, salt, wrapped DEK (no plaintext keys, no personal data)
@@ -347,6 +348,8 @@ For each job:
 - the report's `limits_of_use` section is either `configured: false`, or the source, the hash, the limits, `within` and plain-language warnings.
 
 A job outside the limits is **not refused**: the examiner decides, informed. Reports made before this section existed have no `limits_of_use`. `ridge-case limits --check FILE` validates a file before it is deployed.
+
+**Signed limits (`src/ridge/case/limits_signing.py`, implemented 2026-10-18).** The FQM creates a signing key once with `ridge-case fqm-key --to fqm-key.json`. The file holds an Ed25519 key sealed with AES-256-GCM under an Argon2id key from the FQM passphrase alone, so it works on the FQM's own machine and stays off examiner workstations. `ridge-case limits --sign limits-of-use.json --key fqm-key.json` validates the file and writes `limits-of-use.json.sig` (schema `ridge.limits-signature/1`: key id, public key, the file's SHA-256 and an Ed25519 signature over a domain prefix plus the exact bytes). When the store holds a signature, every job and `store.limits` verify it. A changed file, a changed or foreign signature, or a signature without its file stops jobs (fail closed); the report's `limits_of_use.signed_by` names the key id and public key, or is `null` for an unsigned file. As with examiner keys, anyone can make a key: a reviewer matches the key id against the laboratory's register out of band (`ridge-case limits --check FILE --key-id ID`). Deleting the signature is possible for anyone who can write the store, and the report then says `signed_by: null`.
 
 ### 8.4 Custody log entry
 

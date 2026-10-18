@@ -108,6 +108,8 @@ ridge-case check-head head.json --record record.json    # a later record still c
 ridge-case hold D:/ridge-store/<case-id> --on --reason "..."
 ridge-case limits --store D:/ridge-store                 # limits of use from the lab's validation, if configured
 ridge-case limits --check limits-of-use.json             # validate a limits file before placing it in a store
+ridge-case fqm-key --to fqm-key.json                     # FQM only: create the key that signs limits of use
+ridge-case limits --sign limits-of-use.json --key fqm-key.json   # FQM only: writes limits-of-use.json.sig
 ridge-case dispose D:/ridge-store/<case-id> --confirm <case-id> --reason retention-expired
 ```
 
