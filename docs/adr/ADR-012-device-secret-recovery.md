@@ -55,7 +55,8 @@ Option B, with the rules above. Implemented in `src/ridge/case/recovery.py` and 
   - the secret sealed with AES-256-GCM. The key id, fingerprint and creation time are bound into the seal, so changing them breaks it.
 - **`ridge-case recovery import FILE --store S`** opens the file with the recovery passphrase. It refuses if this account's keystore already holds a secret. Before anything is written, it checks that the secret unlocks the store's identity with the examiner passphrase, so a wrong file cannot lock an examiner out. If the import cannot be logged, it is undone.
 - **`ridge-case recovery check FILE`** shows the key id, fingerprint and creation time without opening the file.
-- Both export and import are logged in **`store-audit.jsonl`**. This hash-chained file holds store-level actions and is verified on every read.
+- Both export and import are logged in **`store-audit.jsonl`**. This hash-chained file holds store-level actions and is verified on every read. Its head is also kept in the writing account's OS keystore, so a removed tail or a deleted file is detected. Appends take an OS lock, so concurrent processes cannot fork the chain.
+- A recovery file whose notice was edited is refused, because the warning on its face is part of what Ridge wrote.
 - **Deviation from "no GUI at first":** the store screen also offers "Export recovery file..." and "Restore from a recovery file...". The installed application ships the GUI and its engine but not the `ridge-case` command line, so without the GUI a laboratory could not use recovery at all. Both passphrases are typed in the Rust prompt window (ADR-010); the first is held only in the Rust core, zeroised, until the second prompt uses it.
 - Tests: `tests/test_recovery.py` covers:
   - restoring into a new account;

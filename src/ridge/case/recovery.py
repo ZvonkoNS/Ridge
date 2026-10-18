@@ -127,7 +127,12 @@ def export_recovery(
     publish_logged(
         [(dest, json.dumps(record, indent=2).encode("utf-8"))],
         lambda: append_audit(
-            store, "recovery.export", key_id=info.key_id, fingerprint=info.fingerprint, destination=str(dest.resolve())
+            store,
+            keystore,
+            "recovery.export",
+            key_id=info.key_id,
+            fingerprint=info.fingerprint,
+            destination=str(dest.resolve()),
         ),
         overwrite=False,
     )
@@ -142,6 +147,8 @@ def read_recovery(path: Path) -> tuple[RecoveryFile, dict[str, Any]]:
         raise IntegrityError(_NOT_A_RECOVERY_FILE) from None
     if not isinstance(record, dict) or set(record) != _FIELDS or record["schema"] != SCHEMA:
         raise IntegrityError(_NOT_A_RECOVERY_FILE)
+    if record["notice"] != NOTICE:  # the warning on the file's face is part of what Ridge wrote
+        raise IntegrityError("the recovery file's notice was changed")
     if not all(isinstance(record[k], str) for k in ("created_utc", "key_id", "fingerprint")):
         raise IntegrityError(_NOT_A_RECOVERY_FILE)
     return RecoveryFile(record["key_id"], record["fingerprint"], record["created_utc"]), record
@@ -181,7 +188,12 @@ def import_recovery(
     keystore.set(DEVICE_SECRET_NAME, secret)
     try:
         append_audit(
-            store, "recovery.import", key_id=info.key_id, fingerprint=info.fingerprint, source=str(path.resolve())
+            store,
+            keystore,
+            "recovery.import",
+            key_id=info.key_id,
+            fingerprint=info.fingerprint,
+            source=str(path.resolve()),
         )
     except BaseException:
         keystore.delete(DEVICE_SECRET_NAME)  # an import that cannot be logged does not happen

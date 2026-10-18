@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from ridge.case import cli_common, cli_recovery, recovery
+from ridge.case import cli_common, cli_recovery, recovery, store_audit
 from ridge.case.cli import main
 from ridge.case.crypto import seal
 from ridge.case.identity import create_identity
@@ -19,8 +19,8 @@ from ridge.case.keys import DEVICE_SECRET_NAME, b64, derive_kek, unb64
 from ridge.case.recovery import NOTICE, export_recovery, fingerprint, import_recovery, read_recovery
 from ridge.case.store import open_case
 from ridge.case.store_audit import FILE as AUDIT_FILE
-from ridge.case.store_audit import read_audit
-from ridge.errors import IntegrityError, KeyCustodyError, OutputExistsError, WeakPassphraseError
+from ridge.case.store_audit import append_audit, read_audit
+from ridge.errors import CaseLockedError, IntegrityError, KeyCustodyError, OutputExistsError, WeakPassphraseError
 from ridge.sidecar import recovery_methods
 from ridge.sidecar.handlers import Session
 from ridge.sidecar.server import handle
@@ -130,6 +130,8 @@ TAMPERS: list[Callable[[dict[str, Any]], Any]] = [
     lambda r: {**r, "schema": "ridge.something-else/1"},
     lambda r: {**r, "salt": "not base64!"},
     lambda r: {**r, "key_id": 5},
+    lambda r: {**r, "notice": "an edited notice"},
+    lambda r: {**r, "notice": 5},
     lambda r: [],
 ]
 
@@ -166,6 +168,58 @@ def test_a_changed_file_is_refused(
     with pytest.raises((IntegrityError, KeyCustodyError)):
         import_recovery(dest, RECOVERY, root, PASSPHRASE, new_account)
     assert new_account.values == {}
+
+
+def test_this_account_notices_removed_or_replaced_entries(
+    store: tuple[Path, MemoryKeyStore, Path], tmp_path: Path
+) -> None:
+    root, keystore, _ = store
+    export(root, keystore, tmp_path / "a.json")
+    export(root, keystore, tmp_path / "b.json")
+    path = root / AUDIT_FILE
+    whole = path.read_text(encoding="utf-8")
+    first_line = whole.splitlines(keepends=True)[0]
+    path.write_text(first_line, encoding="utf-8")  # the last entry cut off: the chain alone still looks fine
+    assert len(read_audit(root)) == 1
+    with pytest.raises(IntegrityError, match="entries were removed"):
+        read_audit(root, keystore)
+    path.unlink()
+    with pytest.raises(IntegrityError, match="entries were removed"):
+        read_audit(root, keystore)
+    path.write_text(first_line, encoding="utf-8")
+    append_audit(root, MemoryKeyStore(), "something.else")  # a valid chain, but not the entry this account wrote
+    with pytest.raises(IntegrityError, match="was replaced"):
+        read_audit(root, keystore)
+    path.write_text(whole, encoding="utf-8")
+    assert len(read_audit(root, keystore)) == 2
+
+
+def test_appends_wait_for_the_store_audit_lock(
+    store: tuple[Path, MemoryKeyStore, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, keystore, _ = store
+    monkeypatch.setattr(store_audit, "LOCK_TIMEOUT_S", 0.2)
+    held = store_audit._locked(root)  # as if another process held the lock
+    with held, pytest.raises(CaseLockedError, match="another Ridge process"):
+        append_audit(root, keystore, "something")
+    assert append_audit(root, keystore, "something")["seq"] == 0  # free again
+
+
+def test_a_malformed_head_record_and_a_store_without_identity(tmp_path: Path) -> None:
+    root = tmp_path / "store"
+    keystore = MemoryKeyStore()
+    create_identity(root, PASSPHRASE, keystore, FAST_KDF)
+    append_audit(root, keystore, "something")
+    (name,) = [n for n in keystore.values if n.startswith(store_audit.ANCHOR_PREFIX)]
+    keystore.values[name] = b"{not json"
+    with pytest.raises(IntegrityError, match="head is malformed"):
+        read_audit(root, keystore)
+    bare = tmp_path / "bare"
+    bare.mkdir()
+    other = MemoryKeyStore()
+    assert append_audit(bare, other, "something")["seq"] == 0
+    assert other.values == {}  # no identity, so no head to record
+    assert len(read_audit(bare, other)) == 1
 
 
 def test_the_audit_chain_detects_changes(store: tuple[Path, MemoryKeyStore, Path], tmp_path: Path) -> None:
@@ -238,5 +292,5 @@ def test_sidecar(store: tuple[Path, MemoryKeyStore, Path], tmp_path: Path, monke
     accounts["current"] = new_account
     restored = rpc("recovery.import", {**base, "path": str(dest)})["result"]
     assert restored["fingerprint"] == made["fingerprint"]
-    assert new_account.values == old_account.values
+    assert new_account.values[DEVICE_SECRET_NAME] == old_account.values[DEVICE_SECRET_NAME]
     assert rpc("recovery.check", {"path": "relative.json", "recovery_passphrase": RECOVERY})["error"]

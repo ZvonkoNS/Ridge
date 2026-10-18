@@ -54,7 +54,7 @@ def check_workstation(
     found = [*_software(), _keystore(keystore, has_identity=(store / IDENTITY_FILE).is_file()), *_store(store)]
     found.extend(_limits(store))
     if (store / IDENTITY_FILE).is_file():
-        found.append(_recovery(store))
+        found.append(_recovery(store, keystore))
     if register is not None:
         found.append(_register(store, register))
     if nfiq2 is not None:
@@ -144,10 +144,10 @@ def _limits(store: Path) -> list[Finding]:
     return found
 
 
-def _recovery(store: Path) -> Finding:
+def _recovery(store: Path, keystore: KeyStore) -> Finding:
     """Whether a device-secret recovery file was exported for this store (ADR-012), from the audit file."""
     try:
-        entries = read_audit(store)
+        entries = read_audit(store, keystore)  # chain and this account's last head
     except RidgeError as exc:
         return Finding("Recovery", "problem", str(exc))
     exports = [e for e in entries if e.get("action") == "recovery.export"]

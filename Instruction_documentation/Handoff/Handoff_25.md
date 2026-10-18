@@ -30,6 +30,14 @@ Completed:
 | Decisions recorded | ADR-012 accepted with its implementation. PRD OQ-8, OQ-9, OQ-10 (interim) and OQ-12 answered. Standards profile owners (interim) and packaging exception updated. Release checklist: installer smoke test, recovery procedure, countersigning, NVDA pass |
 | NVDA script | `docs/screen_reader_test.md`: 22 steps over the examiner guide's tasks on a synthetic store, with expected announcements and a record sheet |
 
+Codex review of PR #24 (one P1, two P2), fixed on this branch:
+
+- **P1:** a removed tail or a deleted audit file left a valid-looking chain. Every append now records the head in this account's OS keystore, and reads with the keystore check it ("entries were removed", "was replaced"). An account that has never written to the store has no anchor yet.
+- **P2:** concurrent appends could fork the chain. The read, build and append now run under an OS lock on `store-audit.lock`, released by the OS if a process ends.
+- **P2:** an edited notice on a recovery file was accepted. It must now be exactly Ridge's.
+
+`tests/test_recovery.py` covers each case: a cut tail, a deleted file, a replaced entry, the lock timing out, a malformed head record, a store without identity, and edited notices.
+
 Out of scope / not done:
 
 - code signing: needs the laboratory's certificate;
