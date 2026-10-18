@@ -111,6 +111,12 @@ export type MinutiaeSummary =
   | { produced: false; reason: string; label: string };
 
 /** The limits-of-use section of a job report (PRD §12 item 8); absent in reports made before it. */
+/** The Forensic Quality Manager key that signed the limits file (to be matched against the lab's register). */
+export interface LimitsSigner {
+  key_id: string;
+  public_key: string;
+}
+
 export type LimitsSection =
   | { configured: false }
   | {
@@ -120,12 +126,20 @@ export type LimitsSection =
       limits: Record<string, number | boolean | string[]>;
       within: boolean;
       warnings: string[];
+      /** Absent in reports made before limits could be signed. */
+      signed_by?: LimitsSigner | null;
     };
 
 /** The store's limits of use, as `store.limits` returns them. */
 export type LimitsStatus =
   | { configured: false }
-  | { configured: true; source: string; sha256: string; limits: Record<string, number | boolean | string[]> };
+  | {
+      configured: true;
+      source: string;
+      sha256: string;
+      limits: Record<string, number | boolean | string[]>;
+      signed_by: LimitsSigner | null;
+    };
 
 export interface JobResult {
   job_id: string;
@@ -272,8 +286,54 @@ export interface SheetExported extends Exported {
   reference_ppi_source: string;
 }
 
+/** One case of a store-wide verification (`store.verify`). */
+export interface StoreCheck {
+  case_id: string;
+  state: CaseState;
+  checked: boolean;
+  ok: boolean;
+  reference: string | null;
+  items: number;
+  reports: number;
+  problems: string[];
+}
+
+/** A disclosure package written to a new folder. */
+export interface PackageExported {
+  exported: string;
+  package_id: string;
+  reports: number;
+  key_id: string;
+}
+
+/** An examiner note from the custody log (custody action `examiner.note`). */
+export interface Note {
+  seq: number;
+  ts_utc: string;
+  actor: string;
+  text: string;
+  job_id: string | null;
+  sha256: string | null;
+  /** Sequence number of the note this one corrects. */
+  corrects: number | null;
+}
+
+/** One case of the store overview (read with the passphrase; nothing is written). */
+export interface CaseOverview {
+  case_id: string;
+  state: CaseState;
+  reference: string | null;
+  retention_until: string | null;
+  legal_hold: boolean | null;
+  /** Retention date reached and no legal hold. */
+  due: boolean | null;
+  evidence: number | null;
+  jobs: number | null;
+  problem: string | null;
+}
+
 export interface PromptContext {
-  purpose: "create_identity" | "create_case" | "unlock";
+  purpose: "create_identity" | "create_case" | "unlock" | "verify_store" | "store_overview";
   title: string;
   detail: string;
   confirm: boolean;

@@ -1,8 +1,9 @@
 // Integrity and records: verify the case (FR-24), export the signed processing record (PRIV-3),
 // place or lift a legal hold (FR-26). Disposal stays in the CLI (`ridge-case dispose`), with its
-// typed confirmation, on purpose.
+// typed confirmation, on purpose. Examiner notes of the whole case are listed here too.
 import { useState } from "react";
 
+import { NotesPanel } from "../components/NotesPanel";
 import { Button, Notice } from "../components/ui";
 import { ipc } from "../ipc/commands";
 import type { CaseInfo, Item, LimitsStatus, Verification } from "../ipc/types";
@@ -17,16 +18,23 @@ interface Props {
   notify: (message: string) => void;
 }
 
+type Action = "verify" | "log" | "hold" | "head" | "package";
+
 export function RecordsSection({ info, items, limits, onInfo, onFailure, notify }: Props) {
   const [verification, setVerification] = useState<Verification | null>(null);
-  const [busy, setBusy] = useState<"verify" | "log" | "hold" | "head" | null>(null);
+  const [busy, setBusy] = useState<Action | null>(null);
   const [reason, setReason] = useState("");
 
-  const run = async (what: "verify" | "log" | "hold" | "head") => {
+  const run = async (what: Action) => {
     setBusy(what);
     try {
       if (what === "verify") {
         setVerification(await ipc.verifyCase());
+      } else if (what === "package") {
+        const done = await ipc.exportPackage();
+        notify(
+          `Disclosure package written: the processing record and ${done.reports} signed report(s), signed with key ${done.key_id}.`,
+        );
       } else if (what === "head") {
         const done = await ipc.exportHead();
         notify(`Custody head at entry ${done.seq} exported for countersigning (key ${done.key_id}).`);
@@ -87,6 +95,17 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
           Export processing record...
         </Button>
       </section>
+      <section className="card" aria-labelledby="package-title">
+        <h2 id="package-title">Disclosure package</h2>
+        <p>
+          Writes the signed processing record and every signed job report to a new folder, with a manifest
+          signed by your key. It contains no images: the reports name the SHA-256 of every image, so exported
+          images can be matched to them. <code>ridge-case check-package</code> verifies the folder offline.
+        </p>
+        <Button onClick={() => void run("package")} busy={busy === "package"}>
+          Export disclosure package...
+        </Button>
+      </section>
       <section className="card" aria-labelledby="head-title">
         <h2 id="head-title">Custody head for countersigning</h2>
         <p>
@@ -135,6 +154,9 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
           </Button>
         </form>
       </section>
+      <div className="card">
+        <NotesPanel jobId={null} onFailure={onFailure} level={2} />
+      </div>
       <LimitsCard limits={limits} />
       <Inventory items={items} limits={limits} onFailure={onFailure} notify={notify} />
     </div>

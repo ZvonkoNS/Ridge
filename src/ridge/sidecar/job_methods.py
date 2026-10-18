@@ -8,6 +8,7 @@ from ridge.case.compare import SHEET_PPI, export_sheet
 from ridge.case.custody_head import export_head
 from ridge.case.export_step import ExportOptions
 from ridge.case.jobs import JobParams, run_extraction_job
+from ridge.case.package import export_package
 from ridge.case.processing_record import export_log
 from ridge.case.reports import export_report, list_jobs, load_report, signature_path
 from ridge.case.reproduce import reproduce_job
@@ -112,6 +113,20 @@ def head_export(session: Session, params: dict[str, Json]) -> Json:
     dest = absolute(params["dest"], "dest")
     doc = export_head(case, session.require_store(), signer, dest, overwrite=params.get("overwrite", False))
     return {"exported": str(dest), "seq": doc["seq"], "head": doc["head"], "key_id": doc["key_id"]}
+
+
+def package_export(session: Session, params: dict[str, Json]) -> Json:
+    """Write a disclosure package (signed records, no images) to a new native-dialog folder (logged)."""
+    case, signer = session.require()
+    dest = absolute(params["dest"], "dest")
+    manifest = export_package(case, session.require_store(), signer, dest)
+    reports = [f for f in manifest["files"] if f["path"].startswith("reports/") and f["path"].endswith(".json")]
+    return {
+        "exported": str(dest),
+        "package_id": manifest["package_id"],
+        "reports": len(reports),
+        "key_id": signer.key_id,
+    }
 
 
 def compare_export(session: Session, params: dict[str, Json]) -> Json:

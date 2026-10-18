@@ -2,7 +2,7 @@
 // mocked IPC bridge and SYNTHETIC images drawn here (concentric sine ridges, no biometric data).
 // main.tsx installs it only when import.meta.env.DEV is true and no Tauri core is present, so
 // production builds drop this module entirely (checked by the GUI gate).
-import type { Item, JobRecord, JobReport, JobResult, MinutiaeSpace, Preview } from "../ipc/types";
+import type { Item, JobRecord, JobReport, JobResult, MinutiaeSpace, Note, Preview } from "../ipc/types";
 
 const CASE_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 const KEY_ID = "5a1c09e3b47d2f68";
@@ -30,6 +30,7 @@ const evidence: Item[] = [
 const items: Item[] = [...evidence];
 const jobs: JobRecord[] = [];
 const reports = new Map<string, JobReport>();
+const notes: Note[] = [];
 
 function draw(
   width: number,
@@ -246,6 +247,13 @@ const handlers: Record<string, Handler> = {
   choose_store: () => store,
   unlock_case: () => session,
   lock_case: () => ({ locked: true }),
+  session_status: () => ({ unlocked: true, idle_timeout_s: 900 }),
+  export_package: () => ({
+    exported: "D:/Exports/Ridge disclosure package",
+    package_id: "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+    reports: reports.size,
+    key_id: KEY_ID,
+  }),
   case_info: () => ({ ...session, legal_basis: "ZKP art. 149 (synthetic preview)" }),
   set_legal_hold: (r) => ({ ...session, legal_basis: "ZKP art. 149 (synthetic preview)", legal_hold: r.on }),
   list_items: () => [...items],
@@ -279,6 +287,44 @@ const handlers: Record<string, Handler> = {
     limits: LIMITS,
   }),
   export_log: () => ({ exported: "D:\\Exports\\record.json", entries: 42, key_id: KEY_ID }),
+  store_overview: () => [
+    {
+      case_id: CASE_ID,
+      state: "active",
+      reference: "KT-2026-0001",
+      retention_until: "2031-12-31",
+      legal_hold: true,
+      due: false,
+      evidence: evidence.length,
+      jobs: jobs.length,
+      problem: null,
+    },
+    {
+      case_id: store.cases[1]?.case_id,
+      state: "disposed",
+      reference: null,
+      retention_until: null,
+      legal_hold: null,
+      due: null,
+      evidence: null,
+      jobs: null,
+      problem: null,
+    },
+  ],
+  list_notes: (r) => notes.filter((n) => !r.job_id || n.job_id === r.job_id),
+  add_note: (r) => {
+    const note: Note = {
+      seq: 40 + notes.length,
+      ts_utc: new Date().toISOString().slice(0, 19) + "Z",
+      actor: "examiner (preview)",
+      text: String(r.text),
+      job_id: typeof r.job_id === "string" ? r.job_id : null,
+      sha256: null,
+      corrects: typeof r.corrects === "number" ? r.corrects : null,
+    };
+    notes.push(note);
+    return note;
+  },
 };
 
 /** Install the mocked bridge (development preview only). */

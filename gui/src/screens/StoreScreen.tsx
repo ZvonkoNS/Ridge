@@ -2,9 +2,10 @@
 // Passphrases are never typed here: the Rust core opens its own prompt window (ADR-010).
 import { useState } from "react";
 
-import { Button, Hash, Notice, StaggerItem, StaggerList, utc } from "../components/ui";
+import { Button, Hash, Notice } from "../components/ui";
 import { IpcError, ipc } from "../ipc/commands";
-import type { CaseSummary, SessionInfo, StoreView } from "../ipc/types";
+import type { CaseOverview, SessionInfo, StoreCheck, StoreView } from "../ipc/types";
+import { CaseList, StoreChecks } from "./StoreCases";
 
 interface Props {
   store: StoreView | null;
@@ -14,14 +15,6 @@ interface Props {
   onStore: (store: StoreView) => void;
   onOpened: (session: SessionInfo) => void;
 }
-
-const STATE_TEXT: Record<CaseSummary["state"], string> = {
-  active: "ready",
-  locked: "open in another Ridge window",
-  erasing: "disposal interrupted",
-  disposed: "disposed",
-  invalid: "unreadable",
-};
 
 function message(error: unknown): string | null {
   if (error instanceof IpcError && error.kind === "cancelled") {
@@ -41,6 +34,12 @@ export function StoreScreen({
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [form, setForm] = useState({ reference: "", legalBasis: "", retention: "" });
+  // Results belong to the store they were read from; choosing another store hides them.
+  const [checked, setChecked] = useState<{ path: string; checks: StoreCheck[] } | null>(null);
+  const checks = checked?.path === store?.path ? (checked?.checks ?? null) : null;
+  // Details belong to the store they were read from; choosing another store hides them.
+  const [overview, setOverview] = useState<{ path: string; cases: Map<string, CaseOverview> } | null>(null);
+  const details = overview?.path === store?.path ? (overview?.cases ?? null) : null;
 
   const attempt = async (key: string, work: () => Promise<void>) => {
     setBusy(key);
@@ -66,6 +65,18 @@ export function StoreScreen({
   const unlock = (caseId: string) =>
     attempt(caseId, async () => {
       onOpened(await ipc.unlockCase(caseId));
+    });
+  const verifyAll = () =>
+    attempt("verify", async () => {
+      const path = store?.path ?? "";
+      setChecked({ path, checks: await ipc.verifyStore() });
+      onStore(await ipc.refreshStore());
+    });
+  const showDetails = () =>
+    attempt("details", async () => {
+      const path = store?.path ?? "";
+      const cases = await ipc.storeOverview();
+      setOverview({ path, cases: new Map(cases.map((c) => [c.case_id, c])) });
     });
   const create = () =>
     attempt("create", async () => {
@@ -131,24 +142,25 @@ export function StoreScreen({
               Signing key <Hash value={store.identity.key_id} length={16} />
             </p>
             {store.cases.length === 0 ? <p className="empty">No cases in this store yet.</p> : null}
-            <StaggerList className="caselist" label="Cases">
-              {store.cases.map((c) => (
-                <StaggerItem key={c.case_id} className="case-row">
-                  <span className="case-row-id">
-                    <Hash value={c.case_id} length={8} />
-                  </span>
-                  <span className="case-row-date">{utc(c.created_utc)}</span>
-                  <span className={`state state-${c.state}`}>{STATE_TEXT[c.state]}</span>
-                  <Button
-                    onClick={() => void unlock(c.case_id)}
-                    busy={busy === c.case_id}
-                    disabled={c.state !== "active"}
-                  >
-                    Unlock...
+            <CaseList
+              cases={store.cases}
+              details={details}
+              busy={busy}
+              onUnlock={(caseId) => void unlock(caseId)}
+            />
+            {store.cases.length > 0 ? (
+              <div className="store-actions">
+                {details ? null : (
+                  <Button onClick={() => void showDetails()} busy={busy === "details"}>
+                    Show case details...
                   </Button>
-                </StaggerItem>
-              ))}
-            </StaggerList>
+                )}
+                <Button onClick={() => void verifyAll()} busy={busy === "verify"}>
+                  Verify all cases...
+                </Button>
+              </div>
+            ) : null}
+            {checks ? <StoreChecks checks={checks} /> : null}
           </section>
           <section className="card" aria-labelledby="new-title">
             <h2 id="new-title">New case</h2>

@@ -282,6 +282,19 @@ code,
   color: var(--verified);
 }
 
+/* The transparent borders become visible in forced-colors mode, where backgrounds are dropped. */
+.badge-hold {
+  border: 1px solid transparent;
+  background: var(--custody-wash);
+  color: var(--ink);
+}
+
+.badge-due {
+  border: 1px solid transparent;
+  background: var(--caution-bg);
+  color: var(--caution-ink);
+}
+
 .state {
   font-size: var(--step--1);
   font-weight: 700;
@@ -344,6 +357,194 @@ code,
   align-items: center;
   padding: var(--space-2) 0;
   border-top: 1px solid var(--line);
+}
+
+.case-row-ref {
+  display: block;
+  font-weight: 700;
+}
+
+.case-row-detail {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.case-row-detail .badge {
+  padding: 0 var(--space-2);
+}
+
+.store-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.notes {
+  margin-top: var(--space-5);
+}
+
+.card > .notes {
+  margin-top: 0;
+}
+
+.notes-list {
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.note {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.note-meta {
+  margin: 0;
+  color: var(--ink-2);
+  font: 400 var(--step--1) var(--font-mono);
+}
+
+.note-text {
+  grid-column: 1;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.note-correct {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+}
+
+.notes-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.field textarea {
+  padding: var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--ink);
+  font: 400 var(--step-0) var(--font-ui);
+  resize: vertical;
+}
+
+.notes-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
+.rail-help {
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--step--1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rail-help:hover {
+  color: var(--ink);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--ink);
+  font: 400 var(--step--1) var(--font-mono);
+  text-align: center;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 45%);
+}
+
+.modal {
+  width: min(32rem, 100%);
+  max-height: calc(100vh - 2 * var(--space-4));
+  overflow: auto;
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.shortcuts {
+  width: 100%;
+  margin-bottom: var(--space-4);
+  border-collapse: collapse;
+}
+
+.shortcuts caption {
+  padding-bottom: var(--space-2);
+  color: var(--ink-2);
+  font-weight: 700;
+  text-align: left;
+}
+
+.shortcuts th,
+.shortcuts td {
+  padding: var(--space-1) 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.shortcuts th {
+  width: 45%;
+  font-weight: 400;
+}
+
+.job-compare {
+  margin-top: var(--space-5);
+}
+
+.compare-table {
+  width: 100%;
+  margin-top: var(--space-3);
+  border-collapse: collapse;
+}
+
+.compare-table caption {
+  padding-bottom: var(--space-2);
+  color: var(--ink-2);
+  text-align: left;
+}
+
+.compare-table th,
+.compare-table td {
+  padding: var(--space-1) var(--space-2);
+  border-top: 1px solid var(--line);
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .newcase {

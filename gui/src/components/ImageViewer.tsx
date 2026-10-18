@@ -152,6 +152,9 @@ export function ImageViewer(props: Props) {
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) {
+      return; // Alt+digit switches case sections; Ctrl and Cmd belong to the system
+    }
     const step = event.shiftKey ? PAN_STEP * 4 : PAN_STEP;
     const moves: Record<string, Point> = {
       ArrowLeft: { x: step, y: 0 },

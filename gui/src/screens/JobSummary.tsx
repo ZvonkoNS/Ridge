@@ -22,13 +22,25 @@ export function LimitsOutcome({ section }: { section: LimitsSection | null | und
   if (!section.configured) {
     return <p className="muted">No limits of use are configured for this store.</p>;
   }
+  const signer =
+    section.signed_by === undefined
+      ? ""
+      : section.signed_by
+        ? `, signed with key ${section.signed_by.key_id}`
+        : ", not signed";
   if (section.within) {
-    return <p className="badge badge-ok">Within the limits of use ({section.source})</p>;
+    return (
+      <p className="badge badge-ok">
+        Within the limits of use ({section.source}
+        {signer})
+      </p>
+    );
   }
   return (
     <div className="notice notice-caution" role="status">
       <div className="notice-body">
-        <strong>Outside the limits of use</strong> ({section.source}):
+        <strong>Outside the limits of use</strong> ({section.source}
+        {signer}):
         <ul className="limits-warnings">
           {section.warnings.map((w) => (
             <li key={w}>{w}</li>

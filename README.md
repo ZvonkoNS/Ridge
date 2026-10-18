@@ -91,6 +91,12 @@ ridge-case import-reference D:/ridge-store/<case-id> candidate.png --source "NAF
 ridge-case compare D:/ridge-store/<case-id> <export-sha> <reference-sha> --to sheet.png   # equal scale, view only
 ridge-case export D:/ridge-store/<case-id> <sha> --to print.png   # the only way plaintext leaves the store (logged)
 ridge-case verify D:/ridge-store/<case-id>              # hashes, custody chain, report signatures
+ridge-case verify-store --store D:/ridge-store           # every case of the store, one passphrase
+ridge-case overview --store D:/ridge-store              # references, retention dates, legal holds (reads only)
+ridge-case note D:/ridge-store/<case-id> "text" --job <job-id>   # examiner note in the custody log (--corrects SEQ)
+ridge-case notes D:/ridge-store/<case-id>               # every note, with time and examiner
+ridge-case package D:/ridge-store/<case-id> --to D:/disclosure/KT-1   # signed records + manifest, no images
+ridge-case check-package D:/disclosure/KT-1 --key-id <key-id>          # verify the package offline
 ridge-case log D:/ridge-store/<case-id>                 # decrypted custody log (processing record)
 ridge-case jobs D:/ridge-store/<case-id>                # jobs: started, result, signed report or not
 ridge-case report D:/ridge-store/<case-id> <job-id>     # verified report as text (--json for the signed JSON)
@@ -104,6 +110,8 @@ ridge-case check-head head.json --record record.json    # a later record still c
 ridge-case hold D:/ridge-store/<case-id> --on --reason "..."
 ridge-case limits --store D:/ridge-store                 # limits of use from the lab's validation, if configured
 ridge-case limits --check limits-of-use.json             # validate a limits file before placing it in a store
+ridge-case fqm-key --to fqm-key.json                     # FQM only: create the key that signs limits of use
+ridge-case limits --sign limits-of-use.json --key fqm-key.json   # FQM only: writes limits-of-use.json.sig
 ridge-case dispose D:/ridge-store/<case-id> --confirm <case-id> --reason retention-expired
 ```
 

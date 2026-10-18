@@ -75,6 +75,25 @@ pub async fn save_file(
     .await
 }
 
+/// Choose the name and place of a new folder (the sidecar creates it and refuses an existing one).
+pub async fn new_folder(
+    app: &AppHandle,
+    title: &'static str,
+    suggested: String,
+) -> Result<PathBuf, IpcError> {
+    let app = app.clone();
+    let name = file_name(&suggested);
+    blocking(move || {
+        chosen(
+            builder(&app, title)
+                .set_file_name(name)
+                .set_can_create_directories(true)
+                .blocking_save_file(),
+        )
+    })
+    .await
+}
+
 /// A suggestion from the WebView becomes a plain file name: no separators, no reserved characters.
 pub fn file_name(suggested: &str) -> String {
     let base = suggested.rsplit(['/', '\\']).next().unwrap_or_default();

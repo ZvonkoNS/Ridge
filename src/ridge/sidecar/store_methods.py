@@ -15,6 +15,8 @@ from ridge.case.keys import b64
 from ridge.case.limits import load_limits
 from ridge.case.listing import list_cases
 from ridge.case.store import create_case, open_case
+from ridge.case.store_overview import store_overview
+from ridge.case.store_verify import verify_store
 from ridge.errors import ParameterError
 from ridge.sidecar.protocol import Json
 from ridge.sidecar.session import Session, absolute
@@ -48,12 +50,39 @@ def identity_status(session: Session, params: dict[str, Json]) -> Json:
 def limits_of_use(session: Session, params: dict[str, Json]) -> Json:
     """Return the store's limits of use (PRD §12 item 8): source, file hash, limits; nothing is decrypted.
 
-    A malformed limits file is refused here as it is by every job, so the examiner sees it at once.
+    A malformed limits file, or a signature that does not verify, is refused here as it is by every
+    job, so the examiner sees it at once.
     """
     limits = load_limits(absolute(params["store"], "store"))
     if limits is None:
         return {"configured": False}
-    return {"configured": True, "source": limits.source, "sha256": limits.sha256, "limits": limits.to_json()}
+    return {
+        "configured": True,
+        "source": limits.source,
+        "sha256": limits.sha256,
+        "limits": limits.to_json(),
+        "signed_by": limits.signed_by,
+    }
+
+
+def verify_all(session: Session, params: dict[str, Json]) -> Json:
+    """Verify every case of a store with the examiner passphrase (sent by the Rust core only).
+
+    The open case, if any, is locked first: a store check never runs beside an unlocked case.
+    """
+    session.close()
+    store = absolute(params["store"], "store")
+    return [check.to_json() for check in verify_store(store, params["passphrase"], session.keystore_factory())]
+
+
+def overview(session: Session, params: dict[str, Json]) -> Json:
+    """Every case's reference, retention and hold, read with the passphrase (sent by the Rust core only).
+
+    Nothing is written; the open case, if any, is locked first.
+    """
+    session.close()
+    store = absolute(params["store"], "store")
+    return [case.to_json() for case in store_overview(store, params["passphrase"], session.keystore_factory())]
 
 
 def identity_create(session: Session, params: dict[str, Json]) -> Json:

@@ -171,11 +171,15 @@ sequenceDiagram
 
 Reading reports back (`src/ridge/case/reports.py`, PRD FR-28): jobs are listed from the verified custody log. A job id from the caller is only matched against ids in that log (a full UUID or a unique prefix of at least 8 characters), so it never reaches a file path unchecked. Before a report is shown or exported, three checks must pass. Its bytes must hash to the `report.sign` entry. Its signature must verify against the store's examiner identity. It must name its own job and case. Reads are logged as `report.read` and exports as `report.export`. An export is the exact canonical bytes plus a base64 detached signature (`<file>.sig`). `ridge-case check-report` verifies the pair without the store. It rejects reformatted JSON, any edit and, with `--key-id`, any other key. The key id still has to be matched out of band against the examiner's published identity, because a report carries its own public key.
 
+Examiner notes (`src/ridge/case/notes.py`, PRD FR-29, ISO/IEC 17025 §7.5 technical records): `ridge-case note` and the GUI append an `examiner.note` custody entry with the text and, optionally, the job, the stored item or the note it corrects. The job and item must exist in the case, and a correction must name an earlier note. A correction keeps the corrected note's job or item; naming a different one is refused. Text is 1–2000 characters, line breaks and tabs allowed. Other control characters and the bidirectional overrides and isolates (U+202A–U+202E, U+2066–U+2069) are refused, so a note cannot display differently from what is stored. Notes are encrypted and hash-chained like every entry, so they appear in the processing record, and they are never edited or removed. Ridge stores the text as written and does not interpret it; reports signed before a note are not changed.
+
 Reference images and comparison sheets (`src/ridge/case/compare.py`, PRD FR-52): NAFIS/AFIS candidate images are imported with role `reference` (folder `references/`), with the examiner's note on where they came from. They are hashed, encrypted and logged like evidence (`reference.import`), and jobs refuse them. `ridge-case compare` decodes one export and one reference (both reads logged). It resamples them to one resolution (default 500 ppi), adds a 10 mm scale bar and captions to each, and writes a grayscale PNG with pHYs, logged as `comparison.export` with all three hashes. The reference's resolution comes from its file or from the examiner, and it must lie between 250 and 2000 ppi; 72 or 96 ppi defaults are refused, never guessed. Nothing is aligned, matched or scored.
 
 Reproduction check (`src/ridge/case/reproduce.py`, PRD FR-34, NFR-3): `ridge-case reproduce` loads a verified report and rebuilds the job parameters from it alone. It runs them as a new, normally logged and signed job on the same evidence, then compares every output by role, label and SHA-256. Identical outputs are deduplicated, not stored twice. The comparison and any environment changes (version, platform, CPU architecture, dependency versions) are logged as `job.reproduce` with result `ok` or `mismatch`, under a new signed head. Results are reproducible per OS and CPU architecture (ADR-009), so a mismatch with an architecture change is expected and reported, not hidden. The NFIQ 2 score is not an output file and is not compared.
 
 Processing record (`src/ridge/case/processing_record.py`, PRD PRIV-3): `ridge-case log --to` first logs `log.export` (with the case id), then signs the custody head, and then writes every decrypted entry with the case id and the examiner's public key as readable JSON (`ridge.processing-record/1`). Every entry in the file is therefore covered by a signed head. `ridge-case check-log` recomputes the sequence and the hash links from the entries and verifies every signed head. It refuses a record that does not end with that signed `log.export`, which catches appended entries and stripped signatures. It also refuses a record whose case id differs from the one in the signed entry. Truncation after a signed head cannot be detected offline (R-5); the DPO compares the last entry with what the examiner reports.
+
+Disclosure package (`src/ridge/case/package.py`, implemented 2026-10-18): `ridge-case package CASE --to NEW_FOLDER` (GUI → Records) creates the folder (an existing one is refused) and writes the signed processing record, every signed report with its detached signature, and `MANIFEST.json` (schema `ridge.package/1`: package id, case id, Ridge version, examiner key, every file's SHA-256 and size; RFC 8785 canonical) with `MANIFEST.json.sig`. It holds **no images**; reports name the hash of every image. `package.export` is logged with the package id and its job ids before the processing record is signed, so the record names its own package. `ridge-case check-package` verifies offline: the manifest signature and canonical form, every file, that no file was added or removed (only `processing-record.json` and `reports/<uuid>.json[.sig]` are allowed), the processing record, every report signature, and that each report is the one whose hash the custody log signed. Swapping in another valid report fails even with a re-signed manifest.
 
 ### 7.3 GUI ↔ sidecar (M4) [Implemented]
 
@@ -189,10 +193,13 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `identity.create` | `store` (absolute), `passphrase` | Key id and public key of the new examiner identity (first run). **Rust core only**, from a native prompt |
 | `case.create` | `store`, `reference`, `legal_basis`, `retention_until` (YYYY-MM-DD), `passphrase` | New case id; the passphrase must unlock the identity. **Rust core only** |
 | `store.identity` | `store` (absolute) | Whether the store has an examiner identity, and its key id and public key (nothing unlocked); first-run detection |
+| `store.verify` | `store` (absolute), `passphrase` | Every case of the store verified as `case.verify` does (each check logged in that case's custody log); cases that cannot be checked are named, and a case open in another window counts as a problem (the check is incomplete). **Rust core only**, from the prompt window |
+| `store.overview` | `store` (absolute), `passphrase` | Every case's reference, retention date, legal hold, evidence and job counts, read from the encrypted case metadata. Nothing is written or logged (no evidence is read). **Rust core only**, from the prompt window |
 | `store.limits` | `store` (absolute) | The store's limits of use (§8.3): `configured: false`, or source, file SHA-256 and limits; a malformed file is refused |
 | `session.lock` / `session.status` | – | Locks the case (also done at end of input and after 15 minutes without requests) / unlocked state and idle timeout |
 | `case.info` / `case.hold` | – / `on`, `reason` | Decrypted case metadata / places or lifts a legal hold with a reason (logged as `case.hold`) |
 | `case.items` / `case.verify` | – | Stored items / verification result |
+| `note.add` / `notes.list` | `text`, `job_id`, `sha256`, `corrects` / `job_id` | Appends an examiner note (custody action `examiner.note`; FR-29) / the notes of the case or one job. A note never changes; a correction names the note it corrects |
 | `case.import` | `path` (absolute, from a native file dialog) | Evidence item |
 | `job.run` | `evidence`, extraction options, `export`, `mirror`, `ppi`, `ruler`, `minutiae` | Outputs, measurements, export, quality, minutiae summary |
 | `preview.get` | `sha256`, `max_side` 16–2048 | Bounded PNG (base64) for display, with the full image's size after EXIF orientation (`source_width`, `source_height`: the space of `roi` and `ruler`); the read is logged |
@@ -205,6 +212,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `job.reproduce` | `job_id` | Re-run from the verified report; per-output comparison and environment changes (logged, signed) |
 | `log.export` | `dest` (absolute), `overwrite` | Logged, signed processing record (PRIV-3) |
 | `head.export` | `dest` (absolute), `overwrite` | Logged, signed custody head for out-of-band countersigning (§8.4) |
+| `package.export` | `dest` (absolute, a new folder named in a native dialog) | Disclosure package: processing record, signed reports, signed manifest; no images (logged) |
 | `case.import_reference` | `path` (absolute), `source` | Reference item (NAFIS/AFIS candidate; view only, never processed) |
 | `compare.export` | `export`, `reference`, `dest` (absolute), `reference_ppi`, `ppi`, `overwrite` | Logged equal-scale side-by-side sheet (FR-52) |
 
@@ -252,6 +260,8 @@ The **WebView** (`gui/src`, untrusted, React and TypeScript with Motion) has the
 
 Previews are in-memory `blob:` URLs and are revoked when the case closes. A refusal that says the case is no longer unlocked (idle lock, sidecar restart) returns the examiner to the store screen. The GUI never polls the sidecar, so the 15-minute idle lock still works.
 
+Added 2026-10-18: keyboard shortcuts in a case (`?` lists them; Alt+1–4 switch sections; the viewer keeps `+`, `-`, `0`, `1` and the arrow keys), never while the examiner types in a field. The case screen says when the retention date has passed without a legal hold, and the store screen can show every case's reference, retention date and hold after the passphrase prompt (`store_overview`). A job's report can be compared with another job's: the GUI reads both verified reports (each read logged) and lists the settings, input and Ridge version that differ, without ranking the outputs. Examiner notes (FR-29) are shown on each report and in Records.
+
 A development preview (`gui/src/dev/preview.ts`: mocked IPC and synthetic drawn images) runs only under `npm run dev` outside Tauri. The GUI gate checks that it is absent from production builds.
 
 ## 8. Data architecture [Implemented M1]
@@ -262,6 +272,7 @@ A development preview (`gui/src/dev/preview.ts`: mocked IPC and synthetic drawn 
 <store_root>/                       examiner-chosen, on an FDE-protected volume
   identity.json                     examiner Ed25519 public key + sealed private key (§9.3)
   limits-of-use.json                optional, placed by the Forensic Quality Manager: limits from the validation report (§8.3); no personal data
+  limits-of-use.json.sig            optional: the FQM's Ed25519 signature over it (ridge.limits-signature/1, §8.3)
   <case_uuid>.disposal.json         kept after disposal: no personal data (§8.2)
   <case_uuid>/
     case.json                       schema, case id, KDF parameters, salt, wrapped DEK (no plaintext keys, no personal data)
@@ -342,6 +353,8 @@ For each job:
 - the report's `limits_of_use` section is either `configured: false`, or the source, the hash, the limits, `within` and plain-language warnings.
 
 A job outside the limits is **not refused**: the examiner decides, informed. Reports made before this section existed have no `limits_of_use`. `ridge-case limits --check FILE` validates a file before it is deployed.
+
+**Signed limits (`src/ridge/case/limits_signing.py`, implemented 2026-10-18).** The FQM creates a signing key once with `ridge-case fqm-key --to fqm-key.json`. The file holds an Ed25519 key sealed with AES-256-GCM under an Argon2id key from the FQM passphrase alone, so it works on the FQM's own machine and stays off examiner workstations. `ridge-case limits --sign limits-of-use.json --key fqm-key.json` validates the file and writes `limits-of-use.json.sig` (schema `ridge.limits-signature/1`: key id, public key, the file's SHA-256 and an Ed25519 signature over a domain prefix plus the exact bytes). When the store holds a signature, every job and `store.limits` verify it. A changed file, a changed or foreign signature, or a signature without its file stops jobs (fail closed); the report's `limits_of_use.signed_by` names the key id and public key, or is `null` for an unsigned file. As with examiner keys, anyone can make a key: a reviewer matches the key id against the laboratory's register out of band (`ridge-case limits --check FILE --key-id ID`). Deleting the signature is possible for anyone who can write the store, and the report then says `signed_by: null`.
 
 ### 8.4 Custody log entry
 

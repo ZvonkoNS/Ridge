@@ -82,14 +82,41 @@ describe("limits of use", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows the store's limits and their source", () => {
-    render(
-      <LimitsCard
-        limits={{ configured: true, source: "VR-2027-01", sha256: "b".repeat(64), limits: { min_nfiq2: 30 } }}
-      />,
-    );
+  it("shows the store's limits, their source and who signed them", () => {
+    const limits = {
+      configured: true as const,
+      source: "VR-2027-01",
+      sha256: "b".repeat(64),
+      limits: { min_nfiq2: 30 },
+      signed_by: null,
+    };
+    const { rerender } = render(<LimitsCard limits={limits} />);
     expect(screen.getByText("VR-2027-01")).toBeInTheDocument();
     expect(screen.getByText("min_nfiq2")).toBeInTheDocument();
+    expect(screen.getByText(/Not signed/)).toBeInTheDocument();
+    rerender(
+      <LimitsCard limits={{ ...limits, signed_by: { key_id: "0123456789abcdef", public_key: "AAAA" } }} />,
+    );
+    expect(screen.getByText(/Signed with key/)).toHaveTextContent("0123456789abcdef");
+  });
+
+  it("names the signing key in a job's outcome", () => {
+    render(
+      <LimitsOutcome
+        section={{
+          configured: true,
+          source: "VR-2027-01",
+          sha256: "a".repeat(64),
+          limits: {},
+          within: true,
+          warnings: [],
+          signed_by: { key_id: "0123456789abcdef", public_key: "AAAA" },
+        }}
+      />,
+    );
+    expect(screen.getByText(/Within the limits of use/)).toHaveTextContent(
+      "signed with key 0123456789abcdef",
+    );
   });
 });
 

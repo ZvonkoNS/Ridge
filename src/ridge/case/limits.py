@@ -6,25 +6,37 @@ With it, each job compares its own measurements with the limits and records any 
 a warning in the signed report, together with the file's SHA-256 and its stated source (the
 validation report). A job outside the limits is not refused: the examiner decides, informed.
 A malformed limits file stops jobs (fail closed, SEC-9) until it is corrected.
+
+The FQM can sign the file (``limits-of-use.json.sig``, see `limits_signing`). A store that holds
+the signature has it verified before every job, and the report names the signing key; a
+signature that does not verify stops jobs too. Anyone can make a key, so the key id must still be
+matched against the laboratory's register out of band, as for examiner keys.
 """
 
 from __future__ import annotations
 
+import binascii
 import json
 import math
 import platform
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
 from ridge.case.crypto import sha256_hex
+from ridge.case.identity import key_id_for, verify_signature
+from ridge.case.keys import unb64
 from ridge.errors import ParameterError
 from ridge.image_io import read_bounded
 
 FILE = "limits-of-use.json"
 SCHEMA = "ridge.limits-of-use/1"
+SIGNATURE_FILE = FILE + ".sig"
+SIGNATURE_SCHEMA = "ridge.limits-signature/1"
+SIGNED_PREFIX = b"ridge.limits-of-use/1 signed by the Forensic Quality Manager\n"  # domain separation
 MAX_BYTES = 64 * 1024
+MAX_SIGNATURE_BYTES = 4096
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 _NUMBERS = ("min_ridge_period_px", "max_ridge_period_px", "max_scale_uncertainty_pct", "min_nfiq2")
 _FLAGS = ("require_ruler", "require_finger_found")
@@ -44,6 +56,7 @@ class LimitsOfUse:
     min_nfiq2: float | None = None
     require_ruler: bool = False
     require_finger_found: bool = False
+    signed_by: dict[str, str] | None = None  # key_id and public_key of a verified FQM signature
 
     def to_json(self) -> dict[str, Any]:
         """Return the limits as recorded in a report."""
@@ -101,12 +114,45 @@ def parse_limits(data: bytes) -> LimitsOfUse:
     )
 
 
+def check_signature(data: bytes, signature_doc: bytes) -> dict[str, str]:
+    """Verify an FQM signature over a limits file; return the signer's key id and public key."""
+    refused = ParameterError("limits of use: the signature file is malformed or does not verify; jobs stay stopped")
+    try:
+        doc = json.loads(signature_doc.decode("utf-8"))
+        if not isinstance(doc, dict) or set(doc) != {"schema", "key_id", "public_key", "limits_sha256", "signature"}:
+            raise refused
+        public, signature = unb64(doc["public_key"]), unb64(doc["signature"])
+    except (UnicodeDecodeError, ValueError, TypeError, AttributeError, binascii.Error):
+        raise refused from None
+    if (
+        doc["schema"] != SIGNATURE_SCHEMA
+        or len(public) != 32
+        or doc["key_id"] != key_id_for(public)
+        or doc["limits_sha256"] != sha256_hex(data)
+        or not verify_signature(public, signature, SIGNED_PREFIX + data)
+    ):
+        raise refused
+    return {"key_id": doc["key_id"], "public_key": doc["public_key"]}
+
+
+def read_limits(path: Path) -> LimitsOfUse:
+    """Read and validate a limits file, and verify its signature (``PATH.sig``) when there is one."""
+    data = read_bounded(path, MAX_BYTES)
+    limits = parse_limits(data)
+    signature = path.with_name(path.name + ".sig")
+    if not signature.exists():
+        return limits
+    return replace(limits, signed_by=check_signature(data, read_bounded(signature, MAX_SIGNATURE_BYTES)))
+
+
 def load_limits(store: Path) -> LimitsOfUse | None:
     """Return the store's limits of use, or None when the laboratory has not configured any."""
     path = store / FILE
     if not path.exists():
+        if (store / SIGNATURE_FILE).exists():  # a signature without its file: something was removed
+            raise ParameterError(f"limits of use: {SIGNATURE_FILE} is present but {FILE} is missing")
         return None
-    return parse_limits(read_bounded(path, MAX_BYTES))
+    return read_limits(path)
 
 
 def deviations(limits: LimitsOfUse, fields: dict[str, Any], machine: str | None = None) -> list[str]:
@@ -170,6 +216,7 @@ def report_section(limits: LimitsOfUse | None, fields: dict[str, Any]) -> dict[s
         "source": limits.source,
         "sha256": limits.sha256,
         "limits": limits.to_json(),
+        "signed_by": limits.signed_by,
         "within": not warnings,
         "warnings": warnings,
     }
@@ -181,11 +228,17 @@ def render_lines(section: dict[str, Any] | None) -> list[str]:
         return []
     if not section.get("configured"):
         return ["Limits        none configured for this store"]
-    head = f"Limits        {section.get('source')} (sha256 {str(section.get('sha256'))[:16]}...)"
+    head = [f"Limits        {section.get('source')} (sha256 {str(section.get('sha256'))[:16]}...)"]
+    if "signed_by" in section:  # reports made before signed limits have no such field
+        signer = section.get("signed_by")
+        key = signer.get("key_id") if isinstance(signer, dict) else None
+        head.append(
+            f"              signed with key {key} (confirm it is the FQM's)" if key else "              not signed"
+        )
     if section.get("within"):
-        return [head, "              within the limits of use"]
+        return [*head, "              within the limits of use"]
     return [
-        head,
+        *head,
         "              outside the limits of use:",
         *(f"              - {w}" for w in section.get("warnings") or []),
     ]

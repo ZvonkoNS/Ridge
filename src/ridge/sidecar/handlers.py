@@ -29,6 +29,8 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "store.cases": (store.cases, {"store": (str_, True)}),
     "store.identity": (store.identity_status, {"store": (str_, True)}),
     "store.limits": (store.limits_of_use, {"store": (str_, True)}),
+    "store.verify": (store.verify_all, {"store": (str_, True), "passphrase": (str_, True)}),
+    "store.overview": (store.overview, {"store": (str_, True), "passphrase": (str_, True)}),
     "identity.create": (store.identity_create, {"store": (str_, True), "passphrase": (str_, True)}),
     "case.create": (
         store.case_create,
@@ -46,6 +48,16 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "case.info": (case.info, {}),
     "case.hold": (case.hold, {"on": (bool_, True), "reason": (str_, True)}),
     "case.items": (case.items, {}),
+    "note.add": (
+        case.note_add,
+        {
+            "text": (str_, True),
+            "job_id": ((str, type(None)), False),
+            "sha256": ((str, type(None)), False),
+            "corrects": ((int, type(None)), False),
+        },
+    ),
+    "notes.list": (case.notes, {"job_id": ((str, type(None)), False)}),
     "case.import": (case.import_evidence, {"path": (str_, True), "source": ((str, type(None)), False)}),
     "case.verify": (case.verify, {}),
     "case.export": (case.export_item, {"sha256": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
@@ -55,6 +67,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "report.export": (job.report_export, {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
     "log.export": (job.log_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
     "head.export": (job.head_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
+    "package.export": (job.package_export, {"dest": (str_, True)}),
     "case.import_reference": (case.import_reference, {"path": (str_, True), "source": (str_, True)}),
     "compare.export": (
         job.compare_export,
