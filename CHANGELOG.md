@@ -17,6 +17,7 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 - Reports record the source commit (`commit`, `commit_source`), stamped by the release build or read from git's files in a development checkout. The engine reports it too, the GUI footer shows it, and the frozen-sidecar build refuses a bundle without the stamp.
 - `ridge-case check PATH` and GUI "Check exported files" verify any exported file, package or store backup by its kind.
 - Export every item of one role at once (`ridge-case export-all`, GUI "Export all N comparison exports"): one logged export each, with an `EXPORTS.csv` index.
+- Report exports, JSON and readable copies, now log the SHA-256 of the bytes written, so a copy in a case file can be matched to its custody entry.
 - Store backups (`ridge-case backup`, `check-backup`, GUI "Back up this store"): an encrypted byte copy with a hash manifest. A backup does **not** hold the OS-keystore device secret.
 - Workstation check (`ridge-case workstation`, GUI "This workstation"): the build, the OS keystore, the store and its limits of use, with what to fix before casework. Optionally it also checks the key register (CLI and GUI) and the NFIQ 2 tool (`--nfiq2`, asked only its version). It reads only, and it validates nothing.
 - `jobs --json` and `notes --json` for laboratory scripts.

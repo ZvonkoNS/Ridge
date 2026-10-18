@@ -62,7 +62,7 @@ If the laboratory has set limits of use, each report says whether the job stayed
 
 ## Exports
 
-Decrypted files leave the case only through the export buttons, and every export is written to the custody log with its destination. An exported image or comparison sheet is logged with its SHA-256. An exported report, processing record, custody head or package is logged with its job, package or case: its own signature protects its content.
+Decrypted files leave the case only through the export buttons, and every export is written to the custody log with its destination. An exported image, comparison sheet, signed report or readable copy is logged with its SHA-256. An exported processing record, custody head or package is logged with its case or package. Its own export entry is covered by its signature, so it cannot name its own hash: that signature protects its content instead.
 
 - **Export shown image** saves the image on screen.
 - **Export all N comparison exports...** / **processed prints...** write every item of that kind into a new folder, with an `EXPORTS.csv` index of names, hashes, jobs and labels.

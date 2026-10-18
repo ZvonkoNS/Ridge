@@ -55,6 +55,7 @@ def test_the_page_renders_the_signed_report(signed_case: tuple[Path, MemoryKeySt
     assert "<script" not in page
     assert "<img" not in page
     assert logged[-1]["format"] == "html"
+    assert logged[-1]["sha256"] == sha256_hex((tmp_path / "r.html").read_bytes())  # the page as written
     assert "Ridge flow unclear<br>near the delta &lt;b&gt;" in page
     assert "not part of the signed report" in page
 

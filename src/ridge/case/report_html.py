@@ -166,15 +166,24 @@ verify them with <code>ridge-case check-report</code>. This page is not signed.<
 
 
 def export_report_html(case: OpenCase, store: Path, ref: str, dest: Path, *, overwrite: bool = False) -> SignedReport:
-    """Write the HTML rendering of a checked report (logged as ``report.export`` with format html)."""
+    """Write the HTML rendering of a checked report (logged as ``report.export`` with format html).
+
+    The entry names the SHA-256 of the page as written, so a copy in the case file can be matched.
+    """
     signed = load_report(case, store, ref, log=False)
     if not overwrite and dest.exists():
         raise OutputExistsError(f"{dest.name} already exists (use --overwrite to replace)")
-    page = render_report_html(signed, list_notes(case.entries, job_id=signed.job_id))
+    page = render_report_html(signed, list_notes(case.entries, job_id=signed.job_id)).encode("utf-8")
     publish_logged(
-        [(dest, page.encode("utf-8"))],
+        [(dest, page)],
         lambda: case.entries.append(
-            case.custody.append("report.export", job_id=signed.job_id, destination=str(dest.resolve()), format="html")
+            case.custody.append(
+                "report.export",
+                job_id=signed.job_id,
+                sha256=sha256_hex(page),
+                destination=str(dest.resolve()),
+                format="html",
+            )
         ),
         overwrite=overwrite,
     )
