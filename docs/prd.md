@@ -293,7 +293,7 @@ Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 
 | OQ-6 | Validation dataset: number of volunteers, consent form, capture protocol, storage location and access. | Forensic Quality Manager + DPO | Before M5 |
 | OQ-7 | Accept or adjust the provisional benchmark targets after the baseline run. | Product Owner + Forensic Quality Manager | After baseline |
 | OQ-8 | Can custody chain heads be countersigned or timestamped by a lab system **out of band** (e.g. exported on removable media)? Ridge itself stays offline (SEC-1). Ridge side ready since 2026-10-18 (`ridge-case head`, `check-head`); the lab process is open. | Security Owner | M1 design, M5 |
-| OQ-9 | Signing key model: one key per workstation or per examiner, and where public keys are registered. | Security Owner | M1 |
+| OQ-9 | Signing key model: one key per workstation or per examiner, and where public keys are registered. Tool support added 2026-10-18: a laboratory key register (`ridge.key-register/1`) that the offline checks use with `--register`; the key model and who keeps the register remain open. | Security Owner | M1 |
 | OQ-10 | Names of the Product, Security, Quality/Release, DPO and Forensic Quality owners. | Product Owner | Before any release |
 | OQ-11 | Reference workstation specification (CPU, RAM, OS) for performance targets. | Security Owner / IT | M0 baseline |
 | OQ-12 | Recovery-key policy for case stores: is a sealed, lab-held recovery key allowed, and who holds it? | Security Owner | M1 |

@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case import cli_common as common
+from ridge.case.cli_register import add_register_argument, confirm
 from ridge.case.custody_head import check_head, export_head
 from ridge.case.identity import unlock_identity
 from ridge.case.processing_record import check_exported_log, export_log
@@ -83,6 +84,8 @@ def cmd_check_report(args: argparse.Namespace) -> int:
     """Verify an exported report and its signature without opening any case."""
     check = check_exported_report(args.report, args.sig, expected_key_id=args.key_id)
     common.say(f"signature valid: job {check.job_id}, case {check.case_id}, created {check.created_utc}")
+    if confirm(args, check.key_id, "examiner", check.created_utc):
+        return 0
     if check.key_confirmed:
         common.say(f"signed by the expected key {check.key_id}")
     else:
@@ -114,6 +117,8 @@ def cmd_check_log(args: argparse.Namespace) -> int:
         f"chain intact: case {check.case_id}, {check.entries} entries, {check.signed_heads} signed head(s), "
         "ending with the signed export"
     )
+    if confirm(args, check.key_id, "examiner", check.exported_utc):
+        return 0
     if check.key_confirmed:
         common.say(f"signed by the expected key {check.key_id}")
     else:
@@ -137,7 +142,7 @@ def cmd_check_head(args: argparse.Namespace) -> int:
     common.say(f"custody head verified: case {check.case_id}, entry {check.seq}, key {check.key_id}")
     if check.record_entries is not None:
         common.say(f"the processing record ({check.record_entries} entries) contains this head unchanged")
-    if not check.key_confirmed:
+    if not confirm(args, check.key_id, "examiner", check.signed_utc) and not check.key_confirmed:
         common.say(f"confirm key {check.key_id} is the examiner's key, or pass --key-id")
     return 0
 
@@ -166,6 +171,7 @@ def add_commands(sub: Any) -> None:
     p.add_argument("report", type=Path)
     p.add_argument("--sig", type=Path, help="detached signature (default: REPORT.sig)")
     p.add_argument("--key-id", help="the examiner key id the report must be signed with")
+    add_register_argument(p)
     p.set_defaults(func=cmd_check_report)
     p = sub.add_parser("log", help="print the custody log, or export it as a signed processing record")
     p.add_argument("case", type=Path)
@@ -175,6 +181,7 @@ def add_commands(sub: Any) -> None:
     p = sub.add_parser("check-log", help="verify an exported processing record without the case store")
     p.add_argument("record", type=Path)
     p.add_argument("--key-id", help="the examiner key id the record must be signed with")
+    add_register_argument(p)
     p.set_defaults(func=cmd_check_log)
     p = sub.add_parser("head", help="export the signed custody head for out-of-band countersigning (OQ-8)")
     p.add_argument("case", type=Path)
@@ -185,4 +192,5 @@ def add_commands(sub: Any) -> None:
     p.add_argument("head", type=Path)
     p.add_argument("--record", type=Path, help="a later processing record (ridge-case log --to)")
     p.add_argument("--key-id", help="the examiner key id the head must be signed with")
+    add_register_argument(p)
     p.set_defaults(func=cmd_check_head)

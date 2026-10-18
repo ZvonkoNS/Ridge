@@ -115,6 +115,7 @@ class PackageCheck:
     record_entries: int
     key_id: str
     key_confirmed: bool
+    created_utc: str = ""  # from the signed manifest: the signer's clock
 
 
 def _manifest(root: Path, expected_key_id: str | None) -> tuple[dict[str, Any], str, bytes]:
@@ -195,4 +196,5 @@ def check_package(root: Path, *, expected_key_id: str | None = None) -> PackageC
         record_entries=record_check.entries,
         key_id=key_id,
         key_confirmed=expected_key_id is not None,
+        created_utc=str(manifest.get("created_utc", "")),
     )
