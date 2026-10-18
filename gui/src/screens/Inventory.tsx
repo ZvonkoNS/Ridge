@@ -2,6 +2,7 @@
 // (FR-25): originals, references, prints, exports, debug images and minutiae JSON.
 import { useState } from "react";
 
+import { CopyButton } from "../components/CopyButton";
 import { roleName } from "../components/ExhibitLabel";
 import { Button, Hash } from "../components/ui";
 import { ipc } from "../ipc/commands";
@@ -126,7 +127,8 @@ export function Inventory({ items, onFailure, notify, onExported }: Props) {
               </td>
               <td>{roleName(item.role)}</td>
               <td>
-                <Hash value={item.sha256} length={16} />
+                <Hash value={item.sha256} length={16} />{" "}
+                <CopyButton value={item.sha256} what={`SHA-256 of ${item.label}`} />
               </td>
               <td>{size(item.size)}</td>
               <td>
