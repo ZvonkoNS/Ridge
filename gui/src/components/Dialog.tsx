@@ -16,6 +16,12 @@ export function Dialog({
 }) {
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
+  // The latest onClose, so callers may pass a new function on every render: the focus handling
+  // below runs once per opening, and a re-render never moves focus back to the opener.
+  const latestClose = useRef(onClose);
+  useEffect(() => {
+    latestClose.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -24,7 +30,7 @@ export function Dialog({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        latestClose.current();
       } else if (event.key === "Tab") {
         event.preventDefault(); // the Close button is the dialog's only control: keep focus inside
         close()?.focus();
@@ -35,7 +41,7 @@ export function Dialog({
       window.removeEventListener("keydown", onKey);
       opener?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="modal-backdrop">
