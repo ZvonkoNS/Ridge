@@ -14,8 +14,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from ridge.case.case_model import CASE_FILE, ERASING_SCHEMA, LOCK_FILE, SCHEMA
 from ridge.case.dispose import RECORD_SCHEMA
-from ridge.case.store import CASE_FILE, ERASING_SCHEMA, LOCK_FILE, SCHEMA
 from ridge.errors import CaseError
 from ridge.image_io import read_bounded
 

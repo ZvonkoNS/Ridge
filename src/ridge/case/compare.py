@@ -20,8 +20,9 @@ import numpy as np
 from PIL import Image
 
 from ridge.arrays import ImageU8
+from ridge.case.case_model import publish_logged
 from ridge.case.crypto import sha256_hex
-from ridge.case.store import OpenCase, publish_logged
+from ridge.case.store import OpenCase
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
 from ridge.export.png import encode_png
 from ridge.export.validate import finite

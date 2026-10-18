@@ -13,12 +13,13 @@ from typing import cast
 import cv2
 
 from ridge.arrays import ImageU8
+from ridge.case.case_model import StoredItem
 from ridge.case.case_status import case_status
 from ridge.case.compare import PLAUSIBLE_PPI, file_ppi
 from ridge.case.export_all import INDEX, export_role
 from ridge.case.export_step import MINUTIAE_LABEL
 from ridge.case.notes import add_note, list_notes
-from ridge.case.store import OpenCase, StoredItem
+from ridge.case.store import OpenCase
 from ridge.case.verify import verify_case
 from ridge.errors import ParameterError
 from ridge.image_io import ReadLimits, decode_image, encode_image

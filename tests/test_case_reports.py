@@ -293,7 +293,7 @@ def test_job_record_is_frozen() -> None:
 def test_failed_exports_leave_nothing_behind(
     case_dir: Path, keystore: MemoryKeyStore, job_id: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from ridge.case import store as store_module  # noqa: PLC0415
+    from ridge.case import case_model as store_module  # noqa: PLC0415  # publish_logged lives here
     from ridge.image_io import publish as real_publish  # noqa: PLC0415
 
     calls: list[Path] = []

@@ -12,11 +12,12 @@ from typing import Any
 import pytest
 
 from ridge.case import cli_common
+from ridge.case.case_model import StoredItem
 from ridge.case.cli import main
 from ridge.case.export_all import INDEX, export_role, file_name, file_names
 from ridge.case.identity import create_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
-from ridge.case.store import StoredItem, open_case
+from ridge.case.store import open_case
 from ridge.errors import OutputError, OutputExistsError, ParameterError
 from ridge.sidecar.handlers import Session
 from ridge.sidecar.server import handle

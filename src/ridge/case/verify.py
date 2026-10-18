@@ -5,10 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ridge.case.case_model import ROLES
 from ridge.case.crypto import sha256_hex
 from ridge.case.custody import Entry, verify_signed_heads
 from ridge.case.identity import public_identity, verify_signature
-from ridge.case.store import ROLES, OpenCase
+from ridge.case.store import OpenCase
 from ridge.errors import IntegrityError
 
 

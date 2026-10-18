@@ -11,9 +11,10 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ridge.case.case_model import StoredItem
 from ridge.case.identity import Signer
 from ridge.case.keys import KdfParams, KeyringKeyStore, KeyStore
-from ridge.case.store import OpenCase, StoredItem
+from ridge.case.store import OpenCase
 from ridge.errors import CaseError, ParameterError
 from ridge.sidecar.protocol import Json
 
