@@ -45,6 +45,10 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 - A malformed `identity.json` is refused cleanly, and it is read within a 64 KiB bound.
 - Bulk-export folders are private, and their file names stay distinct without regard to case.
 
+### Documentation
+
+- Examiner guide (`docs/examiner_guide.md`): working a case in the desktop application, task by task, and what Ridge never does.
+
 ### Known issues
 
 - Installer build and code signing, Tauri WebDriver E2E and a manual screen-reader pass are open (Handoff_18 §10).
