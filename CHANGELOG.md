@@ -14,7 +14,7 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 - Disclosure packages (`ridge-case package`, `check-package`): the signed processing record, every signed report, readable copies and a signed manifest, with no images.
 - Readable HTML copies of reports and processing records (`report --html`; `check-report --html` and `check-log --html` after offline verification). They are escaped, script-free and not signed.
 - Custody heads carry a whole-file signature; `check-head --record` detects truncation after a head.
-- Reports record the source commit (`commit`, `commit_source`), stamped by the release build or read from git's files in a development checkout.
+- Reports record the source commit (`commit`, `commit_source`), stamped by the release build or read from git's files in a development checkout. The engine reports it too, the GUI footer shows it, and the frozen-sidecar build refuses a bundle without the stamp.
 - `ridge-case check PATH` and GUI "Check exported files" verify any exported file or package by its kind.
 - Store backups (`ridge-case backup`, `check-backup`, GUI "Back up this store"): an encrypted byte copy with a hash manifest. A backup does **not** hold the OS-keystore device secret.
 
