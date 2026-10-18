@@ -19,6 +19,7 @@ from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.package import MANIFEST, RECORD, check_package, export_package
 from ridge.case.store import open_case
 from ridge.errors import IntegrityError, OutputExistsError
+from ridge.image_io import publish
 from ridge.sidecar.handlers import Session
 from ridge.sidecar.server import handle
 from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, new_case, photo_file
@@ -136,3 +137,23 @@ def test_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.Cap
     assert reply["result"]["reports"] == 0
     assert check_package(tmp_path / "gui").package_id == reply["result"]["package_id"]
     session.close()
+
+
+def test_a_failure_while_signing_the_manifest_is_logged(
+    package: tuple[Path, str, MemoryKeyStore, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, _, keystore, case_dir = package
+    signer = unlock_identity(case_dir.parent, PASSPHRASE, keystore)
+
+    def full_disk(path: Path, data: bytes, **kwargs: object) -> None:
+        if path.name == MANIFEST:
+            raise OSError(28, "No space left on device")
+        publish(path, data, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr("ridge.case.package.publish", full_disk)
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        with pytest.raises(OSError, match="No space left"):
+            export_package(case, case_dir.parent, signer, tmp_path / "partial")
+        assert (case.entries[-1]["action"], case.entries[-1]["result"]) == ("package.export", "failed")
+    with pytest.raises(IntegrityError):
+        check_package(tmp_path / "partial")  # no signed manifest: never a valid package

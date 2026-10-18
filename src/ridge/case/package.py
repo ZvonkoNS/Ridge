@@ -36,7 +36,7 @@ from ridge.case.keys import b64
 from ridge.case.processing_record import export_log, load_record, verify_record
 from ridge.case.reports import check_exported_report, list_jobs, load_report
 from ridge.case.store import OpenCase
-from ridge.errors import IntegrityError, OutputExistsError
+from ridge.errors import IntegrityError, OutputExistsError, RidgeError
 from ridge.image_io import publish, read_bounded
 
 SCHEMA = "ridge.package/1"
@@ -68,26 +68,30 @@ def export_package(case: OpenCase, store: Path, signer: Signer, dest: Path) -> d
             publish(dest / "reports" / f"{job_id}.json", signed.canonical)
             publish(dest / "reports" / f"{job_id}.json.sig", base64.b64encode(signed.signature) + b"\n")
         export_log(case, store, signer, dest / RECORD)
-    except (OSError, IntegrityError) as exc:  # the folder stays incomplete and fails check-package
+        manifest = _manifest_for(dest, package_id, case.case_id, key_id, public)
+        canonical = bytes(rfc8785.dumps(manifest))
+        publish(dest / MANIFEST, canonical)
+        publish(dest / (MANIFEST + ".sig"), base64.b64encode(signer.sign(canonical)) + b"\n")
+    except (OSError, RidgeError) as exc:  # the folder stays incomplete and fails check-package
         case.entries.append(
             case.custody.append("package.export", result="failed", package_id=package_id, error=type(exc).__name__)
         )
         raise
+    return manifest
+
+
+def _manifest_for(dest: Path, package_id: str, case_id: str, key_id: str, public: bytes) -> dict[str, Any]:
     files = sorted(p.relative_to(dest).as_posix() for p in dest.rglob("*") if p.is_file())
-    manifest: dict[str, Any] = {
+    return {
         "schema": SCHEMA,
         "package_id": package_id,
-        "case_id": case.case_id,
+        "case_id": case_id,
         "created_utc": utc_now(),
         "ridge_version": ridge.__version__,
         "identity": {"key_id": key_id, "public_key": b64(public)},
         "note": NOTE,
         "files": [_describe(dest, f) for f in files],
     }
-    canonical = bytes(rfc8785.dumps(manifest))
-    publish(dest / MANIFEST, canonical)
-    publish(dest / (MANIFEST + ".sig"), base64.b64encode(signer.sign(canonical)) + b"\n")
-    return manifest
 
 
 def _describe(root: Path, name: str) -> dict[str, Any]:
@@ -108,6 +112,8 @@ class PackageCheck:
 
 
 def _manifest(root: Path, expected_key_id: str | None) -> tuple[dict[str, Any], str, bytes]:
+    if not (root / MANIFEST).is_file() or not (root / (MANIFEST + ".sig")).is_file():
+        raise IntegrityError(f"{root.name} has no signed {MANIFEST}: not a complete Ridge package")
     canonical = read_bounded(root / MANIFEST, MAX_MANIFEST_BYTES)
     try:
         manifest = json.loads(canonical.decode("utf-8"))

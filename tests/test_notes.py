@@ -102,3 +102,18 @@ def test_cli_and_sidecar(
     assert [n["text"] for n in listed] == ["Line one\nline two", "From the GUI"]
     assert rpc("note.add", {"text": 5})["error"]["code"] == -32602
     session.close()
+
+
+def test_a_correction_keeps_the_scope_of_the_corrected_note(case: tuple[Path, MemoryKeyStore, str, str]) -> None:
+    case_dir, keystore, job_id, sha = case
+    with open_case(case_dir, PASSPHRASE, keystore) as opened:
+        other_job = str(uuid.uuid4())
+        opened.entries.append(opened.custody.append("job.start", job_id=other_job, evidence_sha256=sha))
+        on_job = add_note(opened, "About the first job.", job_id=job_id)
+        on_item = add_note(opened, "About the photo.", sha256=sha)
+        with pytest.raises(ParameterError, match="same job or item"):
+            add_note(opened, "Moved elsewhere.", job_id=other_job, corrects=on_job.seq)
+        with pytest.raises(ParameterError, match="same job or item"):
+            add_note(opened, "Moved to the photo.", sha256=sha, corrects=on_job.seq)
+        assert add_note(opened, "Fixed.", job_id=job_id, corrects=on_job.seq).job_id == job_id
+        assert add_note(opened, "Fixed.", corrects=on_item.seq).sha256 == sha  # inherited

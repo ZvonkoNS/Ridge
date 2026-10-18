@@ -15,11 +15,12 @@ Completed work on this branch:
 
 | Area | What |
 | --- | --- |
-| Store verification (FR-24) | `ridge-case verify-store`, sidecar `store.verify` (Rust core only) and GUI "Verify all cases...". One passphrase checks every case: hashes, custody chains and signatures. Each check is logged in its case. Cases that cannot be checked are named, never skipped |
+| Store verification (FR-24) | `ridge-case verify-store`, sidecar `store.verify` (Rust core only) and GUI "Verify all cases...". One passphrase checks every case: hashes, custody chains and signatures. Each check is logged in its case. Cases that cannot be checked are named, never skipped. A case open in another window makes the store check fail, because it is then incomplete |
 | Store overview (FR-26) | `ridge-case overview`, sidecar `store.overview` (Rust core only, prompt purpose `store_overview`) and GUI "Show case details...". With one passphrase it lists every case's reference, retention date, legal hold and evidence/job counts. Cases past retention without a hold are marked. Nothing is written or logged, and nothing is ever disposed |
 | Examiner notes (new FR-29) | Custody action `examiner.note` on the case, a job or a stored item. Notes are append-only; a correction is a new note naming the one it corrects. Control characters and bidirectional overrides are refused, in the sidecar and in the Rust core. Available as `ridge-case note` / `notes`, sidecar `note.add` / `notes.list`, Tauri `add_note` / `list_notes`, and a notes panel on each report and in Records |
 | Signed limits of use (PRD §12 item 8) | `ridge-case fqm-key` creates the Forensic Quality Manager's passphrase-sealed Ed25519 key, and `ridge-case limits --sign` writes `limits-of-use.json.sig`. A store with a signature has it verified before every job. A changed file, a changed or foreign signature, or a signature without its file stops jobs (fail closed). Reports, the CLI and the GUI name the signing key, to be matched against the laboratory's register |
 | Disclosure package | `ridge-case package CASE --to NEW_FOLDER` (GUI → Records) writes the signed processing record, every signed report and a signed RFC 8785 manifest. It contains no images. `ridge-case check-package` verifies offline: the manifest, every file, nothing added or removed, the record, each report's signature, and that each report is the one the custody log signed (a swapped valid report fails even with a re-signed manifest) |
+| Review fixes (PR #16, Codex) | A locked case is a store-check problem (CLI exit 1, "NOT CHECKED"). Verification results are scoped to the store they came from. A failure while writing the package manifest is logged as `package.export` failed, and a folder without a signed manifest is refused by `check-package`. A correction keeps the scope of the note it corrects; a conflicting job or item is refused |
 | GUI | Keyboard shortcuts: `?` opens a list in a modal that returns focus; Alt+1–4 switch sections; nothing fires while typing. The case screen warns when the retention date has passed without a hold. A report can be compared with another job's report: only the differing settings, input and Ridge version are shown, and the outputs are not ranked. The dev preview mocks the new commands |
 
 Out of scope (unchanged):
@@ -97,7 +98,7 @@ See the pull request. Main areas:
 ## 9. Tests
 
 - Added:
-  - Python: `test_store_verify.py` (4), `test_store_overview.py` (3), `test_notes.py` (11), `test_limits_signing.py` (12), `test_package.py` (9);
+  - Python: `test_store_verify.py` (5), `test_store_overview.py` (3), `test_notes.py` (12), `test_limits_signing.py` (12), `test_package.py` (10);
   - Rust: note validation, prompt purpose descriptions;
   - Vitest: store verify, store overview, notes, records (package), limits signer, case keys/retention/comparison.
 - Commands: `python tools/gate.py all` on this branch; the result is recorded in the pull request.
