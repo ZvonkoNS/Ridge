@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | **Proposed** (2026-10-18). Needs a decision by the Security Owner and the product owner; nothing is implemented |
+| Status | **Accepted** (2026-10-18) by the product owner, who also holds the Security Owner role on an interim basis (OQ-10). Option B is implemented: see Decision and implementation |
 | Context | ADR-004 (two-factor key wrapping), store backups (architecture §8, `ridge-case backup`), OQ-9 |
 
 ## Problem
@@ -43,3 +43,29 @@ Until a decision is made, Option A applies. The CLI, the GUI and the architectur
 - New file format `ridge.device-secret-recovery/1` and two CLI commands (no GUI at first).
 - Threat model: a stolen recovery file plus its passphrase plus a store backup reveals the cases. The examiner passphrase is still needed, so the recovery file replaces only the device factor.
 - Release checklist: the laboratory documents where the recovery file and passphrase are kept, and who may use them.
+
+## Decision and implementation (2026-10-18)
+
+Option B, with the rules above. Implemented in `src/ridge/case/recovery.py` and `src/ridge/case/store_audit.py`:
+
+- **`ridge-case recovery export --store S --to FILE`** needs the examiner passphrase, which must unlock the store's identity. It asks for a new recovery passphrase that meets the policy, is confirmed, and is not the examiner's. It writes `ridge.device-secret-recovery/1`:
+  - a notice that the file holds one account's device secret and no evidence;
+  - the key id and a fingerprint of the secret;
+  - the Argon2id parameters and salt;
+  - the secret sealed with AES-256-GCM. The key id, fingerprint and creation time are bound into the seal, so changing them breaks it.
+- **`ridge-case recovery import FILE --store S`** opens the file with the recovery passphrase. It refuses if this account's keystore already holds a secret. Before anything is written, it checks that the secret unlocks the store's identity with the examiner passphrase, so a wrong file cannot lock an examiner out. If the import cannot be logged, it is undone.
+- **`ridge-case recovery check FILE`** shows the key id, fingerprint and creation time without opening the file.
+- Both export and import are logged in **`store-audit.jsonl`**. This hash-chained file holds store-level actions and is verified on every read.
+- **Deviation from "no GUI at first":** the store screen also offers "Export recovery file..." and "Restore from a recovery file...". The installed application ships the GUI and its engine but not the `ridge-case` command line, so without the GUI a laboratory could not use recovery at all. Both passphrases are typed in the Rust prompt window (ADR-010); the first is held only in the Rust core, zeroised, until the second prompt uses it.
+- Tests: `tests/test_recovery.py` covers:
+  - restoring into a new account;
+  - every refusal above;
+  - tampering with each field;
+  - a secret that does not match its fingerprint;
+  - the audit chain;
+  - the CLI and the sidecar methods.
+
+  The GUI has Vitest tests (`recovery.test.tsx`), and the prompt rules have Rust tests.
+
+The laboratory procedure (release checklist) must say where the recovery file and its passphrase are kept, apart from each other, and who may use them.
+

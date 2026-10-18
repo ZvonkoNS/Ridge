@@ -41,7 +41,7 @@ python tools/build_sidecar.py # freezes the sidecar, checks the archive (keystor
 cd gui && npx tauri build --config src-tauri/tauri.release.conf.json   # bundle with resources/sidecar/
 ```
 
-In GitHub Actions the GUI gate runs for the release tag (`gui.yml`). The frozen sidecar and the installer are code-signed before release; the bundle build has not been exercised yet (standards profile exception).
+In GitHub Actions the GUI gate runs for the release tag (`gui.yml`). The frozen sidecar and the installers are code-signed before release; that needs the laboratory's code-signing certificate. The Windows bundle build was first exercised on 2026-10-18. On Windows it writes an MSI and a per-user NSIS `setup.exe`, and the first build downloads WiX and NSIS, which Tauri checks against pinned hashes. Smoke-test the per-user installer: install it silently (`setup.exe /S`), ask the installed engine for `ridge.version`, start and close the app, then uninstall it silently.
 
 ## Forensic release gates
 
@@ -75,6 +75,9 @@ The pack's production-database and hosted-service steps (migrations on a product
 - Full-disk encryption active on the target workstation (interim control until M1; still required afterwards).
 - `Instruction_documentation/`, `docs/` and `tests/` are not shipped in runtime packages, and runtime code does not import them.
 - Rollback: previous signed release available; case-store format compatibility stated.
+- Device-secret recovery (ADR-012): every examiner has exported a recovery file. The laboratory's procedure states where the file and its recovery passphrase are kept, apart from each other, and who may restore. One restore into a fresh test account with a synthetic store has been rehearsed.
+- Custody heads (OQ-8): the laboratory's countersigning system and procedure are in place.
+- Manual NVDA pass from `docs/screen_reader_test.md` recorded, with no blockers open.
 
 ## Security release blockers
 

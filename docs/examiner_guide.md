@@ -84,8 +84,18 @@ Notes on the case, a job or a photo are written to the custody log with your nam
 ## Store tasks
 
 - **Verify all cases...** checks every case with one passphrase and logs each check in its case.
-- **Back up this store...** copies the encrypted store into a new folder with a hash manifest. **A backup does not hold the OS-keystore secret** that opening the cases also needs; the laboratory's procedure must cover it (ADR-012).
+- **Back up this store...** copies the encrypted store into a new folder with a hash manifest. **A backup does not hold the OS-keystore secret** that opening the cases also needs; export a recovery file for that (below).
 - **Check exported files** verifies a report, processing record, custody head, key card, key register, limits file, disclosure package or store backup, without the store.
+
+## If your account or computer is replaced
+
+Your cases need your examiner passphrase and a secret in this Windows account's OS keystore. To be able to restore your cases on a new account:
+
+1. Once, on the store screen: **Device-secret recovery → Export recovery file...** Choose where to save it, then a **recovery passphrase** (different from your examiner passphrase, at least 15 characters), then enter your examiner passphrase.
+2. Give the file and the recovery passphrase to the laboratory **separately**, for example the file on removable media in the safe and the passphrase in a sealed envelope. The file holds no evidence, but together with the passphrase it replaces this computer's part of the protection.
+3. On a new account: choose the restored store, then **Restore from a recovery file...**. Enter the recovery passphrase, then your examiner passphrase. Ridge checks that the secret opens your store before saving it, and never replaces a secret that is already there.
+
+Each export and restore is recorded in the store audit file (`store-audit.jsonl`).
 
 ## What Ridge never does
 

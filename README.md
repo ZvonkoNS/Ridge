@@ -14,6 +14,7 @@ fingerprint examiners.
 | [docs/architecture.md](docs/architecture.md) | Architecture, security design, ADRs |
 | [CHANGELOG.md](CHANGELOG.md) | What changed, its forensic impact and known issues (internal builds, not for casework) |
 | [docs/examiner_guide.md](docs/examiner_guide.md) | For examiners: working a case in the desktop application, task by task |
+| [docs/screen_reader_test.md](docs/screen_reader_test.md) | Manual NVDA test script, run before each GUI release |
 | [docs/verification_guide.md](docs/verification_guide.md) | For reviewers, the DPO and the FQM: checking exported reports, records, packages and keys offline |
 | [AGENTS.md](AGENTS.md) and [Instruction_documentation/](Instruction_documentation/README.md) | Engineering rules, standards profile, quality gates, handoffs |
 
@@ -101,6 +102,8 @@ ridge-case overview --store D:/ridge-store              # references, retention 
 ridge-case overview --store D:/ridge-store --due        # only cases past retention without a hold (retention review)
 ridge-case backup --store D:/ridge-store --to E:/backup-2026-10-18   # encrypted byte copy with a hash manifest
 ridge-case workstation --store D:/ridge-store          # build, OS keystore, store, limits: what to fix before casework
+ridge-case recovery export --store D:/ridge-store --to E:/ridge-recovery.json   # device secret under a recovery passphrase (ADR-012)
+ridge-case recovery import E:/ridge-recovery.json --store D:/ridge-store         # on a new account; never replaces a secret
 ridge-case workstation --store D:/ridge-store --register lab-keys.json --nfiq2 "C:/Program Files/NFIQ2/bin/nfiq2.exe"
 ridge-case check-backup E:/backup-2026-10-18            # every file against the manifest
 ridge-case note D:/ridge-store/<case-id> "text" --job <job-id>   # examiner note in the custody log (--corrects SEQ)
