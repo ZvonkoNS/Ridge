@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case.custody import utc_now
+from ridge.case.identity import IDENTITY_FILE
 from ridge.case.listing import list_cases
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
 from ridge.image_io import publish, read_bounded
@@ -77,6 +78,8 @@ def _hash(path: Path) -> tuple[str, int]:
 
 def backup_store(store: Path, dest: Path) -> dict[str, Any]:
     """Copy the encrypted store to `dest` (which must not exist) with a hash manifest; return the manifest."""
+    if not (store / IDENTITY_FILE).is_file():  # never copy an arbitrary folder chosen by mistake
+        raise ParameterError(f"{store} is not a Ridge case store (no {IDENTITY_FILE})")
     busy = [c.case_id for c in list_cases(store) if c.state in ("locked", "erasing")]
     if busy:
         raise ParameterError(f"case(s) {', '.join(b[:8] for b in busy)} are open or being disposed; close them first")

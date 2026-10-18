@@ -41,6 +41,14 @@ def test_a_backup_is_an_exact_copy_that_opens(store: tuple[Path, MemoryKeyStore,
         backup_store(root, tmp_path / "backup")
 
 
+def test_only_a_ridge_store_is_backed_up(tmp_path: Path) -> None:
+    (tmp_path / "documents").mkdir()
+    (tmp_path / "documents" / "letter.txt").write_text("not a store", encoding="utf-8")
+    with pytest.raises(ParameterError, match="not a Ridge case store"):
+        backup_store(tmp_path / "documents", tmp_path / "backup")
+    assert not (tmp_path / "backup").exists()
+
+
 def test_an_open_case_is_not_backed_up(store: tuple[Path, MemoryKeyStore, Path], tmp_path: Path) -> None:
     root, keystore, case_dir = store
     with open_case(case_dir, PASSPHRASE, keystore), pytest.raises(ParameterError, match="open"):
