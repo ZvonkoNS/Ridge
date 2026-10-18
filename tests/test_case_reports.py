@@ -180,6 +180,10 @@ def test_export_and_check_offline(case_dir: Path, keystore: MemoryKeyStore, job_
     assert dest.read_bytes() == canonical
     assert len(base64.b64decode(signature_path(dest).read_text(encoding="ascii"))) == 64
     assert "report.export" in actions(case_dir, keystore)
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        logged = [e for e in case.entries if e["action"] == "report.export"][-1]
+        signed_hash = next(j.report_sha256 for j in list_jobs(case.entries) if j.job_id == job_id)
+    assert logged["sha256"] == sha256_hex(dest.read_bytes()) == signed_hash  # the bytes written, as signed
 
     check = check_exported_report(dest)
     assert (check.job_id, check.key_confirmed) == (job_id, False)

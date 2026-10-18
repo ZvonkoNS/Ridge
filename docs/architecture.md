@@ -220,9 +220,9 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `case.export` | `sha256`, `dest` (absolute), `overwrite` | Logged plaintext export |
 | `case.jobs` | – | Jobs from the custody log: id, evidence, start and end time, result, whether a signed report exists |
 | `report.get` | `job_id` (UUID or a unique prefix of 8 or more characters) | The report, returned only after its hash and signature are verified; the read is logged |
-| `report.export` | `job_id`, `dest` (absolute), `overwrite` | Logged export of the canonical report and its detached signature (`dest.sig`) |
+| `report.export` | `job_id`, `dest` (absolute), `overwrite` | Logged export of the canonical report and its detached signature (`dest.sig`); the entry names the SHA-256 of the bytes written, the signed report's hash (since 2026-10-18) |
 | `job.reproduce` | `job_id` | Re-run from the verified report; per-output comparison and environment changes (logged, signed) |
-| `report.export_html` | `job_id`, `dest` (absolute), `overwrite` | Readable HTML rendering of a verified report: escaped values, a CSP with no scripts or embedded content, no images, the SHA-256 of the signed JSON in the footer; not signed (logged as `report.export`, `format: html`) |
+| `report.export_html` | `job_id`, `dest` (absolute), `overwrite` | Readable HTML rendering of a verified report: escaped values, a CSP with no scripts or embedded content, no images, the SHA-256 of the signed JSON in the footer; not signed (logged as `report.export`, `format: html`, with the SHA-256 of the page as written) |
 | `log.entries` | `offset`, `limit` 1–500, `action` (a kind such as `job` or `examiner.note`), `text` (1–100 characters, optional) | A page of the custody log, newest first, and the total; with `text`, only entries containing it (case-insensitive: a hash, a job id, note text); read only |
 | `log.export` | `dest` (absolute), `overwrite` | Logged, signed processing record (PRIV-3) |
 | `head.export` | `dest` (absolute), `overwrite` | Logged, signed custody head for out-of-band countersigning (§8.4) |

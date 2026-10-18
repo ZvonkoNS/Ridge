@@ -139,7 +139,10 @@ def signature_path(report_path: Path) -> Path:
 
 
 def export_report(case: OpenCase, store: Path, ref: str, dest: Path, *, overwrite: bool = False) -> SignedReport:
-    """Write a checked report and its detached signature in plaintext (logged as ``report.export``)."""
+    """Write a checked report and its detached signature in plaintext (logged as ``report.export``).
+
+    The entry names the SHA-256 of the exact bytes written, which is the signed report's hash.
+    """
     signed = load_report(case, store, ref, log=False)
     sig_dest = signature_path(dest)
     if not overwrite and (dest.exists() or sig_dest.exists()):
@@ -147,7 +150,12 @@ def export_report(case: OpenCase, store: Path, ref: str, dest: Path, *, overwrit
     publish_logged(
         [(dest, signed.canonical), (sig_dest, base64.b64encode(signed.signature) + b"\n")],
         lambda: case.entries.append(
-            case.custody.append("report.export", job_id=signed.job_id, destination=str(dest.resolve()))
+            case.custody.append(
+                "report.export",
+                job_id=signed.job_id,
+                sha256=sha256_hex(signed.canonical),
+                destination=str(dest.resolve()),
+            )
         ),
         overwrite=overwrite,
     )
