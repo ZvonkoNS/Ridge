@@ -114,6 +114,8 @@ pub fn run() {
             commands::notes::add_note,
             commands::notes::list_notes,
             commands::package::export_package,
+            commands::records::custody_log,
+            commands::records::export_report_html,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

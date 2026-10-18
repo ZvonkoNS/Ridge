@@ -57,7 +57,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
             "corrects": ((int, type(None)), False),
         },
     ),
-    "notes.list": (case.notes, {"job_id": ((str, type(None)), False)}),
+    "notes.list": (case.notes, {"job_id": ((str, type(None)), False), "sha256": ((str, type(None)), False)}),
     "case.import": (case.import_evidence, {"path": (str_, True), "source": ((str, type(None)), False)}),
     "case.verify": (case.verify, {}),
     "case.export": (case.export_item, {"sha256": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),

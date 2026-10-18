@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button, Hash, Notice } from "../components/ui";
 import { IpcError, ipc } from "../ipc/commands";
 import type { CaseOverview, SessionInfo, StoreCheck, StoreView } from "../ipc/types";
-import { CaseList, StoreChecks } from "./StoreCases";
+import { CaseList, StoreChecks, findCases } from "./StoreCases";
 
 interface Props {
   store: StoreView | null;
@@ -35,6 +35,7 @@ export function StoreScreen({
   const [problem, setProblem] = useState<string | null>(null);
   const [form, setForm] = useState({ reference: "", legalBasis: "", retention: "" });
   const [checks, setChecks] = useState<StoreCheck[] | null>(null);
+  const [query, setQuery] = useState("");
   // Details belong to the store they were read from; choosing another store hides them.
   const [overview, setOverview] = useState<{ path: string; cases: Map<string, CaseOverview> } | null>(null);
   const details = overview?.path === store?.path ? (overview?.cases ?? null) : null;
@@ -139,8 +140,28 @@ export function StoreScreen({
               Signing key <Hash value={store.identity.key_id} length={16} />
             </p>
             {store.cases.length === 0 ? <p className="empty">No cases in this store yet.</p> : null}
+            {store.cases.length > 1 ? (
+              <label className="field case-find">
+                <span>
+                  {details
+                    ? "Find a case by reference or id"
+                    : "Find a case by id (show details to search references)"}
+                </span>
+                <input
+                  type="search"
+                  value={query}
+                  maxLength={200}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                  }}
+                />
+              </label>
+            ) : null}
+            {query && findCases(store.cases, details, query).length === 0 ? (
+              <p className="empty">No case matches “{query}”.</p>
+            ) : null}
             <CaseList
-              cases={store.cases}
+              cases={findCases(store.cases, details, query)}
               details={details}
               busy={busy}
               onUnlock={(caseId) => void unlock(caseId)}

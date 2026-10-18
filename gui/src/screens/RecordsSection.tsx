@@ -1,12 +1,13 @@
 // Integrity and records: verify the case (FR-24), export the signed processing record (PRIV-3),
 // place or lift a legal hold (FR-26). Disposal stays in the CLI (`ridge-case dispose`), with its
 // typed confirmation, on purpose. Examiner notes of the whole case are listed here too.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { NotesPanel } from "../components/NotesPanel";
-import { Button, Notice } from "../components/ui";
+import { Button, Notice, utc } from "../components/ui";
 import { ipc } from "../ipc/commands";
-import type { CaseInfo, Item, LimitsStatus, Verification } from "../ipc/types";
+import type { CaseInfo, CustodyEntry, Item, LimitsStatus, Verification } from "../ipc/types";
+import { CustodyLog } from "./CustodyLog";
 import { Inventory, LimitsCard } from "./Inventory";
 
 interface Props {
@@ -19,6 +20,30 @@ interface Props {
 }
 
 type Action = "verify" | "log" | "hold" | "head" | "package";
+
+/** When the case was last verified, from the custody log (a check by any Ridge window counts). */
+function LastVerified({ refresh, onFailure }: { refresh: unknown; onFailure: (error: unknown) => void }) {
+  const [last, setLast] = useState<CustodyEntry | null | undefined>(undefined);
+  useEffect(() => {
+    ipc.custodyLog(0, 1, "case.verify").then((page) => {
+      setLast(page.entries[0] ?? null);
+    }, onFailure);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refresh]);
+  if (last === undefined) {
+    return null;
+  }
+  if (last === null) {
+    return <p className="muted">This case has not been verified yet.</p>;
+  }
+  const problems = typeof last.problems === "number" ? last.problems : 0;
+  return (
+    <p className="muted">
+      Last verified {utc(last.ts_utc)} by {last.actor}:{" "}
+      {last.result === "ok" ? "passed" : `FAILED with ${problems} problem(s)`}.
+    </p>
+  );
+}
 
 export function RecordsSection({ info, items, limits, onInfo, onFailure, notify }: Props) {
   const [verification, setVerification] = useState<Verification | null>(null);
@@ -64,6 +89,7 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
           Checks the hash of every stored item, the custody chain and every signature, and reports the first
           problem precisely.
         </p>
+        <LastVerified refresh={verification} onFailure={onFailure} />
         <Button variant="primary" onClick={() => void run("verify")} busy={busy === "verify"}>
           Verify now
         </Button>
@@ -159,6 +185,7 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
       </div>
       <LimitsCard limits={limits} />
       <Inventory items={items} limits={limits} onFailure={onFailure} notify={notify} />
+      <CustodyLog onFailure={onFailure} />
     </div>
   );
 }

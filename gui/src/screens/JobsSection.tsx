@@ -34,7 +34,7 @@ function ReportView({
   const images = report.outputs.filter((o) => o.role !== "minutiae");
   const [selected, setSelected] = useState(images[0]?.sha256 ?? null);
   const [reproduction, setReproduction] = useState<Reproduction | null>(null);
-  const [busy, setBusy] = useState<"export" | "reproduce" | null>(null);
+  const [busy, setBusy] = useState<"export" | "html" | "reproduce" | null>(null);
   const current = images.find((o) => o.sha256 === selected) ?? null;
   const preview = usePreview(current?.sha256 ?? null, onFailure);
   const minutiaeSha = report.outputs.find((o) => o.role === "minutiae")?.sha256 ?? null;
@@ -42,10 +42,15 @@ function ReportView({
   const item = items.find((i) => i.sha256 === current?.sha256);
   const result = report;
 
-  const act = async (what: "export" | "reproduce") => {
+  const act = async (what: "export" | "html" | "reproduce") => {
     setBusy(what);
     try {
-      if (what === "export") {
+      if (what === "html") {
+        const done = await ipc.exportReportHtml(report.job_id);
+        notify(
+          `Readable copy saved (${done.exported.split(/[\\/]/).pop() ?? ""}). It is not signed: the signed report stays authoritative.`,
+        );
+      } else if (what === "export") {
         const done = await ipc.exportReport(report.job_id);
         notify(`Signed report exported with its signature (${done.signature.split(/[\\/]/).pop() ?? ""}).`);
       } else {
@@ -66,6 +71,9 @@ function ReportView({
         <div className="report-actions">
           <Button onClick={() => void act("export")} busy={busy === "export"}>
             Export signed report...
+          </Button>
+          <Button onClick={() => void act("html")} busy={busy === "html"}>
+            Save readable copy...
           </Button>
           <Button onClick={() => void act("reproduce")} busy={busy === "reproduce"}>
             Reproduce job

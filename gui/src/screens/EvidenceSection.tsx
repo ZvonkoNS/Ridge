@@ -1,6 +1,7 @@
 // Evidence photos of the case: import with a source note (FR-21), choose one to review.
 import { useState } from "react";
 
+import { NotesPanel } from "../components/NotesPanel";
 import { Button, Hash, StaggerItem, StaggerList } from "../components/ui";
 import { ipc } from "../ipc/commands";
 import type { Item } from "../ipc/types";
@@ -94,14 +95,22 @@ export function EvidenceSection({ items, onFailure, onChanged, notify }: Props) 
       </aside>
       <div className="section-main">
         {chosen ? (
-          <ReviewPanel
-            key={chosen.sha256}
-            evidence={chosen}
-            allEvidence={evidence}
-            onFailure={onFailure}
-            onJobDone={onChanged}
-            notify={notify}
-          />
+          <>
+            <ReviewPanel
+              key={chosen.sha256}
+              evidence={chosen}
+              allEvidence={evidence}
+              onFailure={onFailure}
+              onJobDone={onChanged}
+              notify={notify}
+            />
+            <NotesPanel
+              key={`notes-${chosen.sha256}`}
+              jobId={null}
+              sha256={chosen.sha256}
+              onFailure={onFailure}
+            />
+          </>
         ) : (
           <p className="empty empty-main">Choose an evidence photo to review it and run extraction jobs.</p>
         )}

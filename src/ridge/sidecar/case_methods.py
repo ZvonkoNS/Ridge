@@ -62,9 +62,10 @@ def note_add(session: Session, params: dict[str, Json]) -> Json:
 
 
 def notes(session: Session, params: dict[str, Json]) -> Json:
-    """List the examiner notes of the case, or of one job."""
+    """List the examiner notes of the case, of one job or of one stored item."""
     case, _ = session.require()
-    return [n.to_json() for n in list_notes(case.entries, job_id=params.get("job_id"))]
+    notes = list_notes(case.entries, job_id=params.get("job_id"), sha256=params.get("sha256"))
+    return [n.to_json() for n in notes]
 
 
 def items(session: Session, params: dict[str, Json]) -> Json:

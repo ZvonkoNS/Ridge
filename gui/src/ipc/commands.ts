@@ -10,6 +10,7 @@ import type {
   CaseCreated,
   CaseInfo,
   CaseOverview,
+  CustodyPage,
   ErrorKind,
   Exported,
   IdentityCreated,
@@ -105,10 +106,15 @@ export const ipc = {
   caseInfo: () => call<CaseInfo>("case_info"),
   setLegalHold: (on: boolean, reason: string) => call<CaseInfo>("set_legal_hold", { on, reason }),
   listItems: () => call<Item[]>("list_items"),
-  addNote: (text: string, jobId: string | null, corrects: number | null) =>
-    call<Note>("add_note", { text, job_id: jobId, sha256: null, corrects }),
-  listNotes: (jobId: string | null) => call<Note[]>("list_notes", { job_id: jobId }),
+  addNote: (text: string, jobId: string | null, corrects: number | null, sha256: string | null = null) =>
+    call<Note>("add_note", { text, job_id: jobId, sha256, corrects }),
+  listNotes: (jobId: string | null, sha256: string | null = null) =>
+    call<Note[]>("list_notes", { job_id: jobId, sha256 }),
   exportPackage: () => call<PackageExported>("export_package"),
+  custodyLog: (offset: number, limit: number, action: string | null) =>
+    call<CustodyPage>("custody_log", { offset, limit, action }),
+  exportReportHtml: (jobId: string) =>
+    call<{ exported: string; job_id: string }>("export_report_html", { job_id: jobId }),
   importEvidence: (source: string | null) => call<Item>("import_evidence", { source }),
   importReference: (source: string) => call<Item>("import_reference", { source }),
   verifyCase: () => call<Verification>("verify_case"),

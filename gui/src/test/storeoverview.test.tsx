@@ -65,4 +65,20 @@ describe("case details", () => {
     );
     expect(screen.queryByText("KT-2026-1")).toBeNull(); // details belong to the store they came from
   });
+
+  it("finds a case by reference once the details are shown", async () => {
+    routes({ store_overview: () => OVERVIEW });
+    render(<StoreScreen store={STORE} notice={null} onStore={vi.fn()} onOpened={vi.fn()} />);
+    const find = screen.getByRole("searchbox", { name: /Find a case by id/ });
+    await userEvent.type(find, "7d44");
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    await userEvent.clear(find);
+    await userEvent.click(screen.getByRole("button", { name: "Show case details..." }));
+    await screen.findByText("KT-2026-1");
+    await userEvent.type(screen.getByRole("searchbox", { name: /reference or id/ }), "kt-2026-2");
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByRole("listitem")).toHaveTextContent("KT-2026-2");
+    await userEvent.type(screen.getByRole("searchbox", { name: /reference or id/ }), "9");
+    expect(screen.getByText(/No case matches/)).toBeInTheDocument();
+  });
 });
