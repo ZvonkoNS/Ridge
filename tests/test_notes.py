@@ -97,6 +97,10 @@ def test_cli_and_sidecar(
     assert json.loads(capsys.readouterr().out)[0]["text"] == "Line one\nline two"
     assert main(["log", str(case_dir), "--kind", "examiner"]) == 0
     assert all('"examiner.note"' in line for line in capsys.readouterr().out.splitlines())
+    assert main(["log", str(case_dir), "--find", "LINE TWO"]) == 0  # case-insensitive, in the entry's text
+    (found,) = capsys.readouterr().out.splitlines()
+    assert json.loads(found)["text"] == "Line one\nline two"
+    assert main(["log", str(case_dir), "--find", ""]) == 1
     assert main(["note", str(case_dir), "bad\x1b[2J"]) == 1
     session = Session(keystore_factory=lambda: keystore)
     unlock = {"store": str(case_dir.parent.resolve()), "case_id": case_dir.name, "passphrase": PASSPHRASE}

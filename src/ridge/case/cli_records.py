@@ -18,6 +18,7 @@ from typing import Any
 
 from ridge.case import cli_common as common
 from ridge.case.cli_register import add_register_argument, confirm, registered_line
+from ridge.case.custody import select_entries
 from ridge.case.custody_head import check_head, export_head
 from ridge.case.identity import unlock_identity
 from ridge.case.job_compare import differences, render_differences
@@ -146,9 +147,8 @@ def cmd_log(args: argparse.Namespace) -> None:
         common.say(f"processing record with {count} entries exported to {args.to} (signed by key {signer.key_id})")
         return
     with open_case(args.case, passphrase, keystore) as case:
-        for entry in case.entries:
-            if args.kind is None or entry["action"] == args.kind or entry["action"].startswith(f"{args.kind}."):
-                common.say(json.dumps(entry, ensure_ascii=False, sort_keys=True))
+        for entry in select_entries(case.entries, args.kind, args.find):
+            common.say(json.dumps(entry, ensure_ascii=False, sort_keys=True))
 
 
 def cmd_check_log(args: argparse.Namespace) -> int:
@@ -246,6 +246,7 @@ def _add_record_commands(sub: Any) -> None:
     p.add_argument("--to", type=Path, help="write a signed, verifiable processing record (JSON)")
     p.add_argument("--overwrite", action="store_true")
     p.add_argument("--kind", help="print only entries of one kind, for example job or examiner.note")
+    p.add_argument("--find", help="print only entries containing this text (a hash, a job id, note words)")
     p.set_defaults(func=cmd_log)
     p = sub.add_parser("check-log", help="verify an exported processing record without the case store")
     p.add_argument("record", type=Path)

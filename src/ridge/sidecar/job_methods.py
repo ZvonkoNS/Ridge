@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from typing import cast
 
 from ridge.case.compare import SHEET_PPI, export_sheet
+from ridge.case.custody import select_entries
 from ridge.case.custody_head import export_head
 from ridge.case.export_step import ExportOptions
 from ridge.case.jobs import JobParams, run_extraction_job
@@ -121,16 +121,7 @@ def log_entries(session: Session, params: dict[str, Json]) -> Json:
     offset, limit = params.get("offset", 0), params.get("limit", 100)
     if not (0 <= offset <= 10_000_000 and 1 <= limit <= LOG_PAGE_MAX):
         raise ParameterError(f"offset must be 0 or more and limit 1-{LOG_PAGE_MAX}")
-    kind, text = params.get("action"), params.get("text")
-    if text is not None and not 1 <= len(text) <= 100:
-        raise ParameterError("search text must be 1-100 characters")
-    needle = text.casefold() if text else None
-    entries = [
-        e
-        for e in case.entries
-        if (kind is None or e["action"] == kind or e["action"].startswith(f"{kind}."))
-        and (needle is None or needle in json.dumps(e, ensure_ascii=False).casefold())
-    ]
+    entries = select_entries(case.entries, params.get("action"), params.get("text"))
     return {"total": len(entries), "entries": entries[::-1][offset : offset + limit]}
 
 
