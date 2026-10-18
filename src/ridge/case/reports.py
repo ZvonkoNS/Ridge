@@ -26,6 +26,7 @@ from ridge.case.crypto import sha256_hex
 from ridge.case.custody import Entry
 from ridge.case.identity import key_id_for, public_identity, verify_signature
 from ridge.case.jobs import REPORT_SCHEMA
+from ridge.case.limits import render_lines as render_limits
 from ridge.case.store import OpenCase, publish_logged
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
 from ridge.image_io import read_bounded
@@ -243,6 +244,7 @@ def render_report(report: dict[str, Any], key_id: str) -> str:
         _export_line(report.get("export")),
         _nfiq2_line((report.get("quality") or {}).get("nfiq2")),
         _minutiae_line(report.get("minutiae")),
+        *render_limits(report.get("limits_of_use")),
         "Outputs",
         *(
             f"  {o.get('role', ''):9} {o.get('sha256')}  {o.get('size', 0):>9}  {o.get('label')}"

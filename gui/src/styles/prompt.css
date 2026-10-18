@@ -1,0 +1,91 @@
+/* Passphrase prompt window (ADR-010): small, quiet, no case data. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--panel);
+  color: var(--ink);
+  font: 400 var(--step-0) / 1.45 var(--font-ui);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.prompt {
+  padding: var(--space-5);
+}
+
+.prompt h1 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--step-1);
+}
+
+.prompt-detail,
+.prompt-note,
+.prompt-hint {
+  color: var(--ink-2);
+}
+
+.prompt-note,
+.prompt-hint {
+  font-size: var(--step--1);
+}
+
+.prompt-field {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  font-weight: 700;
+}
+
+.prompt-field input {
+  min-height: 2.5rem;
+  padding: var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.prompt-error {
+  color: var(--seal);
+  font-weight: 700;
+}
+
+.prompt-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin: var(--space-4) 0;
+}
+
+.btn {
+  min-height: 2.25rem;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.btn-primary {
+  border-color: var(--custody);
+  background: var(--custody);
+  color: var(--custody-ink);
+}

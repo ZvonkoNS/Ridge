@@ -3,7 +3,8 @@
     python tools/gate.py all          # every gate, stops at the first failure
     python tools/gate.py lint test    # selected gates
 
-Gates: docs, lint, format, typecheck, test, sast, deps, secrets, licenses, sbom.
+Gates: docs, lint, format, typecheck, test, sast, deps, secrets, licenses, sbom, gui (the desktop
+GUI's npm and cargo checks, in tools/gate_gui.py).
 Run inside the project virtualenv with requirements-dev.lock installed. A gate whose tool
 is missing FAILS (it is never skipped silently). ``deps`` needs network access to the
 vulnerability databases; ``secrets`` needs the gitleaks binary on PATH.
@@ -19,6 +20,8 @@ import subprocess  # nosec B404 - fixed tool invocations, no shell
 import sys
 from collections.abc import Callable
 from pathlib import Path
+
+from gate_gui import gate_gui  # tools/ is on sys.path when this script runs
 
 ROOT = Path(__file__).resolve().parents[1]
 PY = sys.executable
@@ -215,6 +218,7 @@ GATES: dict[str, Callable[[], bool]] = {
     "secrets": gate_secrets,
     "licenses": gate_licenses,
     "sbom": gate_sbom,
+    "gui": gate_gui,
 }
 
 

@@ -3,8 +3,8 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/prd.md` |
-| Version | 0.11 (draft for owner review; M0-M3 and the M4 sidecar implemented, validation metrics tool and verified report access, the signed processing record, reference comparison, reproduction check, store listing and region of interest added, see `Instruction_documentation/Handoff/Handoff_12.md`) |
-| Date | 2026-10-17 |
+| Version | 0.12 (draft for owner review; M0-M4 implemented as engineering builds, including the desktop GUI, see `Instruction_documentation/Handoff/Handoff_15.md`) |
+| Date | 2026-10-18 |
 | Status | Draft. Not approved. Not approved for casework. |
 | Product Owner | TBD (named owner required, see §17) |
 | Related | [`docs/architecture.md`](architecture.md), [`Instruction_documentation/Project_Standards_Profile.md`](../Instruction_documentation/Project_Standards_Profile.md), [`AGENTS.md`](../AGENTS.md) |
@@ -115,7 +115,7 @@ The Product Owner set a one-week horizon with AI-assisted development in this re
 | **M1 Evidence integrity** | Encrypted case store, key custody, evidence import, hash-chained custody log, signed job reports, `verify`. **Implemented 2026-10-17** (`ridge-case`); recovery key open (OQ-12). | Days 2–3 |
 | **M2 Matcher-ready output** | Polarity and mirror conversion, 500 ppi normalisation with scale calibration, lossless export, JSON job report, NFIQ 2 integration. **Implemented 2026-10-17** in `ridge-case extract`; ridge-period scale assumption and NFIQ 2 output format to be validated. | Day 4 |
 | **M3 Minutiae & exchange** | Minutiae extraction; export in the confirmed AFIS exchange format (OQ-4). **Minutiae implemented 2026-10-17** (`ridge-case extract --minutiae`, Ridge JSON format); exchange formats wait for OQ-4. | After OQ-4 is answered |
-| **M4 Desktop GUI** | Tauri v2 + React + TypeScript GUI over the Python sidecar: case view, side-by-side review, parameter tuning, export. **Python sidecar implemented 2026-10-17** (`ridge-sidecar`, JSON-RPC over stdio); the Tauri/React GUI itself is not built yet. | Days 5–6 (skeleton); full GUI after M3 |
+| **M4 Desktop GUI** | Tauri v2 + React + TypeScript GUI over the Python sidecar: case view, side-by-side review, parameter tuning, export. **Python sidecar implemented 2026-10-17** (`ridge-sidecar`, JSON-RPC over stdio); **desktop GUI implemented 2026-10-18** (`gui/`, engineering build; release packaging of the sidecar, GUI E2E tests and the manual screen-reader pass are open). | Days 5–6 (skeleton); full GUI after M3 |
 | **M5 Validation & approval** | Benchmark on the consented dataset, validation report, DPIA, AI Act assessment, owner sign-off, release v1.0. | Organisation timeline |
 
 Day 7 is reserved for the security review, release candidate and handoff.
@@ -174,17 +174,17 @@ Day 7 is reserved for the security review, release candidate and handoff.
 
 | ID | Requirement | Pri. | MS | Acceptance criteria |
 | --- | --- | --- | --- | --- |
-| FR-40 | Ridge SHOULD extract minutiae (ridge endings, bifurcations; position, direction, quality) from accepted exports. | S | M3 | Benchmark against a reference extractor on synthetic and consented sets. |
+| FR-40 | Ridge SHOULD extract minutiae (ridge endings, bifurcations; position, direction, quality) from accepted exports. | S | M3 | Benchmark against a reference extractor on synthetic and consented sets. GUI overlay implemented 2026-10-18: off by default, circles for endings and squares for bifurcations, on the print or the export, labelled "unvalidated, orientation only, never used for matching". |
 | FR-41 | Ridge SHOULD export images/templates in the AFIS exchange format confirmed in OQ-4. | S | M3 | Conformance check against the chosen standard's test tools or vendor import. |
 
 ### 8.6 Desktop GUI (M4)
 
 | ID | Requirement | Pri. | MS | Acceptance criteria |
 | --- | --- | --- | --- | --- |
-| FR-50 | The GUI MUST provide case open/create, evidence import, job run with parameters, side-by-side original/region/result review, export and verify. | M | M4 | E2E tests for each flow; denial paths (locked case, failed verify). Sidecar back end for every flow implemented 2026-10-17 (`store.cases`, `identity.create`, `case.create`, `session.unlock`, `case.import`, `job.run`, `preview.get`, `case.export`, `case.verify`); the Tauri shell is open. |
-| FR-51 | The GUI MUST support two-point scale calibration on a ruler visible in the photo. | M | M4 | Calibrated factor flows into FR-31. |
-| FR-52 | The GUI SHOULD show an imported NAFIS/AFIS candidate image beside the Ridge export for manual comparison (view only, no matching). | S | M4 | Imported image is hashed and logged like evidence. Back end implemented 2026-10-17: `ridge-case import-reference`, `ridge-case compare` (equal-scale sheet with 10 mm bars; resolution from the file or the examiner, never guessed), sidecar `case.import_reference` / `compare.export`. |
-| FR-53 | The GUI MUST meet WCAG 2.2 AA for its controls and MUST respect `prefers-reduced-motion`. | M | M4 | Automated a11y checks plus a keyboard-only walkthrough. |
+| FR-50 | The GUI MUST provide case open/create, evidence import, job run with parameters, side-by-side original/region/result review, export and verify. | M | M4 | E2E tests for each flow; denial paths (locked case, failed verify). Sidecar back end for every flow implemented 2026-10-17. GUI implemented 2026-10-18: store screen (choose store, first-run identity, cases, new case), passphrase prompt window (ADR-010), evidence import, side-by-side review with all job parameters, jobs with verified reports, export, verify, legal hold, processing record. Denial paths covered by tests: locked case returns to the store, verification failure shown as an alert. Tauri WebDriver E2E open (exception). |
+| FR-51 | The GUI MUST support two-point scale calibration on a ruler visible in the photo. | M | M4 | Calibrated factor flows into FR-31. Implemented 2026-10-18: ruler points clicked on the photo or typed (photo pixels after EXIF orientation), distance in mm, sent as the job's `ruler`; the scale bar shows the calibrated scale and its uncertainty. |
+| FR-52 | The GUI SHOULD show an imported NAFIS/AFIS candidate image beside the Ridge export for manual comparison (view only, no matching). | S | M4 | Imported image is hashed and logged like evidence. Back end implemented 2026-10-17: `ridge-case import-reference`, `ridge-case compare` (equal-scale sheet with 10 mm bars; resolution from the file or the examiner, never guessed), sidecar `case.import_reference` / `compare.export`. GUI implemented 2026-10-18 (References section: export and reference side by side, view only, sheet export). |
+| FR-53 | The GUI MUST meet WCAG 2.2 AA for its controls and MUST respect `prefers-reduced-motion`. | M | M4 | Automated a11y checks plus a keyboard-only walkthrough. Implemented 2026-10-18: axe-core checks of the store, case and prompt screens in Vitest (no violations; colour contrast checked by token design, jsdom has no layout); keyboard-operable viewer, typed alternatives to dragging (SC 2.5.7), 24 px minimum targets, visible focus, `MotionConfig reducedMotion="user"`. Manual screen-reader pass (NVDA, VoiceOver) open. |
 
 ## 9. Security and privacy requirements
 
@@ -248,7 +248,7 @@ ISO/IEC 17025 7.2.2 method validation, run by the Forensic Quality Manager with 
 5. **Robustness:** compression levels, resolution, focus and lighting variation; mixed skin tones (bias check across skin tones is mandatory).
 6. **Examiner study (recommended):** examiners rate usability of Ridge exports versus manual enhancement for a sample.
 7. **Per architecture:** the study runs on every CPU architecture that will be used for casework (x86-64, arm64). Results on one architecture do not validate another (NFR-3).
-8. **Outcome:** a validation report that defines the method's limits of use (e.g. minimum ridge spacing in pixels, minimum NFIQ 2) and enforces them in Ridge as warnings.
+8. **Outcome:** a validation report that defines the method's limits of use (e.g. minimum ridge spacing in pixels, minimum NFIQ 2) and enforces them in Ridge as warnings. **Mechanism implemented 2026-10-18** (architecture §8.3): the Forensic Quality Manager places `limits-of-use.json` in the store (source, architectures, ridge period range, maximum scale uncertainty, minimum NFIQ 2, ruler or located finger required). Every job report records the file's hash and any deviation as a warning, and the CLI and GUI show the warnings. No values are shipped: they come from the validation report.
 
 Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 0 open high/critical findings; characterization tests pass; `verify` detects 100% of tamper fixtures.
 

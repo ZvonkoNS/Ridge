@@ -1,0 +1,11 @@
+# cargo-audit exceptions, each recorded in Instruction_documentation/Project_Standards_Profile.md §8.
+# Both crates reach Ridge only through Tauri's Linux WebKitGTK stack (wry -> webkit2gtk/gtk 0.18).
+[advisories]
+ignore = [
+  # proc-macro-error is unmaintained: a compile-time procedural-macro helper (gtk3-macros,
+  # glib-macros); no runtime code. Lifted when Tauri's Linux stack moves off gtk 0.18.
+  "RUSTSEC-2024-0370",
+  # glib::VariantStrIter is unsound: Linux only; neither Ridge nor the Tauri APIs it uses iterate
+  # GVariant string arrays. Lifted when Tauri's Linux stack moves to glib >= 0.20.
+  "RUSTSEC-2024-0429",
+]

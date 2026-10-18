@@ -37,10 +37,10 @@ Library API note: apart from W3, the pipeline functions are pure array transform
 | P3 | Processing outputs and debug images | CLI, sidecar | Encrypted blobs | E | High | AEAD, output and pixel hashes, run manifest, custody entry | M1 |
 | P4 | Custody log append | Core only | Custody log | C | Critical | Append-only, hash chain, signatures, same transaction as the action | M1 |
 | P5 | Job report write and sign | Core only | Report | C | Critical | Canonical JSON, Ed25519, custody entry | M1 |
-| P6 | Export outside the store | CLI, sidecar (GUI request) | Examiner-chosen location | E | Critical | Explicit action, destination checks, labels, hashes, custody entry | M1/M2 |
+| P6 | Export outside the store | CLI, sidecar (GUI request) | Examiner-chosen location | E | Critical | Explicit action, destination checks, labels, hashes, custody entry. GUI (2026-10-18): the destination comes only from a native save dialog opened by the Rust core; the WebView sends at most a file-name suggestion, reduced to a bare name; GUI exports never overwrite (`overwrite: false`) | M1/M2 |
 | P7 | Legal hold, retention, crypto-erasure | CLI, sidecar | Header, keys, blobs | C, S | Critical | State checks, hold enforcement, retained deletion record | M1 |
 | P8 | Key creation, rotation, OS keystore entries | Core only | OS keystore, key file | S | Critical | No plaintext keys on disk, custody key events | M1 |
-| P9 | Configuration file write (GUI settings) | GUI via sidecar | User config directory | I | Medium | Schema validation; limits can only be tightened below hard caps | M4 |
+| P9 | Configuration file write (GUI settings) | GUI Rust core (`gui/src-tauri/src/settings.rs`, implemented 2026-10-18): the last chosen case-store folder, `last-store.json` | Application config directory | I (a folder path; no case data, no secret) | Medium | Written only after the examiner picks a folder in the native dialog; read back with a size bound and a strict schema, and used only if it is still an absolute path to an existing folder; never written or read by the WebView | M4 |
 | P10 | Logs (stderr, optional log file) | All | Terminal or log file | I/C | Low-Medium | No class E, no secrets, control characters neutralised | M0 |
 
 ## Risk classification

@@ -29,6 +29,7 @@ from ridge.case.custody import utc_now
 from ridge.case.export_step import ExportOptions, export_and_score, minutiae_step, validate_job_settings
 from ridge.case.identity import Signer
 from ridge.case.keys import b64
+from ridge.case.limits import LimitsOfUse, load_limits, report_section
 from ridge.case.store import OpenCase, StoredItem
 from ridge.errors import ExtractionError, ParameterError, RidgeError
 from ridge.image_io import ALLOWED_FORMATS, ReadLimits, decode_image, encode_image
@@ -77,6 +78,17 @@ def apply_roi(image: ImageU8, roi: tuple[int, int, int, int] | None) -> ImageU8:
     if x + w > width or y + h > height:
         raise ParameterError(f"roi {x},{y} {w}x{h} lies outside the {width}x{height} photo")
     return np.ascontiguousarray(image[y : y + h, x : x + w])
+
+
+def check_ruler(options: ExportOptions, photo: ImageU8) -> None:
+    """Refuse ruler points that do not lie on the decoded photo (the space of `ruler`, before any roi)."""
+    if not options.enabled or options.ruler is None:
+        return
+    height, width = photo.shape[:2]
+    x1, y1, x2, y2, _ = options.ruler
+    for x, y in ((x1, y1), (x2, y2)):
+        if not (0 <= x <= width and 0 <= y <= height):
+            raise ParameterError(f"ruler point {x:g},{y:g} lies outside the {width}x{height} photo")
 
 
 @dataclass(frozen=True)
@@ -129,9 +141,16 @@ def run_extraction_job(
         raise ExtractionError("jobs run on evidence items only")
     validate_job_settings(params.export, nfiq2_command)  # nothing is logged or stored for invalid settings
     validate_roi(params.roi)
+    limits_of_use = load_limits(case.dir.parent)  # a malformed limits file stops the job before it starts
     job_id = str(uuid.uuid4())
     case.entries.append(
-        case.custody.append("job.start", job_id=job_id, sha256=evidence.sha256, parameters=params.to_json())
+        case.custody.append(
+            "job.start",
+            job_id=job_id,
+            sha256=evidence.sha256,
+            parameters=params.to_json(),
+            limits_of_use=limits_of_use.sha256 if limits_of_use else None,
+        )
     )
     try:
         return _execute(
@@ -142,6 +161,7 @@ def run_extraction_job(
             params=params,
             limits=limits or ReadLimits(),
             nfiq2_command=nfiq2_command,
+            limits_of_use=limits_of_use,
         )
     except BaseException as exc:  # every started job is closed in the custody log
         error = str(exc) if isinstance(exc, RidgeError) else f"internal error ({type(exc).__name__})"
@@ -158,9 +178,11 @@ def _execute(
     params: JobParams,
     limits: ReadLimits,
     nfiq2_command: Sequence[str] | None,
+    limits_of_use: LimitsOfUse | None,
 ) -> JobOutcome:
     data = case.read(evidence.sha256, job_id=job_id)
     photo = decode_image(data, limits)  # EXIF orientation applied: the coordinate space of roi and ruler
+    check_ruler(params.export, photo)  # a point off the photo would calibrate the export wrongly
     result = extract_fingerprint(
         apply_roi(photo, params.roi),
         period=params.period,
@@ -190,6 +212,11 @@ def _execute(
         outputs.extend(found)
         export_fields.update(minutiae_fields)
 
+    measurements = {
+        "ridge_period_px": result.period,
+        "found_finger": result.found_finger,
+        "output_scale": result.output_scale,
+    }
     report: dict[str, Any] = {
         "schema": REPORT_SCHEMA,
         "job_id": job_id,
@@ -204,12 +231,9 @@ def _execute(
             **({"source": evidence.source} if evidence.source else {}),
         },
         "parameters": params.to_json(),
-        "measurements": {
-            "ridge_period_px": result.period,
-            "found_finger": result.found_finger,
-            "output_scale": result.output_scale,
-        },
+        "measurements": measurements,
         **export_fields,
+        "limits_of_use": report_section(limits_of_use, {"measurements": measurements, **export_fields}),
         "outputs": [{"role": o.role, "label": o.label, "sha256": o.sha256, "size": o.size} for o in outputs],
         "custody_head": case.custody.head,
         "signer": {"key_id": signer.key_id, "public_key": b64(signer.public_key)},

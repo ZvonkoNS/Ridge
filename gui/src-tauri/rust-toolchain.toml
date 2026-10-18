@@ -1,0 +1,5 @@
+# Pinned toolchain for reproducible GUI builds (desktop_gui_tauri_standards.md §8).
+[toolchain]
+channel = "1.98.0"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

@@ -1,0 +1,66 @@
+/* Ridge design tokens. The chrome is neutral steel grey so it never tints evidence; images sit on a
+   neutral 50 % grey "light table". One accent: custody-ink blue, from the pen on custody forms.
+   Every text/background pair meets WCAG 2.2 AA (4.5:1) in both themes. */
+:root {
+  --bench: #e2e4e7;
+  --panel: #f4f5f6;
+  --raised: #ffffff;
+  --ink: #1b1d21;
+  --ink-2: #474c54;
+  --line: #c3c7cd;
+  --line-strong: #8d939b;
+  --table: #808080;
+  --custody: #2b4ea2;
+  --custody-ink: #ffffff;
+  --custody-wash: #dfe6f7;
+  --seal: #a4262c;
+  --seal-wash: #f8e1e2;
+  --verified: #1d6b43;
+  --verified-wash: #dcefe4;
+  --caution-bg: #fff1c2;
+  --caution-ink: #4d3800;
+  --focus: #2b4ea2;
+
+  --font-ui: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
+
+  --step--1: 0.8125rem;
+  --step-0: 0.9375rem;
+  --step-1: 1.125rem;
+  --step-2: 1.375rem;
+  --step-3: 1.875rem;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2.25rem;
+
+  --radius: 6px;
+  --rail: 13.5rem;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bench: #24272c;
+    --panel: #1b1e22;
+    --raised: #2b2f35;
+    --ink: #e7e8ea;
+    --ink-2: #b3b8c0;
+    --line: #3c4148;
+    --line-strong: #6c727b;
+    --custody: #93abf2;
+    --custody-ink: #10172b;
+    --custody-wash: #263256;
+    --seal: #f29499;
+    --seal-wash: #4a2427;
+    --verified: #7fd7a8;
+    --verified-wash: #1f3b2c;
+    --caution-bg: #4a3d12;
+    --caution-ink: #ffe9a8;
+    --focus: #93abf2;
+    color-scheme: dark;
+  }
+}
