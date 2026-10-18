@@ -132,3 +132,29 @@ def test_signed_limits_need_a_registered_fqm_key(
     assert "registered to FQM C (fqm key" in capsys.readouterr().out
     (tmp_path / "reg.json").write_bytes(register({**as_fqm, "role": "examiner"}))
     assert main(["limits", "--check", str(limits), "--register", str(tmp_path / "reg.json")]) == 1
+
+
+def test_the_record_date_comes_from_the_signed_export(
+    signed: tuple[Path, Path, str], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    case_dir, reg, _ = signed
+    assert main(["log", str(case_dir), "--to", str(tmp_path / "record.json")]) == 0
+    doc = json.loads(reg.read_bytes())
+    doc["keys"][0]["revoked"] = "2026-01-01"  # before the record was signed
+    reg.write_text(json.dumps(doc), encoding="utf-8")
+    record = json.loads((tmp_path / "record.json").read_bytes())
+    record["exported_utc"] = "2025-06-01T00:00:00Z"  # the unsigned envelope claims an earlier day
+    (tmp_path / "backdated.json").write_text(json.dumps(record), encoding="utf-8")
+    assert main(["check-log", str(tmp_path / "backdated.json"), "--register", str(reg)]) == 1
+
+
+def test_no_readable_copy_is_written_for_an_unregistered_key(signed: tuple[Path, Path, str], tmp_path: Path) -> None:
+    case_dir, reg, _ = signed
+    assert main(["log", str(case_dir), "--to", str(tmp_path / "record.json")]) == 0
+    reg.write_bytes(register(entry()))  # another key only
+    report = ["check-report", str(tmp_path / "report.json"), "--register", str(reg)]
+    assert main([*report, "--html", str(tmp_path / "r.html")]) == 1
+    record = ["check-log", str(tmp_path / "record.json"), "--register", str(reg)]
+    assert main([*record, "--html", str(tmp_path / "l.html")]) == 1
+    assert not (tmp_path / "r.html").exists()
+    assert not (tmp_path / "l.html").exists()

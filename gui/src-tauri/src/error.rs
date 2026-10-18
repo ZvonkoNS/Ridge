@@ -25,6 +25,10 @@ pub enum ErrorKind {
 pub struct IpcError {
     pub kind: ErrorKind,
     pub message: String,
+    /// The sidecar refused one input file (wrong format, too large); a batch may go on. Never sent
+    /// to the WebView, which sees an ordinary refusal.
+    #[serde(skip)]
+    pub input_refused: bool,
 }
 
 impl IpcError {
@@ -32,6 +36,7 @@ impl IpcError {
         Self {
             kind,
             message: message.to_owned(),
+            input_refused: false,
         }
     }
 
@@ -41,6 +46,14 @@ impl IpcError {
 
     pub fn refused(message: &str) -> Self {
         Self::new(ErrorKind::Refused, message)
+    }
+
+    /// The sidecar refused one input file (JSON-RPC code `INPUT_REFUSED`).
+    pub fn input_refused(message: &str) -> Self {
+        Self {
+            input_refused: true,
+            ..Self::refused(message)
+        }
     }
 
     pub fn cancelled() -> Self {

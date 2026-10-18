@@ -9,6 +9,7 @@ value in a report cannot do anything when the page is opened. The page holds no 
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from html import escape
 from pathlib import Path
 from typing import Any
@@ -179,11 +180,21 @@ def export_report_html(case: OpenCase, store: Path, ref: str, dest: Path, *, ove
 
 
 def write_exported_report_html(
-    report_path: Path, dest: Path, *, sig_path: Path | None = None, expected_key_id: str | None = None
+    report_path: Path,
+    dest: Path,
+    *,
+    sig_path: Path | None = None,
+    expected_key_id: str | None = None,
+    confirm: Callable[[ReportCheck], object] | None = None,
 ) -> ReportCheck:
-    """Verify an exported report offline, then write its readable copy (no notes: no case store)."""
+    """Verify an exported report offline, then write its readable copy (no notes: no case store).
+
+    `confirm` runs after verification and before anything is written; when it raises, no copy exists.
+    """
     canonical = read_bounded(report_path, MAX_REPORT_BYTES)
     sig_text = read_bounded(sig_path or signature_path(report_path), MAX_SIGNATURE_BYTES)
     check, signed = check_report_bytes(canonical, sig_text, expected_key_id=expected_key_id)
+    if confirm is not None:
+        confirm(check)
     publish(dest, render_report_html(signed).encode("utf-8"))
     return check

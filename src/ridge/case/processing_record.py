@@ -71,7 +71,7 @@ class LogCheck:
     signed_heads: int
     key_id: str
     key_confirmed: bool
-    exported_utc: str = ""  # from the signed record: the signer's clock
+    exported_utc: str = ""  # time of the signed log.export entry (the signer's clock)
 
 
 def check_exported_log(path: Path, *, expected_key_id: str | None = None) -> LogCheck:
@@ -121,7 +121,7 @@ def verify_record(record: dict[str, Any], *, expected_key_id: str | None = None)
         signed_heads=signed,
         key_id=key_id,
         key_confirmed=expected_key_id is not None,
-        exported_utc=str(record.get("exported_utc", "")),
+        exported_utc=str(export.get("ts_utc", "")),  # signed; the envelope's exported_utc is not
     )
     return check, entries
 

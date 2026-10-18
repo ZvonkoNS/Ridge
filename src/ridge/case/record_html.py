@@ -7,6 +7,7 @@ no images and says that the signed JSON stays authoritative.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from html import escape
 from pathlib import Path
 from typing import Any
@@ -72,10 +73,22 @@ This page is not signed.</footer>
 """
 
 
-def write_record_html(path: Path, dest: Path, *, expected_key_id: str | None = None) -> LogCheck:
-    """Verify an exported processing record, then write its readable copy (never over a file)."""
+def write_record_html(
+    path: Path,
+    dest: Path,
+    *,
+    expected_key_id: str | None = None,
+    confirm: Callable[[LogCheck], object] | None = None,
+) -> LogCheck:
+    """Verify an exported processing record, then write its readable copy (never over a file).
+
+    `confirm` (for example the key-register check) runs after verification and before anything is
+    written; when it raises, no copy exists.
+    """
     data = read_bounded(path, MAX_RECORD_BYTES)
     record = parse_record(data)
     check, _ = verify_record(record, expected_key_id=expected_key_id)
+    if confirm is not None:
+        confirm(check)
     publish(dest, render_record_html(record, check, data).encode("utf-8"))
     return check

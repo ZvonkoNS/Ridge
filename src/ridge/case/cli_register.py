@@ -33,17 +33,28 @@ def add_register_argument(parser: Any) -> None:
     )
 
 
+def registered_line(args: argparse.Namespace, key_id: str, role: str, signed_utc: str | None = None) -> str | None:
+    """Check `key_id` against ``--register`` and return the line naming its holder (None without a register).
+
+    Raises IntegrityError for an unregistered, wrong-role, expired or revoked key; prints nothing,
+    so callers can check before they write anything.
+    """
+    if not getattr(args, "register", None):
+        return None
+    register = load_register(args.register)
+    when = signed_utc or datetime.now(UTC).isoformat()
+    return f"key {key_id} {describe(register, confirm_key(register, key_id, role, when))}"
+
+
 def confirm(args: argparse.Namespace, key_id: str, role: str, signed_utc: str | None = None) -> bool:
     """Name the registered holder of `key_id`; refuse an unregistered or invalid key.
 
     Returns False when no register was given, so the caller can ask for a manual key check.
     """
-    if not getattr(args, "register", None):
-        return False
-    register = load_register(args.register)
-    when = signed_utc or datetime.now(UTC).isoformat()
-    common.say(f"key {key_id} {describe(register, confirm_key(register, key_id, role, when))}")
-    return True
+    line = registered_line(args, key_id, role, signed_utc)
+    if line is not None:
+        common.say(line)
+    return line is not None
 
 
 def cmd_register(args: argparse.Namespace) -> None:
