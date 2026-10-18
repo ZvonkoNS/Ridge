@@ -241,9 +241,9 @@ def render_report(report: dict[str, Any], key_id: str) -> str:
         f"minutiae {_yes(params.get('minutiae'))}",
         f"Measured      ridge spacing {meas.get('ridge_period_px', 0):.2f} px, "
         f"finger found {_yes(meas.get('found_finger'))}, output scale {meas.get('output_scale')}",
-        _export_line(report.get("export")),
-        _nfiq2_line((report.get("quality") or {}).get("nfiq2")),
-        _minutiae_line(report.get("minutiae")),
+        export_line(report.get("export")),
+        nfiq2_line((report.get("quality") or {}).get("nfiq2")),
+        minutiae_line(report.get("minutiae")),
         *render_limits(report.get("limits_of_use")),
         "Outputs",
         *(
@@ -256,7 +256,8 @@ def render_report(report: dict[str, Any], key_id: str) -> str:
     return "\n".join(printable(line) for line in lines if line)
 
 
-def _export_line(export: dict[str, Any] | None) -> str:
+def export_line(export: dict[str, Any] | None) -> str:
+    """Describe a report's export section as one labelled text line."""
     if export is None:
         return "Export        not requested"
     if not export.get("produced"):
@@ -269,7 +270,8 @@ def _export_line(export: dict[str, Any] | None) -> str:
     )
 
 
-def _nfiq2_line(nfiq2: dict[str, Any] | None) -> str:
+def nfiq2_line(nfiq2: dict[str, Any] | None) -> str:
+    """Describe a report's NFIQ 2 score as one labelled text line (empty when absent)."""
     if nfiq2 is None:
         return ""
     if not nfiq2.get("computed"):
@@ -277,7 +279,8 @@ def _nfiq2_line(nfiq2: dict[str, Any] | None) -> str:
     return f"NFIQ 2        {nfiq2.get('score')} ({nfiq2.get('label')}; {nfiq2.get('version')})"
 
 
-def _minutiae_line(minutiae: dict[str, Any] | None) -> str:
+def minutiae_line(minutiae: dict[str, Any] | None) -> str:
+    """Describe a report's minutiae summary as one labelled text line (empty when absent)."""
     if minutiae is None:
         return ""
     if not minutiae.get("produced"):

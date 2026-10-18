@@ -65,7 +65,15 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "report.get": (job.report, {"job_id": (str_, True)}),
     "job.reproduce": (job.reproduce, {"job_id": (str_, True)}),
     "report.export": (job.report_export, {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
+    "report.export_html": (
+        job.report_export_html,
+        {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)},
+    ),
     "log.export": (job.log_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
+    "log.entries": (
+        job.log_entries,
+        {"offset": (int_, False), "limit": (int_, False), "action": ((str, type(None)), False)},
+    ),
     "head.export": (job.head_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
     "package.export": (job.package_export, {"dest": (str_, True)}),
     "case.import_reference": (case.import_reference, {"path": (str_, True), "source": (str_, True)}),

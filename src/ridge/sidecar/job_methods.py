@@ -10,6 +10,7 @@ from ridge.case.export_step import ExportOptions
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.package import export_package
 from ridge.case.processing_record import export_log
+from ridge.case.report_html import export_report_html
 from ridge.case.reports import export_report, list_jobs, load_report, signature_path
 from ridge.case.reproduce import reproduce_job
 from ridge.errors import ParameterError
@@ -17,6 +18,7 @@ from ridge.sidecar.protocol import Json
 from ridge.sidecar.session import Session, absolute, item_json
 
 NUMBER = (int, float)
+LOG_PAGE_MAX = 500
 
 
 def _roi(value: Json) -> tuple[int, int, int, int] | None:
@@ -97,6 +99,30 @@ def report_export(session: Session, params: dict[str, Json]) -> Json:
         case, session.require_store(), params["job_id"], dest, overwrite=params.get("overwrite", False)
     )
     return {"exported": str(dest), "signature": str(signature_path(dest)), "key_id": signed.key_id}
+
+
+def report_export_html(session: Session, params: dict[str, Json]) -> Json:
+    """Write a readable HTML rendering of a verified report to a native-dialog path (logged; not signed)."""
+    case, _ = session.require()
+    dest = absolute(params["dest"], "dest")
+    signed = export_report_html(
+        case, session.require_store(), params["job_id"], dest, overwrite=params.get("overwrite", False)
+    )
+    return {"exported": str(dest), "job_id": signed.job_id}
+
+
+def log_entries(session: Session, params: dict[str, Json]) -> Json:
+    """Return a page of the custody log, newest first, optionally one kind of action (read only).
+
+    The hash chain was verified when the case was opened; entries hold no image data.
+    """
+    case, _ = session.require()
+    offset, limit = params.get("offset", 0), params.get("limit", 100)
+    if not (0 <= offset <= 10_000_000 and 1 <= limit <= LOG_PAGE_MAX):
+        raise ParameterError(f"offset must be 0 or more and limit 1-{LOG_PAGE_MAX}")
+    kind = params.get("action")
+    entries = [e for e in case.entries if kind is None or e["action"] == kind or e["action"].startswith(f"{kind}.")]
+    return {"total": len(entries), "entries": entries[::-1][offset : offset + limit]}
 
 
 def log_export(session: Session, params: dict[str, Json]) -> Json:

@@ -1,7 +1,7 @@
 """``ridge-case`` records commands: jobs, signed reports, reproduction, processing record (FR-28, FR-34, PRIV-3).
 
 ridge-case jobs CASE
-ridge-case report CASE JOB [--json | --to PATH [--overwrite]]
+ridge-case report CASE JOB [--json | --to PATH | --html PATH] [--overwrite]
 ridge-case reproduce CASE JOB                (re-run from the report; compare every output)
 ridge-case check-report REPORT.json [--sig PATH] [--key-id KEY_ID]     (no case store needed)
 ridge-case log CASE [--to PATH [--overwrite]]   (custody log; --to writes the signed record)
@@ -20,6 +20,7 @@ from ridge.case import cli_common as common
 from ridge.case.custody_head import check_head, export_head
 from ridge.case.identity import unlock_identity
 from ridge.case.processing_record import check_exported_log, export_log
+from ridge.case.report_html import export_report_html
 from ridge.case.reports import check_exported_report, export_report, list_jobs, load_report, printable, render_report
 from ridge.case.reproduce import reproduce_job
 from ridge.case.store import open_case
@@ -42,6 +43,10 @@ def cmd_jobs(args: argparse.Namespace) -> None:
 def cmd_report(args: argparse.Namespace) -> None:
     """Show or export a job's signed report after verifying it."""
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
+        if args.html:
+            signed = export_report_html(case, args.case.parent, args.job, args.html, overwrite=args.overwrite)
+            common.say(f"readable report {signed.job_id} written to {args.html} (the signed JSON stays authoritative)")
+            return
         if args.to:
             signed = export_report(case, args.case.parent, args.job, args.to, overwrite=args.overwrite)
             common.say(
@@ -148,6 +153,7 @@ def add_commands(sub: Any) -> None:
     shown = p.add_mutually_exclusive_group()
     shown.add_argument("--json", action="store_true", help="print the signed canonical JSON")
     shown.add_argument("--to", type=Path, help="export the report and its detached signature (PATH.sig)")
+    shown.add_argument("--html", type=Path, help="write a readable HTML rendering (not signed; logged)")
     p.add_argument("--overwrite", action="store_true")
     p.set_defaults(func=cmd_report)
     p = sub.add_parser("reproduce", help="re-run a signed job from its report and compare every output")
