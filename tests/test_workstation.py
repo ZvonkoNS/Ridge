@@ -20,6 +20,8 @@ from ridge.case.key_register import SCHEMA as REGISTER_SCHEMA
 from ridge.case.keys import DEVICE_SECRET_NAME, b64
 from ridge.case.limits import FILE
 from ridge.case.limits import SCHEMA as LIMITS_SCHEMA
+from ridge.case.recovery import export_recovery
+from ridge.case.store_audit import FILE as AUDIT_FILE
 from ridge.case.workstation import Finding, check_workstation
 from ridge.sidecar.handlers import Session
 from ridge.sidecar.server import handle
@@ -63,7 +65,24 @@ def test_a_working_store_is_ok_and_nothing_is_written(tmp_path: Path) -> None:
     assert "not shown" in by_topic["OS keystore"].text
     secret = keystore.values[DEVICE_SECRET_NAME]
     assert all(secret.hex() not in f.text and b64(secret) not in f.text for f in found)
-    assert {f.level for f in found if f.topic != "Limits of use"} == {"ok"}
+    assert {f.level for f in found if f.topic not in ("Limits of use", "Recovery")} == {"ok"}
+
+
+def test_the_check_says_whether_a_recovery_file_was_exported(tmp_path: Path) -> None:
+    root = tmp_path / "store"
+    keystore = MemoryKeyStore()
+    create_identity(root, PASSPHRASE, keystore, FAST_KDF)
+
+    def recovery() -> Finding:
+        (found,) = [f for f in check_workstation(root, keystore) if f.topic == "Recovery"]
+        return found
+
+    assert recovery().level == "note"
+    assert "ADR-012" in recovery().text
+    export_recovery(root, PASSPHRASE, "a separate recovery passphrase", keystore, tmp_path / "r.json", params=FAST_KDF)
+    assert recovery().level == "ok"
+    (root / AUDIT_FILE).write_text("{", encoding="utf-8")
+    assert recovery().level == "problem"  # a broken audit chain is shown, not hidden
 
 
 @pytest.mark.parametrize(("secret", "words"), [(None, "cannot be opened here"), (b"short", "malformed")])

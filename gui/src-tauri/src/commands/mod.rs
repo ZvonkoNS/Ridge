@@ -8,6 +8,7 @@ pub mod notes;
 pub mod package;
 pub mod prompt;
 pub mod records;
+pub mod recovery;
 pub mod store;
 
 include!("list.rs");

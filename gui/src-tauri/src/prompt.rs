@@ -25,6 +25,27 @@ const PROMPT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 pub const MIN_NEW_CHARS: usize = 15;
 const MAX_CHARS: usize = 1024;
 
+/// A passphrase held between two prompts of one task (device-secret recovery, ADR-012).
+/// Zeroised when dropped and never printed.
+#[derive(Clone)]
+pub struct Secret(Zeroizing<String>);
+
+impl Secret {
+    pub fn new(text: &str) -> Self {
+        Self(Zeroizing::new(text.to_owned()))
+    }
+
+    pub fn expose(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for Secret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Secret(<redacted>)")
+    }
+}
+
 /// What the passphrase is needed for.
 #[derive(Clone, Debug)]
 pub enum Purpose {
@@ -55,11 +76,29 @@ pub enum Purpose {
         holder: String,
         dest: PathBuf,
     },
+    /// Choose the recovery passphrase that will seal the device secret (held until the next prompt).
+    RecoveryNew,
+    /// Seal this account's device secret into `dest` with the recovery passphrase chosen before.
+    RecoveryExport {
+        store: PathBuf,
+        dest: PathBuf,
+        recovery: Secret,
+    },
+    /// Open the recovery file at `path` with its passphrase (nothing is written).
+    RecoveryOpen {
+        path: PathBuf,
+    },
+    /// Restore the device secret from `path` into this account's keystore, after it proves it opens `store`.
+    RecoveryImport {
+        path: PathBuf,
+        store: PathBuf,
+        recovery: Secret,
+    },
 }
 
 impl Purpose {
     fn creates_secret(&self) -> bool {
-        matches!(self, Self::CreateIdentity { .. })
+        matches!(self, Self::CreateIdentity { .. } | Self::RecoveryNew)
     }
 }
 
@@ -163,8 +202,31 @@ fn describe(purpose: &Purpose, attempts_left: u32) -> Context {
             "Enter your examiner passphrase to show the reference, retention date and legal hold of every case. Nothing is changed."
                 .to_owned(),
         ),
+        Purpose::RecoveryNew => (
+            "recovery_new",
+            "Choose a recovery passphrase".to_owned(),
+            "It seals this account's device secret in the recovery file. Use a different passphrase from your examiner passphrase; the laboratory keeps it apart from the file."
+                .to_owned(),
+        ),
+        Purpose::RecoveryExport { .. } => (
+            "recovery_export",
+            "Export the recovery file".to_owned(),
+            "Enter your examiner passphrase to confirm it is you. The export is recorded in the store audit file."
+                .to_owned(),
+        ),
+        Purpose::RecoveryOpen { .. } => (
+            "recovery_open",
+            "Open the recovery file".to_owned(),
+            "Enter the recovery passphrase that seals this file. Nothing is changed yet.".to_owned(),
+        ),
+        Purpose::RecoveryImport { .. } => (
+            "recovery_import",
+            "Restore the device secret".to_owned(),
+            "Enter your examiner passphrase. Ridge checks that the recovered secret opens this store before it saves it in this account's OS keystore."
+                .to_owned(),
+        ),
     };
-    let confirm = matches!(purpose, "create_identity");
+    let confirm = matches!(purpose, "create_identity" | "recovery_new");
     Context {
         purpose,
         title,
@@ -326,5 +388,44 @@ mod tests {
         let shown = describe(&card, 5);
         assert_eq!((shown.purpose, shown.confirm), ("key_card", false));
         assert!(!shown.detail.contains("/out"));
+    }
+
+    #[test]
+    fn recovery_asks_a_new_passphrase_then_existing_ones_and_never_prints_one() {
+        let new = describe(&Purpose::RecoveryNew, 5);
+        assert_eq!(
+            (new.purpose, new.confirm, new.min_chars),
+            ("recovery_new", true, MIN_NEW_CHARS)
+        );
+        let long = "a separate recovery passphrase";
+        assert!(check(&Purpose::RecoveryNew, &secret("short"), &secret("short")).is_err());
+        assert!(check(&Purpose::RecoveryNew, &secret(long), &secret("different")).is_err());
+        assert!(check(&Purpose::RecoveryNew, &secret(long), &secret(long)).is_ok());
+        let held = Secret::new(long);
+        assert_eq!(format!("{held:?}"), "Secret(<redacted>)");
+        let export = Purpose::RecoveryExport {
+            store: PathBuf::from("/s"),
+            dest: PathBuf::from("/out/recovery.json"),
+            recovery: held.clone(),
+        };
+        assert!(!format!("{export:?}").contains(long)); // a purpose may be logged; its secret never is
+        let shown = describe(&export, 5);
+        assert_eq!((shown.purpose, shown.confirm), ("recovery_export", false));
+        assert!(check(&export, &secret("x"), &secret("")).is_ok());
+        let open = describe(
+            &Purpose::RecoveryOpen {
+                path: PathBuf::from("/in/recovery.json"),
+            },
+            5,
+        );
+        assert_eq!((open.purpose, open.confirm), ("recovery_open", false));
+        let import = Purpose::RecoveryImport {
+            path: PathBuf::from("/in/recovery.json"),
+            store: PathBuf::from("/s"),
+            recovery: held,
+        };
+        let shown = describe(&import, 5);
+        assert_eq!((shown.purpose, shown.confirm), ("recovery_import", false));
+        assert!(!shown.detail.contains("/in") && !shown.detail.contains(long));
     }
 }

@@ -24,6 +24,7 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 
 ### Keys
 
+- Device-secret recovery (ADR-012, accepted): `ridge-case recovery export|import|check` and the store screen's "Device-secret recovery" card. The OS-keystore secret is sealed under a separate recovery passphrase. Import never replaces a secret and first proves the secret opens the store. Both are logged in the new hash-chained store audit file (`store-audit.jsonl`).
 - Limits of use can be signed by the Forensic Quality Manager (`ridge-case fqm-key`, `limits --sign`). A store with a signature has it checked before every job, fail closed.
 - Laboratory key register (`ridge.key-register/1`): the offline checks take `--register` to name the key's holder and refuse unregistered, wrong-role, expired or revoked keys. The time checked is the signed time.
 - Key cards (`ridge-case key-card`, GUI "Register this key with the laboratory") and `register-add`, for getting keys into the register.
@@ -48,10 +49,11 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 
 ### Documentation
 
+- Screen-reader test script (`docs/screen_reader_test.md`) for the manual NVDA pass.
 - Examiner guide (`docs/examiner_guide.md`): working a case in the desktop application, task by task, and what Ridge never does.
 
 ### Known issues
 
-- Installer build and code signing, Tauri WebDriver E2E and a manual screen-reader pass are open (Handoff_18 §10).
-- Signing times come from the signer's clock. Revocation dates are fully effective only together with countersigned custody heads (OQ-8).
-- Restoring a store backup on another account or machine needs the examiner's OS-keystore secret, which no Ridge file carries. ADR-012 proposes a recovery procedure for decision.
+- Windows installers (MSI and per-user NSIS) build and pass a smoke test, but they are not code-signed yet: that needs the laboratory's certificate. Tauri WebDriver E2E is open. The manual NVDA pass is due before release (`docs/screen_reader_test.md`).
+- Signing times come from the signer's clock. Revocation dates are fully effective only together with countersigned custody heads; the laboratory will countersign exported heads (OQ-8), and its procedure is still to be written.
+- Restoring a store backup on another account or machine needs the examiner's OS-keystore secret; export a recovery file for it (ADR-012).

@@ -38,6 +38,7 @@ import type {
   StoreView,
   VerifiedReport,
   Verification,
+  RecoveryFileInfo,
   WorkstationFinding,
 } from "./types";
 
@@ -144,6 +145,8 @@ export const ipc = {
   exportHead: () => call<HeadExported>("export_head"),
   minutiae: (sha256: string) => call<MinutiaeView>("get_minutiae", { sha256 }),
   limitsOfUse: () => call<LimitsStatus>("limits_of_use"),
+  exportRecovery: () => call<RecoveryFileInfo>("export_recovery"),
+  importRecovery: () => call<RecoveryFileInfo>("import_recovery"),
   workstationCheck: (withRegister: boolean) =>
     call<WorkstationFinding[]>("workstation_check", { with_register: withRegister }),
   exportComparison: (exportSha: string, referenceSha: string, referencePpi: number | null) =>

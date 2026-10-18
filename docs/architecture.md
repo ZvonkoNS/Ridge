@@ -207,6 +207,9 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `store.overview` | `store` (absolute), `passphrase` | Every case's reference, retention date, legal hold, evidence and job counts, read from the encrypted case metadata. Nothing is written or logged (no evidence is read). **Rust core only**, from the prompt window |
 | `store.limits` | `store` (absolute) | The store's limits of use (§8.3): `configured: false`, or source, file SHA-256 and limits; a malformed file is refused |
 | `store.workstation` | `store` (absolute), `register` (optional) | The workstation check: one finding per line (`topic`, `level` ok/note/problem, `text`). Read-only; nothing decrypted or logged |
+| `recovery.export` | `store`, `dest` (absolute, from a native dialog), `examiner_passphrase`, `recovery_passphrase` (both from the Rust prompt window only) | Seals this account's device secret into a new `ridge.device-secret-recovery/1` file and logs it in `store-audit.jsonl`; returns key id, fingerprint and file (ADR-012) |
+| `recovery.check` | `path` (absolute), `recovery_passphrase` | Opens a recovery file with its passphrase and returns what it holds (key id, fingerprint, time); nothing written. A wrong passphrase is a refusal, so the prompt window can retry |
+| `recovery.import` | `path`, `store` (absolute), `examiner_passphrase`, `recovery_passphrase` | Restores the device secret into this account's keystore after it unlocks the store's identity; never replaces an existing secret; logged in `store-audit.jsonl` |
 | `session.lock` / `session.status` | – | Locks the case (also done at end of input and after 15 minutes without requests) / unlocked state and idle timeout |
 | `case.status` | – | One-screen summary of the unlocked case: stored items by role, jobs by outcome, signed reports, notes, retention and hold, last verification and custody-head export (reads only) |
 | `case.info` / `case.hold` | – / `on`, `reason` | Decrypted case metadata / places or lifts a legal hold with a reason (logged as `case.hold`) |
@@ -309,10 +312,18 @@ Workstation check (`src/ridge/case/workstation.py`, added 2026-10-18): `ridge-ca
 - whether this account's OS keystore holds the device secret (only looked up, never shown);
 - the examiner identity and the store's cases by state;
 - the limits of use: signed or not, whether they cover this CPU architecture, and an NFIQ 2 minimum;
+- whether a device-secret recovery file was exported for the store, and whether the store audit file's chain is intact (ADR-012);
 - optionally, whether the store's key is in a key register (also from the GUI, with a native dialog);
 - optionally (CLI `--nfiq2`), whether the NFIQ 2 tool is at its absolute path and reports a version. It is asked only `--version` and never sees an image.
 
 Each finding is `ok`, `note` or `problem`; the command exits 1 on a problem. Nothing is created, decrypted or logged. The check is not a validation of the method or of the installation (NFR-3, OQ-15).
+
+Device-secret recovery and the store audit file (ADR-012, accepted and implemented 2026-10-18):
+
+- `ridge-case recovery export` (or the store screen's "Export recovery file...") seals this account's OS-keystore device secret into `ridge.device-secret-recovery/1`. The seal uses Argon2id and AES-256-GCM under a separate recovery passphrase, with the key id, fingerprint and time bound into it. Export needs the examiner passphrase; the recovery passphrase meets the policy and is not the examiner's.
+- `recovery import` ("Restore from a recovery file...") never replaces an existing secret. It first checks that the secret unlocks the store's identity with the examiner passphrase.
+- The recovery file replaces only the device factor: opening a case still needs the examiner passphrase.
+- `<store>/store-audit.jsonl` records store-level actions that no case can log, such as recovery export and import. Each entry names the hash of the one before and its own hash over its RFC 8785 form, and every read verifies the whole chain. Because a chain alone cannot show that its tail, or the whole file, was removed, every append also records the head (sequence number and hash) in this account's OS keystore. A read with the keystore checks that the file still reaches that head; an account that has never written to the store has no anchor yet. Appends are serialised across processes by an OS lock on `store-audit.lock`, which the OS releases if a process ends. The file holds no evidence and no secrets.
 
 ### 8.2 Encryption envelope
 
@@ -451,6 +462,7 @@ flowchart LR
 | Elevation of privilege (added 2026-10-18) | Script in a readable HTML copy opened in a browser | Every value escaped; a page CSP of `default-src 'none'` with inline styles only; no images or forms; copies made only from verified bytes | `tests/test_report_html.py`, `tests/test_record_html.py` |
 | Repudiation (added 2026-10-18) | A record backdated past a key's revocation | Register checks use the time inside the signed data, never an unsigned envelope; full protection needs countersigned custody heads (OQ-8) | `tests/test_key_register.py` |
 | Information disclosure (added 2026-10-18) | The workstation check reading the OS-keystore entry; a malformed `identity.json` or `case.json` crashing a store-wide check | The check reports only whether the device secret is present and well formed, never its value, and creates nothing. `identity.json` and `case.json` are read within 64 KiB and every malformed form is a typed refusal | `tests/test_workstation.py`, `tests/test_case_crypto.py`, `tests/test_case_store.py` |
+| Information disclosure (added 2026-10-18) | A stolen recovery file together with its recovery passphrase | The file replaces only the device factor: the examiner passphrase is still needed to open a case. The laboratory keeps file and passphrase apart. Export needs the examiner passphrase, import never replaces a secret and must unlock the store first, and both are logged in the hash-chained store audit file | `tests/test_recovery.py` |
 
 The full ASVS 5.0 L3 mapping (applicable chapters only, with N/A rationale for server-only chapters) is kept in the standards profile.
 
@@ -474,7 +486,7 @@ The full ASVS 5.0 L3 mapping (applicable chapters only, with N/A rationale for s
 | M0–M3 | Python wheel + hashed lock file | Offline: `pip install --no-index --require-hashes -r requirements.lock` from a vetted wheelhouse, then `pip install --no-deps ridge-*.whl`. |
 | M4+ | Tauri bundle (MSI / DMG / AppImage) with the signed PyInstaller sidecar | Signed installer; Tauri updater disabled (offline only). |
 
-Packaging the GUI release (implemented 2026-10-18, bundle build not yet exercised):
+Packaging the GUI release (implemented 2026-10-18; installers first built and smoke-tested on 2026-10-18):
 
 1. `tools/build_sidecar.py` freezes `ridge-sidecar` with PyInstaller 6.22.3 into a one-folder build (`build/sidecar/ridge-sidecar/`). PyInstaller is pinned with hashes in `requirements-build.lock`, which development and pull-request CI never install.
 2. It checks that this platform's OS keystore backend is in the frozen archive.
@@ -482,6 +494,9 @@ Packaging the GUI release (implemented 2026-10-18, bundle build not yet exercise
 4. `tauri build --config src-tauri/tauri.release.conf.json` turns the bundle on and ships the folder as `resources/sidecar/`. The default configuration stays bundle-off, so development builds never need a frozen sidecar.
 5. A release build of the Rust core looks for the sidecar in its resource folder only (`sidecar::locate`).
 6. The frozen build is about 210 MB on Windows. It is not bit-reproducible (PyInstaller embeds build timestamps); the release records the SHA-256 of every shipped file instead.
+7. On Windows, `tauri build` writes an MSI (about 82 MiB, WiX 3.14) and a per-user NSIS `setup.exe` (about 57 MiB, no administrator rights). The first build downloads WiX and NSIS into `%LOCALAPPDATA%\tauri`, and Tauri checks their pinned hashes. The NSIS build installs to `%LOCALAPPDATA%\Ridge`, with the engine at `sidecar\ridge-sidecar.exe` (what `sidecar::locate` expects).
+idge-sidecar.exe` (what `sidecar::locate` expects).
+8. In the smoke test, the installed engine answered `ridge.version` with its build commit over stdio. The installed app opened its window and started WebView2 and the engine, closing it stopped the engine, and the silent uninstaller removed the installation. Neither installer is code-signed yet: that needs the laboratory's code-signing certificate.
 
 The reference workstation is to be specified (OQ-11).
 
@@ -526,6 +541,6 @@ Test layers: characterization (live v0 run, bit-identical on every platform; per
 | ADR-009 | Reproducibility and validation are per CPU architecture; behaviour preservation is proven against a live v0 run; goldens are stored per architecture (arm64 generated on a CI Apple silicon runner by the `golden` workflow) | Accepted | x86-64 and arm64 SIMD floating point legitimately differ (R-7, observed 2026-10-17); equality would always fail, so a measured cross-architecture envelope guards against further drift instead. |
 | ADR-010 | The passphrase is typed in a separate, Rust-owned prompt window with its own page and capability, never in the main WebView ([docs/adr/ADR-010-passphrase-prompt-window.md](adr/ADR-010-passphrase-prompt-window.md)) | Accepted for engineering builds; Security Owner review pending | Tauri has no password dialog; OS-native prompts need unsafe FFI or a shell helper per platform. |
 | ADR-011 | Hand-written IPC types checked by tests; Tauri isolation pattern not adopted for now ([docs/adr/ADR-011-gui-ipc-types-and-isolation.md](adr/ADR-011-gui-ipc-types-and-isolation.md)) | Accepted | Rust and the sidecar validate every value; 27 small types do not justify a generator yet. |
-| ADR-012 | Recovery of the OS-keystore device secret, without which a store backup cannot be opened elsewhere ([docs/adr/ADR-012-device-secret-recovery.md](adr/ADR-012-device-secret-recovery.md)) | **Proposed**: decision by the Security Owner and product owner | Options compared; recommendation: a recovery file sealed under a separate recovery passphrase. Until decided, a lost keystore loses its cases |
+| ADR-012 | Recovery of the OS-keystore device secret, without which a store backup cannot be opened elsewhere ([docs/adr/ADR-012-device-secret-recovery.md](adr/ADR-012-device-secret-recovery.md)) | **Accepted** 2026-10-18 (product owner, also interim Security Owner) | Implemented: a recovery file sealed under a separate recovery passphrase, `ridge-case recovery export|import|check`, the store screen's recovery card and the store audit file |
 
 ADRs move to individual files under `docs/adr/` when they need more than a table row.

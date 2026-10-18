@@ -13,6 +13,10 @@ const ACTION: Record<PromptContext["purpose"], string> = {
   verify_store: "Verify all cases",
   store_overview: "Show case details",
   key_card: "Sign key card",
+  recovery_new: "Continue",
+  recovery_export: "Export recovery file",
+  recovery_open: "Open recovery file",
+  recovery_import: "Restore",
 };
 
 export function PassphrasePrompt() {

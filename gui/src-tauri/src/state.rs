@@ -10,7 +10,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
 use crate::error::{ErrorKind, IpcError};
-use crate::prompt::Pending;
+use crate::prompt::{Pending, Secret};
 use crate::sidecar::{ChildTransport, Sidecar};
 
 /// Everything the commands share.
@@ -18,6 +18,8 @@ pub struct AppState {
     pub sidecar: Mutex<Sidecar<ChildTransport>>,
     pub store: Mutex<Option<PathBuf>>,
     pub prompt: Mutex<Option<Pending>>,
+    /// The first passphrase of a two-step recovery task, until the second prompt uses it (zeroised).
+    pub recovery: Mutex<Option<Secret>>,
 }
 
 impl AppState {
@@ -26,6 +28,7 @@ impl AppState {
             sidecar: Mutex::new(sidecar),
             store: Mutex::new(None),
             prompt: Mutex::new(None),
+            recovery: Mutex::new(None),
         }
     }
 }
@@ -90,6 +93,20 @@ pub fn with_prompt<T>(
     let state = app.state::<AppState>();
     let mut slot = state.prompt.lock().map_err(|_| poisoned())?;
     Ok(f(&mut slot))
+}
+
+/// Hold the first passphrase of a recovery task for the next prompt.
+pub fn stash_recovery(app: &AppHandle, secret: Secret) -> Result<(), IpcError> {
+    let state = app.state::<AppState>();
+    *state.recovery.lock().map_err(|_| poisoned())? = Some(secret);
+    Ok(())
+}
+
+/// Take (and so clear) the held recovery passphrase.
+pub fn take_recovery(app: &AppHandle) -> Result<Option<Secret>, IpcError> {
+    let state = app.state::<AppState>();
+    let taken = state.recovery.lock().map_err(|_| poisoned())?.take();
+    Ok(taken)
 }
 
 /// Lock an idle case from the trusted core, whatever the WebView does (checked every 15 s).

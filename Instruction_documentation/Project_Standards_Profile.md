@@ -9,14 +9,14 @@ Derived from `Project_Standards_Profile_Template.md`. Review triggers are in sec
 | --- | --- |
 | Project name | Ridge |
 | Repository | GitHub (internal, private). Default branch protected. |
-| Product Owner | TBD - release blocker |
-| Security Owner | TBD - release blocker |
-| Quality/Release Owner | TBD - release blocker |
-| Data Protection Officer | TBD - release blocker |
-| Forensic Quality Manager (ISO/IEC 17025) | TBD - release blocker |
+| Product Owner | Interim: the product owner (GitHub ZvonkoNS), 2026-10-18 (OQ-10) |
+| Security Owner | Interim: the product owner (GitHub ZvonkoNS), 2026-10-18 (OQ-10) |
+| Quality/Release Owner | Interim: the product owner (GitHub ZvonkoNS), 2026-10-18 (OQ-10) |
+| Data Protection Officer | Interim: the product owner (GitHub ZvonkoNS), 2026-10-18 (OQ-10); an independent holder should be named before casework use |
+| Forensic Quality Manager (ISO/IEC 17025) | Interim: the product owner (GitHub ZvonkoNS), 2026-10-18 (OQ-10); an independent holder should be named before casework use |
 | Last reviewed | 2026-10-18 |
 
-No release beyond internal engineering builds is allowed while any owner is unnamed (see section 8).
+Every owner role is named, on an interim basis, by the product owner (2026-10-18). The Data Protection Officer and the Forensic Quality Manager are normally independent of the product owner, so independent holders should be named before Ridge is used for casework (see section 8).
 
 ## 2. Product and deployment context
 
@@ -141,7 +141,7 @@ Note for the Quality/Release Owner: on 2026-10-16 the Python devguide lists 3.13
 | Custody/report integrity | Yes (M1) | part of `test` | Yes | CI log |
 | IPC/JSON-RPC security | Yes (M4) | part of `test` (sidecar schemas, fuzz) and `gui` (Rust request types, validation, capability and CSP tests, live sidecar test) | Yes | Gate log |
 | E2E/smoke | Yes | CLI smoke on synthetic data; GUI: component flows with mocked IPC (Vitest) plus a live Rust-to-sidecar test; Tauri WebDriver E2E not implemented (exception, section 8) | Yes | Gate log |
-| Accessibility | Yes (M4) | axe-core in Vitest (`python tools/gate.py gui`); manual NVDA/VoiceOver pass before each GUI release (`desktop_gui_tauri_standards.md` section 9) | Yes | Gate log, release handoff |
+| Accessibility | Yes (M4) | axe-core in Vitest (`python tools/gate.py gui`); manual NVDA/VoiceOver pass before each GUI release (`desktop_gui_tauri_standards.md` section 9), run by the product owner from `docs/screen_reader_test.md` (decided 2026-10-18) | Yes | Gate log, release handoff |
 | Supply chain | Yes | `deps`, `secrets`, `licenses`, `sbom` gates; Scorecard | Yes | CI artifacts |
 | Documentation integrity | Yes | `python tools/gate.py docs` | Yes | CI log |
 | Matcher benchmark and NFIQ 2 | Ops gate | Validation procedure outside CI; metrics with `ridge-validate` (tested in CI on synthetic scores) | Yes for Ops gate | Validation report (lab QMS) |
@@ -164,7 +164,7 @@ Note for the Quality/Release Owner: on 2026-10-16 the Python devguide lists 3.13
 | Passphrase entered in a WebView window, not an OS-native dialog (architecture §7.3 "native prompt") | Tauri has no password dialog; OS-native prompts need `unsafe` FFI (Windows, macOS) or a shell helper (Linux), two of three untestable here | A compromised bundle could read the passphrase in the prompt window | Separate Rust-owned window with its own page and a capability limited to three commands; label check in each handler; same CSP (no workers), navigation lock and new-window denial; the main WebView never sees the passphrase; zeroised Rust buffers; five attempts; ADR-010 | Security Owner (TBD) | Pending (decided in the autonomous window of 2026-10-18) | Before the first GUI release |
 | GUI E2E with Tauri WebDriver (`desktop_gui_tauri_standards.md` §12, `npm run test:e2e`) | Needs msedgedriver/WebKitWebDriver per platform; not set up yet | A defect in the wiring between the WebView, Rust and the sidecar is found late | Vitest component flows with mocked IPC; Rust unit tests of every command's validation; live Rust-to-sidecar test over real stdio; manual smoke run of the built app | Quality/Release Owner (TBD) | Pending | Before the first GUI release |
 | GUI gate in CI on every pull request | Owner decision 2026-10-17 to keep GitHub Actions minimal; a Rust build costs many runner minutes | A GUI defect reaches `main` when the local gate was skipped | `python tools/gate.py all` includes `gui` and runs locally before every push; `.github/workflows/gui.yml` runs on demand and for release tags; the full matrix is required for releases | Quality/Release Owner (TBD) | Product owner, 2026-10-17 (Actions policy) | Review with the Actions exception |
-| Release packaging of the sidecar (signed PyInstaller one-folder build in the Tauri bundle, architecture §10) | Frozen sidecar built and checked (`tools/build_sidecar.py`, 2026-10-18); the installer build (`tauri build` with `tauri.release.conf.json`) and code signing are not exercised yet | No installable, signed GUI release | Engineering builds run the sidecar from the developer virtualenv (debug builds only); release builds look for it only in the bundle's resources; the frozen build is checked for the keystore backend and smoke-tested over stdio | Quality/Release Owner (TBD) | Pending | Before the first GUI release |
+| Release packaging of the sidecar (signed PyInstaller one-folder build in the Tauri bundle, architecture §10) | Frozen sidecar built and checked (`tools/build_sidecar.py`, 2026-10-18). Windows installers (MSI and per-user NSIS) built and smoke-tested on 2026-10-18 (architecture §10). Code signing needs the laboratory's certificate and is not done | Unsigned installers trigger Windows SmartScreen warnings and cannot be verified by publisher | Engineering builds run the sidecar from the developer virtualenv (debug builds only); release builds look for it only in the bundle's resources; the frozen build is checked for the keystore backend and smoke-tested over stdio | Quality/Release Owner (interim: product owner) | Pending: certificate | Before the first GUI release |
 | PyInstaller bootloader in the frozen sidecar (GPL-2.0-or-later with the bootloader exception) | Needed to ship the Python sidecar without a Python installation | Licence obligations if the exception did not apply | The bootloader exception permits distributing frozen applications under any licence; PyInstaller itself is a build tool pinned in `requirements-build.lock` and is not shipped; internal distribution only | Legal (TBD) | Pending | Before any external distribution |
 | Rust advisories RUSTSEC-2024-0370 (`proc-macro-error` unmaintained) and RUSTSEC-2024-0429 (`glib` `VariantStrIter` unsound) | Transitive dependencies of Tauri's Linux WebKitGTK stack (gtk 0.18); no fixed version is reachable without upstream changes | A memory-safety defect in GVariant string iteration on Linux; an unmaintained compile-time macro helper | Ridge never iterates GVariant string arrays; `proc-macro-error` runs only at compile time; ignores are listed with reasons in `gui/src-tauri/.cargo/audit.toml` and `deny.toml`; re-checked by every `cargo audit` / `cargo deny` run | Security Owner (TBD) | Pending | Remove when Tauri's Linux stack moves to gtk-rs >= 0.20 |
 | Mozilla Public License 2.0 crates in the GUI's Rust dependency tree (through Tauri) | Upstream dependencies of Tauri | File-level copyleft obligations if Ridge were distributed outside the organisation | Internal distribution only; listed by `cargo deny check licenses`; the source of MPL files is unmodified upstream | Legal + Security Owner (TBD) | Pending | Before any external distribution |

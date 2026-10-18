@@ -43,6 +43,8 @@
     "allow-check-exported",
     "allow-backup-store",
     "allow-export-all",
-    "allow-workstation-check"
+    "allow-workstation-check",
+    "allow-export-recovery",
+    "allow-import-recovery"
   ]
 }
