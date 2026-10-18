@@ -61,4 +61,16 @@ describe("job options", () => {
       expect(typeof toOptions(SHA, params)).toBe("string");
     }
   });
+
+  it("refuses typed ruler points that are not on the photo", () => {
+    const params = {
+      ...DEFAULT_PARAMS,
+      ruler: [
+        { x: 10, y: 10 },
+        { x: 5000, y: 10 },
+      ],
+    };
+    expect(toOptions(SHA, params, { width: 4000, height: 3000 })).toMatch(/must lie on the photo/);
+    expect(typeof toOptions(SHA, params, { width: 6000, height: 3000 })).toBe("object");
+  });
 });

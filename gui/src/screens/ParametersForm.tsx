@@ -4,7 +4,7 @@
 import type { ChangeEvent, ReactNode } from "react";
 
 import type { JobOptions } from "../ipc/types";
-import { distance, type Point, type Rect } from "../lib/viewport";
+import { distance, type Point, type Rect, type Size } from "../lib/viewport";
 
 export interface Params {
   period: string;
@@ -37,7 +37,7 @@ export const DEFAULT_PARAMS: Params = {
 };
 
 /** Turn the form into job options, or explain what to fix. */
-export function toOptions(evidence: string, p: Params): JobOptions | string {
+export function toOptions(evidence: string, p: Params, photo?: Size | null): JobOptions | string {
   const period = p.period.trim() === "" ? null : Number(p.period);
   if (period !== null && !(period >= 2 && period <= 200)) {
     return "Ridge period must be empty (measure automatically) or 2 to 200 pixels.";
@@ -54,6 +54,12 @@ export function toOptions(evidence: string, p: Params): JobOptions | string {
     }
     if (distance(a, b) < 2) {
       return "The two ruler points must be apart.";
+    }
+    if (
+      photo &&
+      ![a, b].every((pt) => pt.x >= 0 && pt.y >= 0 && pt.x <= photo.width && pt.y <= photo.height)
+    ) {
+      return `Both ruler points must lie on the photo (${photo.width} x ${photo.height} pixels).`;
     }
     ruler = [a.x, a.y, b.x, b.y, mm];
   }

@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from ridge.case.export_step import ExportOptions
 from ridge.case.identity import create_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.reports import load_report, render_report
@@ -80,6 +81,18 @@ def test_roi_outside_the_photo_fails_the_job(case_dir: Path, keystore: MemoryKey
         end = next(e for e in reversed(case.entries) if e["action"] == "job.end")
     assert end["result"] == "failed"
     assert "outside" in end["error"]
+
+
+@pytest.mark.parametrize("ruler", [(0.0, 0.0, 5000.0, 0.0, 10.0), (-1.0, 0.0, 50.0, 0.0, 10.0)])
+def test_ruler_points_off_the_photo_fail_the_job(
+    case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path, ruler: tuple[float, float, float, float, float]
+) -> None:
+    with pytest.raises(ParameterError, match=r"ruler point .* lies outside"):
+        run(case_dir, keystore, photo_file(tmp_path / "in"), JobParams(export=ExportOptions(ruler=ruler)))
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        (end,) = [e for e in case.entries if e["action"] == "job.end"]
+    assert end["result"] == "failed"
+    assert "ruler point" in end["error"]
 
 
 def test_source_note_is_logged_and_reported(case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path) -> None:

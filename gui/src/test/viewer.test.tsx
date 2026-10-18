@@ -61,4 +61,32 @@ describe("image viewer", () => {
     fireEvent.keyDown(table, { key: "1" });
     expect(screen.getByRole("button", { name: "Full resolution here" })).toBeInTheDocument();
   });
+
+  it("ignores ruler clicks on the grey margin outside the image", () => {
+    const onRulerPoint = vi.fn();
+    render(<ImageViewer {...props} tool="ruler" onRulerPoint={onRulerPoint} />);
+    const table = screen.getByRole("application");
+    fireEvent.keyDown(table, { key: "0" }); // fitted: the image is centred with margins around it
+    table.setPointerCapture = vi.fn();
+    fireEvent.pointerDown(table, { button: 0, clientX: 799, clientY: 300, pointerId: 1 });
+    fireEvent.pointerUp(table, { button: 0, clientX: 799, clientY: 300, pointerId: 1 });
+    fireEvent.pointerDown(table, { button: 0, clientX: 400, clientY: 599, pointerId: 1 });
+    fireEvent.pointerUp(table, { button: 0, clientX: 400, clientY: 599, pointerId: 1 });
+    expect(onRulerPoint).not.toHaveBeenCalled();
+  });
+
+  it("claims full resolution only while the fetched rectangle covers the view", async () => {
+    const loadDetail = vi.fn(() =>
+      Promise.resolve({ url: "blob:test/detail", rect: { x: 1500, y: 1100, width: 1000, height: 800 } }),
+    );
+    render(<ImageViewer {...props} loadDetail={loadDetail} />);
+    const table = screen.getByRole("application");
+    fireEvent.keyDown(table, { key: "1" }); // 100 %: the 800 x 600 view shows x 1600-2400, y 1200-1800
+    fireEvent.click(screen.getByRole("button", { name: "Full resolution here" }));
+    expect(await screen.findByText(/full resolution here/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Full resolution here" })).toBeNull();
+    fireEvent.keyDown(table, { key: "ArrowLeft", shiftKey: true }); // pan beyond the fetched rectangle
+    expect(screen.queryByText(/full resolution here/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Full resolution here" })).toBeInTheDocument();
+  });
 });
