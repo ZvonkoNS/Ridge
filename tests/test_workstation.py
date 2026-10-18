@@ -175,10 +175,10 @@ def test_unknown_commit_other_cpu_bad_identity_and_store_state(tmp_path: Path, m
     assert (store.level, "cannot be written" in store.text) == ("problem", True)
 
 
-def fake_tool(folder: Path, version_code: int) -> list[str]:
+def fake_tool(folder: Path, version_code: int, version: str = "NFIQ2 Version: 2.3.0") -> list[str]:
     """A stand-in NFIQ 2 that answers --version (synthetic: it never sees an image)."""
     script = folder / "fake_nfiq2.py"
-    lines = ["import sys", "print('NFIQ2 Version: 2.3.0')", f"sys.exit({version_code})"]
+    lines = ["import sys", f"print({version!r})", f"sys.exit({version_code})"]
     script.write_text("\n".join(lines), encoding="utf-8")
     return [sys.executable, str(script)]
 
@@ -197,7 +197,13 @@ def test_the_nfiq2_tool_is_found_and_reports_its_version(
     assert working.level == "ok"
     assert "NFIQ2 Version: 2.3.0" in working.text
     assert "indicative only" in working.text
-    assert nfiq2(fake_tool(tmp_path, 1)).level == "note"  # there, but no version
+    assert nfiq2(fake_tool(tmp_path, 0, version="")).level == "note"  # ran cleanly, printed no version
+    assert nfiq2(fake_tool(tmp_path, 1)).level == "problem"  # failed when asked for its version
+    not_a_program = tmp_path / "nfiq2.txt"
+    not_a_program.write_text("not a program", encoding="utf-8")
+    broken = nfiq2([str(not_a_program)])  # there, but cannot be started
+    assert broken.level == "problem"
+    assert "jobs cannot compute NFIQ 2 scores" in broken.text
     assert nfiq2([str(tmp_path / "missing.exe")]).level == "problem"
     assert nfiq2(["nfiq2"]).level == "problem"  # not an absolute path: never searched on PATH
     monkeypatch.setattr(cli_common, "KEYSTORE_FACTORY", MemoryKeyStore)

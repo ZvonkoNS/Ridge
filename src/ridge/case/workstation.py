@@ -25,7 +25,7 @@ from ridge.case.key_register import confirm_key, describe, load_register
 from ridge.case.keys import DEVICE_SECRET_NAME, KeyStore
 from ridge.case.limits import load_limits
 from ridge.case.listing import list_cases
-from ridge.errors import RidgeError
+from ridge.errors import QualityToolError, RidgeError
 from ridge.image_io import HEIF_AVAILABLE
 from ridge.quality.nfiq2 import Nfiq2
 
@@ -147,11 +147,15 @@ def _nfiq2(command: Sequence[str]) -> Finding:
         tool = Nfiq2(command, work_dir=Path(tempfile.gettempdir()))  # no image is written for a version query
     except RidgeError as exc:
         return Finding("NFIQ 2", "problem", str(exc))
-    if not Path(tool.command[0]).is_file():
-        return Finding("NFIQ 2", "problem", "the NFIQ 2 tool is not installed at the configured path")
-    version = tool.version()
+    try:
+        exit_code, version = tool.ask_version()
+    except QualityToolError as exc:  # missing, cannot start, timed out or printed too much
+        return Finding("NFIQ 2", "problem", f"{exc}: jobs cannot compute NFIQ 2 scores")
+    if exit_code != 0:
+        text = f"the tool exited with code {exit_code} when asked for its version: check the path and arguments"
+        return Finding("NFIQ 2", "problem", text)
     if version is None:
-        return Finding("NFIQ 2", "note", "the tool is there but reported no version; its scores are indicative only")
+        return Finding("NFIQ 2", "note", "the tool ran but reported no version; its scores are indicative only")
     return Finding("NFIQ 2", "ok", f"{version}; its scores are indicative only (photos are outside NFIQ 2's scope)")
 
 

@@ -197,13 +197,21 @@ class Nfiq2:
             self._version_known = True
         return self._version
 
+    def ask_version(self) -> tuple[int, str | None]:
+        """Run ``<command> --version`` once: (exit code, first version line or None).
+
+        Unlike `version`, this raises QualityToolError when the tool is missing or cannot run
+        (start failure, timeout, too much output), for checks that must tell those apart.
+        """
+        self._require_tool()
+        exit_code, stdout = self._run([*self._argv, *VERSION_ARGS])
+        return exit_code, (_version_line(stdout) if exit_code == 0 else None)
+
     def _query_version(self) -> str | None:
         try:
-            self._require_tool()
-            exit_code, stdout = self._run([*self._argv, *VERSION_ARGS])
+            return self.ask_version()[1]
         except QualityToolError:
             return None
-        return _version_line(stdout) if exit_code == 0 else None
 
     def _require_tool(self) -> None:
         if not Path(self._argv[0]).is_file():

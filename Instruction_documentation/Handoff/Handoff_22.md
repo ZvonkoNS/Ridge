@@ -23,6 +23,8 @@ Completed work on this branch:
 | Code health | The new-case form moved out of `StoreScreen.tsx` (321 → 273 lines; 295 with the About button) into `NewCaseForm.tsx`, with its first test |
 | Threat model | STRIDE row for the workstation check and malformed identity or case files |
 
+Codex review of PR #21 (one P2 finding), fixed on this branch: an NFIQ 2 tool that exists but cannot run (no execute permission, not a program, timeout, too much output) was reported only as a note, because `version()` swallows those errors. The new `Nfiq2.ask_version()` lets them through. The workstation check now reports a tool that cannot run, or that exits non-zero on `--version`, as a problem; only a clean run without a version line is a note (`test_workstation.py`).
+
 Out of scope (unchanged):
 
 - installer build and code signing. **The first `tauri build` downloads WiX/NSIS from the internet and was therefore not run unattended**;
