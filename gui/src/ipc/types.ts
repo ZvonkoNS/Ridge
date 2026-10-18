@@ -209,6 +209,9 @@ export interface JobReport {
   created_utc: string;
   ridge: {
     version: string;
+    /** Source commit (FR-34); absent in reports made before it was recorded. */
+    commit?: string;
+    commit_source?: string;
     python: string;
     platform: string;
     machine: string;

@@ -13,6 +13,7 @@ the result is a release step outside this script (release_readiness_checklist.md
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess  # nosec B404 - fixed tool invocations, no shell
 import sys
@@ -32,12 +33,27 @@ KEYSTORE_BACKEND = {"win32": "keyring.backends.Windows", "darwin": "keyring.back
 )
 
 
+def stamp(work: Path) -> Path:
+    """Write ridge/_build.json with the commit being built (PRD FR-34), and whether the tree is dirty."""
+    git = shutil.which("git")
+    if git is None:
+        raise SystemExit("git is needed to stamp the commit into the sidecar")
+    commit = subprocess.run([git, "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, check=True, text=True)  # nosec B603
+    status = subprocess.run([git, "status", "--porcelain"], cwd=ROOT, capture_output=True, check=True, text=True)  # nosec B603
+    info = work / "_build.json"
+    info.write_text(
+        json.dumps({"commit": commit.stdout.strip(), "dirty": bool(status.stdout.strip())}), encoding="utf-8"
+    )
+    return info
+
+
 def freeze() -> Path:
     """Run PyInstaller and return the frozen executable."""
     work = BUILD / "pyinstaller"
     work.mkdir(parents=True, exist_ok=True)
     entry = work / "ridge_sidecar_entry.py"
     entry.write_text(ENTRY, encoding="utf-8")
+    build_info = stamp(work)
     shutil.rmtree(DIST / NAME, ignore_errors=True)
     command = [
         sys.executable,
@@ -61,6 +77,8 @@ def freeze() -> Path:
         "keyring",
         "--copy-metadata",
         "ridge",
+        "--add-data",
+        f"{build_info}{os.pathsep}ridge",  # read by ridge.build_info at run time
         str(entry),
     ]
     print("$", " ".join(command), flush=True)

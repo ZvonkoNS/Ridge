@@ -104,6 +104,9 @@ function ReportView({
         <dd>
           {report.ridge.version} · Python {report.ridge.python} · {report.ridge.platform} (
           {report.ridge.machine})
+          {report.ridge.commit
+            ? ` · commit ${report.ridge.commit.slice(0, 12)} (${report.ridge.commit_source ?? ""})`
+            : ""}
         </dd>
         <dt>Parameters</dt>
         <dd>
