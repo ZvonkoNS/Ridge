@@ -11,19 +11,16 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use tauri::AppHandle;
 use zeroize::Zeroizing;
 
 use crate::error::{ErrorKind, IpcError};
-use crate::state::{self, path_text};
-use crate::windows;
+use crate::state;
+use crate::{prompt_calls, windows};
 
 const MAX_ATTEMPTS: u32 = 5;
 const PROMPT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
-const KDF_TIMEOUT: Duration = Duration::from_secs(180);
-/// Every case is decrypted and checked (or its metadata read): allow for a large store.
-const STORE_VERIFY_TIMEOUT: Duration = Duration::from_secs(60 * 60);
 /// NIST SP 800-63B-style minimum for new passphrases (architecture §9.3; the sidecar enforces it too).
 pub const MIN_NEW_CHARS: usize = 15;
 const MAX_CHARS: usize = 1024;
@@ -188,7 +185,7 @@ pub fn submit(
     let purpose = state::with_prompt(app, |slot| slot.as_ref().map(|p| p.purpose.clone()))?
         .ok_or_else(|| IpcError::invalid("no passphrase is being asked for"))?;
     check(&purpose, passphrase, confirmation)?;
-    match perform(app, &purpose, passphrase) {
+    match prompt_calls::perform(app, &purpose, passphrase) {
         Ok(value) => {
             finish(app, Ok(value));
             Ok(())
@@ -245,113 +242,6 @@ fn check(purpose: &Purpose, passphrase: &str, confirmation: &str) -> Result<(), 
         }
     }
     Ok(())
-}
-
-#[derive(Serialize)]
-struct WithSecret<'a> {
-    store: &'a str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    case_id: Option<&'a str>,
-    passphrase: &'a str,
-}
-
-fn perform(app: &AppHandle, purpose: &Purpose, passphrase: &str) -> Result<Value, IpcError> {
-    match purpose {
-        Purpose::VerifyStore { store } => {
-            let store = path_text(store)?;
-            let params = WithSecret {
-                store: &store,
-                case_id: None,
-                passphrase,
-            };
-            state::call_now(app, "store.verify", &params, STORE_VERIFY_TIMEOUT)
-        }
-        Purpose::KeyCard {
-            store,
-            holder,
-            dest,
-        } => {
-            #[derive(Serialize)]
-            struct Card<'a> {
-                store: &'a str,
-                passphrase: &'a str,
-                holder: &'a str,
-                dest: &'a str,
-            }
-            let (store, dest) = (path_text(store)?, path_text(dest)?);
-            let params = Card {
-                store: &store,
-                passphrase,
-                holder,
-                dest: &dest,
-            };
-            state::call_now(app, "identity.card", &params, KDF_TIMEOUT)
-        }
-        Purpose::StoreOverview { store } => {
-            let store = path_text(store)?;
-            let params = WithSecret {
-                store: &store,
-                case_id: None,
-                passphrase,
-            };
-            state::call_now(app, "store.overview", &params, STORE_VERIFY_TIMEOUT)
-        }
-        Purpose::CreateIdentity { store } => {
-            let store = path_text(store)?;
-            let params = WithSecret {
-                store: &store,
-                case_id: None,
-                passphrase,
-            };
-            state::call_now(app, "identity.create", &params, KDF_TIMEOUT)
-        }
-        Purpose::Unlock { store, case_id } => {
-            let store = path_text(store)?;
-            let params = WithSecret {
-                store: &store,
-                case_id: Some(case_id),
-                passphrase,
-            };
-            state::call_now(app, "session.unlock", &params, KDF_TIMEOUT)
-        }
-        Purpose::CreateCase {
-            store,
-            reference,
-            legal_basis,
-            retention_until,
-        } => {
-            let store = path_text(store)?;
-            #[derive(Serialize)]
-            struct Create<'a> {
-                store: &'a str,
-                reference: &'a str,
-                legal_basis: &'a str,
-                retention_until: &'a str,
-                passphrase: &'a str,
-            }
-            let params = Create {
-                store: &store,
-                reference,
-                legal_basis,
-                retention_until,
-                passphrase,
-            };
-            let created = state::call_now(app, "case.create", &params, KDF_TIMEOUT)?;
-            let case_id = created
-                .get("case_id")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_owned();
-            let unlock = WithSecret {
-                store: &store,
-                case_id: Some(&case_id),
-                passphrase,
-            };
-            // The case exists even if opening it fails; the examiner can unlock it from the list.
-            let session = state::call_now(app, "session.unlock", &unlock, KDF_TIMEOUT).ok();
-            Ok(json!({"case_id": case_id, "session": session}))
-        }
-    }
 }
 
 #[cfg(test)]

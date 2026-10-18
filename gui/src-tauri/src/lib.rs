@@ -11,6 +11,7 @@ mod commands;
 mod dialogs;
 mod error;
 mod prompt;
+mod prompt_calls;
 mod rpc;
 mod settings;
 mod sidecar;
