@@ -116,7 +116,11 @@ pub async fn check_exported(
         None
     };
     let params = json!({"path": path_text(&path)?, "register": register});
-    let timeout = if request.folder { FOLDER_CHECK } else { RECORD_IO };
+    let timeout = if request.folder {
+        FOLDER_CHECK
+    } else {
+        RECORD_IO
+    };
     call(&app, "files.check", params, timeout).await
 }
 

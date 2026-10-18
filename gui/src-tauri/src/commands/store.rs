@@ -206,7 +206,8 @@ pub async fn workstation_check(
     require(&window, MAIN_LABEL)?;
     let store = path_text(&state::store(&app)?)?;
     let register = if request.with_register {
-        let chosen = dialogs::pick_file(&app, "Choose the laboratory's key register", REGISTER_FILE).await?;
+        let chosen =
+            dialogs::pick_file(&app, "Choose the laboratory's key register", REGISTER_FILE).await?;
         Some(path_text(&chosen)?)
     } else {
         None
