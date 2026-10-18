@@ -41,19 +41,11 @@ function ReportView({
   const [measuring, setMeasuring] = useState(false);
   const [points, setPoints] = useState<Point[]>([]);
   const current = images.find((o) => o.sha256 === selected) ?? null;
-  const exported = report.export?.produced ? report.export : null;
-  const scale: KnownScale | null =
-    current?.role === "export" && exported
-      ? {
-          pxPerMm: exported.ppi / 25.4,
-          uncertaintyPct: exported.scale.uncertainty_pct,
-          method: exported.scale.method,
-        }
-      : null;
+  const item = items.find((i) => i.sha256 === current?.sha256);
+  const scale: KnownScale | null = item ? outputScale(item, report) : null; // export or print with a known scale
   const preview = usePreview(current?.sha256 ?? null, onFailure);
   const minutiaeSha = report.outputs.find((o) => o.role === "minutiae")?.sha256 ?? null;
   const overlay = useMinutiaeOverlay(minutiaeSha, current?.role ?? null, preview.source, onFailure);
-  const item = items.find((i) => i.sha256 === current?.sha256);
   const result = report;
 
   const act = async (what: "export" | "html" | "reproduce") => {

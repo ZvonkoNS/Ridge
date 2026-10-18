@@ -2,6 +2,7 @@
 // image's scale is known (a comparison export at its recorded resolution), always with the scale's
 // method and uncertainty; elsewhere only pixels. Nothing is recorded or logged.
 import type { Point } from "../lib/viewport";
+import type { ScaleSource } from "./ScaleBar";
 
 const METHOD: Record<string, string> = {
   ruler: "ruler in the photo",
@@ -10,11 +11,8 @@ const METHOD: Record<string, string> = {
   file: "resolution in the file",
 };
 
-export interface KnownScale {
-  pxPerMm: number;
-  uncertaintyPct: number | null;
-  method: string;
-}
+/** The scale of the shown image, as the scale bar uses it. */
+export type KnownScale = ScaleSource;
 
 /** The distance between two points as text, or null until both are placed. */
 export function distanceText(points: Point[], scale: KnownScale | null): string | null {
