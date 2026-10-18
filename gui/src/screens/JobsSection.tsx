@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 
 import { ExhibitLabel } from "../components/ExhibitLabel";
 import { ImageViewer } from "../components/ImageViewer";
+import { type KnownScale, MeasureReadout } from "../components/Measure";
 import { MinutiaeNote, MinutiaeToggle, useMinutiaeOverlay } from "../components/MinutiaeToggle";
 import { NotesPanel } from "../components/NotesPanel";
 import { Button, Hash, Notice, StaggerItem, StaggerList, utc } from "../components/ui";
 import { ipc } from "../ipc/commands";
 import type { Item, JobRecord, Reproduction, VerifiedReport } from "../ipc/types";
 import { usePreview } from "../lib/usePreview";
+import type { Point } from "../lib/viewport";
 import { JobCompare } from "./JobCompare";
 import { JobSummary } from "./JobSummary";
 import { ParameterList } from "./ParameterList";
@@ -36,7 +38,18 @@ function ReportView({
   const [selected, setSelected] = useState(images[0]?.sha256 ?? null);
   const [reproduction, setReproduction] = useState<Reproduction | null>(null);
   const [busy, setBusy] = useState<"export" | "html" | "reproduce" | null>(null);
+  const [measuring, setMeasuring] = useState(false);
+  const [points, setPoints] = useState<Point[]>([]);
   const current = images.find((o) => o.sha256 === selected) ?? null;
+  const exported = report.export?.produced ? report.export : null;
+  const scale: KnownScale | null =
+    current?.role === "export" && exported
+      ? {
+          pxPerMm: exported.ppi / 25.4,
+          uncertaintyPct: exported.scale.uncertainty_pct,
+          method: exported.scale.method,
+        }
+      : null;
   const preview = usePreview(current?.sha256 ?? null, onFailure);
   const minutiaeSha = report.outputs.find((o) => o.role === "minutiae")?.sha256 ?? null;
   const overlay = useMinutiaeOverlay(minutiaeSha, current?.role ?? null, preview.source, onFailure);
@@ -125,13 +138,26 @@ function ReportView({
                 className={`tab${o.sha256 === selected ? " tab-on" : ""}`}
                 onClick={() => {
                   setSelected(o.sha256);
+                  setPoints([]);
                 }}
               >
                 {o.role === "debug" ? o.label : o.role}
               </button>
             ))}
             <MinutiaeToggle overlay={overlay} />
+            <button
+              type="button"
+              aria-pressed={measuring}
+              className={`tab${measuring ? " tab-on" : ""}`}
+              onClick={() => {
+                setMeasuring(!measuring);
+                setPoints([]);
+              }}
+            >
+              Measure
+            </button>
           </div>
+          {measuring ? <MeasureReadout points={points} scale={scale} /> : null}
           <MinutiaeNote overlay={overlay} />
           <ImageViewer
             title={`${current.role} output of the job`}
@@ -139,6 +165,11 @@ function ReportView({
             bitmap={preview.bitmap}
             source={preview.source}
             marks={overlay.marks}
+            tool={measuring ? "ruler" : "pan"}
+            ruler={measuring ? points : []}
+            onRulerPoint={(point) => {
+              setPoints(points.length >= 2 ? [point] : [...points, point]);
+            }}
             label={(zoom) => (
               <ExhibitLabel
                 role={current.role}
