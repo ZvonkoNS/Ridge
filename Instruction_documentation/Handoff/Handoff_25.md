@@ -93,6 +93,7 @@ Project standards profile updated: owners (interim) and the packaging exception.
   - Python: `test_recovery.py` (17), plus a workstation recovery finding;
   - Rust: recovery prompt rules and secret redaction;
   - Vitest: recovery card (2).
+- Changed: Vitest has one 15 s test time-out for the whole suite (`gui/vite.config.ts`). The typing-heavy passphrase-prompt flow took more than the 5 s default in the first gate run on a loaded machine; the notes test's own override is gone.
 - Commands: `python tools/gate.py all` on this branch; the result is recorded in the pull request.
 - Not run:
   - WebDriver E2E;
