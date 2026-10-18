@@ -1,6 +1,6 @@
 // The custody log as a readable timeline, newest first: what happened to the case, when and by
 // whom. The sidecar verified the hash chain when the case was opened; this view only reads it.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button, Hash, utc } from "../components/ui";
 import { ipc } from "../ipc/commands";
@@ -55,20 +55,37 @@ export function CustodyLog({
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState(false);
 
+  // Bumped by every new filter, search or refresh: an answer to an older request is dropped, so a
+  // slow page can never replace or extend the entries of a newer query.
+  const generation = useRef(0);
+
   useEffect(() => {
-    ipc.custodyLog(0, PAGE, filter || null, search || null).then((page) => {
-      setEntries(page.entries);
-      setTotal(page.total);
-    }, onFailure);
+    const mine = ++generation.current;
+    ipc.custodyLog(0, PAGE, filter || null, search || null).then(
+      (page) => {
+        if (mine === generation.current) {
+          setEntries(page.entries);
+          setTotal(page.total);
+        }
+      },
+      (error: unknown) => {
+        if (mine === generation.current) {
+          onFailure(error);
+        }
+      },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, search, refresh]);
 
   const more = async () => {
+    const mine = generation.current;
     setBusy(true);
     try {
       const page = await ipc.custodyLog(entries?.length ?? 0, PAGE, filter || null, search || null);
-      setEntries([...(entries ?? []), ...page.entries]);
-      setTotal(page.total);
+      if (mine === generation.current) {
+        setEntries((shown) => [...(shown ?? []), ...page.entries]);
+        setTotal(page.total);
+      }
     } catch (error) {
       onFailure(error);
     } finally {
