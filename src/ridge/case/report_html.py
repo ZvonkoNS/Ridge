@@ -8,6 +8,7 @@ value in a report cannot do anything when the page is opened. The page holds no 
 
 from __future__ import annotations
 
+import json
 from html import escape
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ from ridge.case.reports import SignedReport, export_line, load_report, minutiae_
 from ridge.case.store import OpenCase, publish_logged
 from ridge.errors import OutputExistsError
 
+BANNER = "Image enhancement only. Ridge does not identify anyone and draws no conclusions."
 _LABEL_WIDTH = 14  # the text renderer's label column; its helper lines start with it
 CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src 'none'; form-action 'none'; base-uri 'none'"
 STYLE = """
@@ -51,6 +53,18 @@ def _code(value: object) -> str:
 
 def _text(value: object) -> str:
     return escape(printable(value))
+
+
+def _param(value: object) -> str:
+    """Write a recorded parameter as the signed JSON has it (none, a scalar, or compact JSON)."""
+    if value is None:
+        return "none"
+    return value if isinstance(value, str) else json.dumps(value, separators=(",", ":"), sort_keys=True)
+
+
+def _disclaimer(text: object) -> str:
+    """Show the report's own disclaimer, unless it repeats the banner at the top."""
+    return "" if not text or text == BANNER else f"<p>{_text(text)}</p>"
 
 
 def _limits(section: dict[str, Any] | None) -> str:
@@ -97,11 +111,11 @@ def render_report_html(signed: SignedReport, notes: list[Note] | None = None) ->
         ("SHA-256", _code(source.get("sha256"))),
         ("Source", _text(source.get("source")) if source.get("source") else ""),
     ]
-    parameters = [(str(k), _code(v if v is not None else "none")) for k, v in sorted(params.items())]
+    parameters = [(str(k), _code(_param(v))) for k, v in sorted(params.items())]
     results = [
         ("Ridge spacing", _text(f"{meas.get('ridge_period_px', 0):.2f} px") if meas else ""),
         ("Finger located", _text("yes" if meas.get("found_finger") else "no") if meas else ""),
-        ("Export", _text(_value(export_line(report.get("export"))))),
+        ("Export", _text(_value(export_line(report.get("export"))).replace("+-", "±"))),
         ("NFIQ 2", _text(_value(nfiq2_line((report.get("quality") or {}).get("nfiq2"))))),
         ("Minutiae", _text(_value(minutiae_line(report.get("minutiae"))))),
         ("Limits of use", _limits(report.get("limits_of_use"))),
@@ -119,14 +133,14 @@ def render_report_html(signed: SignedReport, notes: list[Note] | None = None) ->
 <title>Ridge job report {escape(signed.job_id[:8])}</title><style>{STYLE}</style></head>
 <body>
 <h1>Ridge job report</h1>
-<p class="banner">Image enhancement only. Ridge does not identify anyone and draws no conclusions.</p>
+<p class="banner">{BANNER}</p>
 <h2>Summary</h2>{_rows(summary)}
 <h2>Input</h2>{_rows(inputs)}
 <h2>Parameters</h2>{_rows(parameters)}
 <h2>Results</h2>{_rows(results)}
 <h2>Outputs</h2><table><tr><th scope="col">Role</th><th scope="col">File</th><th scope="col">SHA-256</th>
 <th scope="col">Bytes</th></tr>{outputs}</table>
-<p>{_text(report.get("disclaimer", ""))}</p>
+{_disclaimer(report.get("disclaimer"))}
 {_notes(notes or [])}
 <footer>This page renders the signed report whose SHA-256 is {_code(canonical_sha)}, custody head
 {_code(report.get("custody_head"))}. The signed JSON report and its detached signature are authoritative;
