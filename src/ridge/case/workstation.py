@@ -25,6 +25,7 @@ from ridge.case.key_register import confirm_key, describe, load_register
 from ridge.case.keys import DEVICE_SECRET_NAME, KeyStore
 from ridge.case.limits import load_limits
 from ridge.case.listing import list_cases
+from ridge.case.store_audit import read_audit
 from ridge.errors import QualityToolError, RidgeError
 from ridge.image_io import HEIF_AVAILABLE
 from ridge.quality.nfiq2 import Nfiq2
@@ -52,6 +53,8 @@ def check_workstation(
     """Check the software, the OS keystore, the store and its limits; if given, the key register and NFIQ 2."""
     found = [*_software(), _keystore(keystore, has_identity=(store / IDENTITY_FILE).is_file()), *_store(store)]
     found.extend(_limits(store))
+    if (store / IDENTITY_FILE).is_file():
+        found.append(_recovery(store))
     if register is not None:
         found.append(_register(store, register))
     if nfiq2 is not None:
@@ -139,6 +142,20 @@ def _limits(store: Path) -> list[Finding]:
         text = f"a minimum NFIQ 2 score of {limits.min_nfiq2:g} is set: jobs without the NFIQ 2 tool record a deviation"
         found.append(Finding("Limits of use", "note", text))
     return found
+
+
+def _recovery(store: Path) -> Finding:
+    """Whether a device-secret recovery file was exported for this store (ADR-012), from the audit file."""
+    try:
+        entries = read_audit(store)
+    except RidgeError as exc:
+        return Finding("Recovery", "problem", str(exc))
+    exports = [e for e in entries if e.get("action") == "recovery.export"]
+    if not exports:
+        text = "no recovery file has been exported for this store: a lost OS keystore would lose its cases (ADR-012)"
+        return Finding("Recovery", "note", text)
+    text = f"recovery file exported {exports[-1].get('ts_utc')}; the store audit file's chain is intact"
+    return Finding("Recovery", "ok", text)
 
 
 def _nfiq2(command: Sequence[str]) -> Finding:

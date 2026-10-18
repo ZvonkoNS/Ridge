@@ -312,6 +312,7 @@ Workstation check (`src/ridge/case/workstation.py`, added 2026-10-18): `ridge-ca
 - whether this account's OS keystore holds the device secret (only looked up, never shown);
 - the examiner identity and the store's cases by state;
 - the limits of use: signed or not, whether they cover this CPU architecture, and an NFIQ 2 minimum;
+- whether a device-secret recovery file was exported for the store, and whether the store audit file's chain is intact (ADR-012);
 - optionally, whether the store's key is in a key register (also from the GUI, with a native dialog);
 - optionally (CLI `--nfiq2`), whether the NFIQ 2 tool is at its absolute path and reports a version. It is asked only `--version` and never sees an image.
 
