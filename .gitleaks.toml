@@ -13,4 +13,8 @@ paths = [
   '''(^|[\\/])__pycache__[\\/]''',
   '''(^|[\\/])Ridge\.bundle$''',
   '''(^|[\\/])\.claude[\\/]''',
+  # desktop GUI build output, never committed (.gitignore): npm packages, Rust target, Vite dist
+  '''(^|[\\/])gui[\\/]node_modules[\\/]''',
+  '''(^|[\\/])gui[\\/]src-tauri[\\/](target|gen)[\\/]''',
+  '''(^|[\\/])gui[\\/]dist[\\/]''',
 ]
