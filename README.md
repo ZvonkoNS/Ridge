@@ -12,6 +12,7 @@ fingerprint examiners.
 | --- | --- |
 | [docs/prd.md](docs/prd.md) | Product requirements, milestones, risks, open questions |
 | [docs/architecture.md](docs/architecture.md) | Architecture, security design, ADRs |
+| [CHANGELOG.md](CHANGELOG.md) | What changed, its forensic impact and known issues (internal builds, not for casework) |
 | [docs/verification_guide.md](docs/verification_guide.md) | For reviewers, the DPO and the FQM: checking exported reports, records, packages and keys offline |
 | [AGENTS.md](AGENTS.md) and [Instruction_documentation/](Instruction_documentation/README.md) | Engineering rules, standards profile, quality gates, handoffs |
 
