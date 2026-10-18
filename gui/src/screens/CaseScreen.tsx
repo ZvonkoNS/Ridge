@@ -25,10 +25,11 @@ const SECTIONS: { id: SectionId; label: string; hint: string }[] = [
 interface Props {
   session: SessionInfo;
   storePath: string;
+  versions?: string | null;
   onClosed: (message: string | null) => void;
 }
 
-export function CaseScreen({ session, storePath, onClosed }: Props) {
+export function CaseScreen({ session, storePath, versions = null, onClosed }: Props) {
   const [section, setSection] = useState<SectionId>("evidence");
   const [items, setItems] = useState<Item[]>([]);
   const [info, setInfo] = useState<CaseInfo | null>(null);
@@ -139,6 +140,7 @@ export function CaseScreen({ session, storePath, onClosed }: Props) {
               <small>{s.hint}</small>
             </button>
           ))}
+          {versions ? <p className="versions">{versions}</p> : null}
           <p className="rail-note">
             Image enhancement only. Ridge does not identify anyone and draws no conclusions.
           </p>

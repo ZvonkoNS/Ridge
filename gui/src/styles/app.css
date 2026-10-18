@@ -459,6 +459,20 @@ code,
   background: var(--custody-wash);
 }
 
+.versions {
+  margin: 0;
+  font: 400 var(--step--1) var(--font-mono);
+  color: var(--ink-2);
+}
+
+.rail .versions {
+  margin-top: auto;
+}
+
+.rail .versions + .rail-note {
+  margin-top: var(--space-2);
+}
+
 .rail-note {
   margin-top: auto;
   font-size: var(--step--1);
