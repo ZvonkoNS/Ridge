@@ -57,7 +57,8 @@ class KeyRegister:
     keys: dict[str, RegisteredKey]
 
 
-def _text(value: object, what: str) -> str:
+def register_text(value: object, what: str) -> str:
+    """Validate free text in a register or key card: 1-200 printable characters, no bidi overrides."""
     if not isinstance(value, str) or not 1 <= len(value.strip()) <= 200 or _CONTROL.search(value):
         raise ParameterError(f"key register: {what} must be 1-200 printable characters")
     return value.strip()
@@ -99,7 +100,7 @@ def _key(raw: object, index: int) -> RegisteredKey:
         raise ParameterError(f"key register: key {index} ends before it starts")
     return RegisteredKey(
         key_id=str(raw["key_id"]),
-        holder=_text(raw["holder"], f"key {index} holder"),
+        holder=register_text(raw["holder"], f"key {index} holder"),
         role=str(raw["role"]),
         valid_from=valid_from,
         valid_until=valid_until,
@@ -124,7 +125,7 @@ def parse_register(data: bytes) -> KeyRegister:
         if key.key_id in keys:
             raise ParameterError(f"key register: key {key.key_id} is listed twice")
         keys[key.key_id] = key
-    return KeyRegister(_text(doc.get("laboratory"), "laboratory"), sha256_hex(data), keys)
+    return KeyRegister(register_text(doc.get("laboratory"), "laboratory"), sha256_hex(data), keys)
 
 
 def load_register(path: Path) -> KeyRegister:

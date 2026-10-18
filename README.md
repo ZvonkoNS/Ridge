@@ -98,6 +98,8 @@ ridge-case note D:/ridge-store/<case-id> "text" --job <job-id>   # examiner note
 ridge-case notes D:/ridge-store/<case-id>               # every note, with time and examiner
 ridge-case package D:/ridge-store/<case-id> --to D:/disclosure/KT-1   # signed records + manifest, no images
 ridge-case check-package D:/disclosure/KT-1 --key-id <key-id>          # verify the package offline
+ridge-case key-card --store D:/ridge-store --holder "Name" --to card.json   # your public key, self-signed, for the lab
+ridge-case register-add --card card.json --register lab-keys.json --to lab-keys-2.json   # lab: new register version
 ridge-case register --check lab-keys.json                # the laboratory's key register (holders, roles, validity)
 ridge-case check-report report.json --register lab-keys.json   # name the holder; refuse unregistered or revoked keys
 ridge-case log D:/ridge-store/<case-id>                 # decrypted custody log (processing record)
