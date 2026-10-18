@@ -17,14 +17,22 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case import cli_common as common
-from ridge.case.cli_register import add_register_argument, confirm
+from ridge.case.cli_register import add_register_argument, confirm, registered_line
 from ridge.case.custody_head import check_head, export_head
 from ridge.case.identity import unlock_identity
 from ridge.case.job_compare import differences, render_differences
-from ridge.case.processing_record import check_exported_log, export_log
+from ridge.case.processing_record import LogCheck, check_exported_log, export_log
 from ridge.case.record_html import write_record_html
 from ridge.case.report_html import export_report_html, write_exported_report_html
-from ridge.case.reports import check_exported_report, export_report, list_jobs, load_report, printable, render_report
+from ridge.case.reports import (
+    ReportCheck,
+    check_exported_report,
+    export_report,
+    list_jobs,
+    load_report,
+    printable,
+    render_report,
+)
 from ridge.case.reproduce import reproduce_job
 from ridge.case.store import open_case
 
@@ -93,14 +101,27 @@ def cmd_reproduce(args: argparse.Namespace) -> int:
 
 
 def cmd_check_report(args: argparse.Namespace) -> int:
-    """Verify an exported report and its signature without opening any case (and write a readable copy)."""
+    """Verify an exported report and its signature without opening any case (and write a readable copy).
+
+    With ``--register`` the signer is checked before a readable copy is written.
+    """
+    holder: list[str | None] = []
+
+    def check_signer(c: ReportCheck) -> None:
+        holder.append(registered_line(args, c.key_id, "examiner", c.created_utc))
+
     if args.html:
-        check = write_exported_report_html(args.report, args.html, sig_path=args.sig, expected_key_id=args.key_id)
-        common.say(f"readable copy written to {args.html}")
+        check = write_exported_report_html(
+            args.report, args.html, sig_path=args.sig, expected_key_id=args.key_id, confirm=check_signer
+        )
     else:
         check = check_exported_report(args.report, args.sig, expected_key_id=args.key_id)
+        check_signer(check)
     common.say(f"signature valid: job {check.job_id}, case {check.case_id}, created {check.created_utc}")
-    if confirm(args, check.key_id, "examiner", check.created_utc):
+    if args.html:
+        common.say(f"readable copy written to {args.html}")
+    if holder[0] is not None:
+        common.say(holder[0])
         return 0
     if check.key_confirmed:
         common.say(f"signed by the expected key {check.key_id}")
@@ -127,17 +148,28 @@ def cmd_log(args: argparse.Namespace) -> None:
 
 
 def cmd_check_log(args: argparse.Namespace) -> int:
-    """Verify an exported processing record without opening any case (and write a readable copy)."""
+    """Verify an exported processing record without opening any case (and write a readable copy).
+
+    With ``--register`` the signer is checked before a readable copy is written.
+    """
+    holder: list[str | None] = []
+
+    def check_signer(c: LogCheck) -> None:
+        holder.append(registered_line(args, c.key_id, "examiner", c.exported_utc))
+
     if args.html:
-        check = write_record_html(args.record, args.html, expected_key_id=args.key_id)
-        common.say(f"readable copy written to {args.html}")
+        check = write_record_html(args.record, args.html, expected_key_id=args.key_id, confirm=check_signer)
     else:
         check = check_exported_log(args.record, expected_key_id=args.key_id)
+        check_signer(check)
+    if args.html:
+        common.say(f"readable copy written to {args.html}")
     common.say(
         f"chain intact: case {check.case_id}, {check.entries} entries, {check.signed_heads} signed head(s), "
         "ending with the signed export"
     )
-    if confirm(args, check.key_id, "examiner", check.exported_utc):
+    if holder[0] is not None:
+        common.say(holder[0])
         return 0
     if check.key_confirmed:
         common.say(f"signed by the expected key {check.key_id}")

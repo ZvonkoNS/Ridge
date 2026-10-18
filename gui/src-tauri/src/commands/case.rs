@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use tauri::{AppHandle, WebviewWindow};
 
-use crate::error::{ErrorKind, IpcError};
+use crate::error::IpcError;
 use crate::state::{call, path_text};
 use crate::windows::{require, MAIN_LABEL};
 use crate::{dialogs, validate};
@@ -98,9 +98,10 @@ pub async fn import_evidence(
     Ok(json!({"imported": imported, "refused": refused}))
 }
 
-/// A refusal of one photo (wrong format, too large) lets the batch go on; a locked case does not.
+/// Only a refusal of the photo itself (wrong format, too large, undecodable) lets the batch go on;
+/// a locked case, a custody or storage failure, or a stopped engine ends it.
 fn continues(error: &IpcError) -> bool {
-    error.kind == ErrorKind::Refused && !error.message.contains("no case is unlocked")
+    error.input_refused
 }
 
 /// The file name only, for the examiner's summary (no folders reach the WebView).
@@ -240,10 +241,13 @@ mod tests {
 
     #[test]
     fn a_refused_photo_does_not_stop_the_batch_but_a_locked_case_does() {
-        assert!(continues(&IpcError::refused(
+        assert!(continues(&IpcError::input_refused(
             "not a supported image format"
         )));
         assert!(!continues(&IpcError::refused("no case is unlocked")));
+        assert!(!continues(&IpcError::refused(
+            "custody log: entry 9 could not be written"
+        )));
         assert!(!continues(&IpcError::unavailable("the engine stopped")));
         assert_eq!(
             path_name(std::path::Path::new("/photos/IMG_0042.jpg")),
