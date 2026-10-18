@@ -123,7 +123,9 @@ def smoke(exe: Path) -> None:
         raise SystemExit(f"frozen sidecar failed (exit {done.returncode}): {tail}")
     if results[0].get("protocol") != PROTOCOL or results[1:] != expected[1:]:
         raise SystemExit(f"frozen sidecar answered unexpectedly: {results}")
-    print(f"frozen sidecar ok: Ridge {results[0].get('ridge')}, protocol {PROTOCOL}")
+    if not str(results[0].get("commit_source", "")).startswith("build"):  # the stamp must be in the bundle
+        raise SystemExit(f"frozen sidecar does not carry its commit stamp: {results[0]}")
+    print(f"frozen sidecar ok: Ridge {results[0].get('ridge')} {results[0].get('commit')}, protocol {PROTOCOL}")
 
 
 def main() -> int:

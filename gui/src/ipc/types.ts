@@ -5,7 +5,7 @@ export type ErrorKind = "invalid" | "refused" | "cancelled" | "busy" | "no_store
 
 export interface AppInfo {
   gui: string;
-  engine: { ridge: string; protocol: string };
+  engine: { ridge: string; protocol: string; commit?: string; commit_source?: string };
 }
 
 export type CaseState = "active" | "locked" | "erasing" | "disposed" | "invalid";

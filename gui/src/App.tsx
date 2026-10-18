@@ -7,9 +7,13 @@ import type { AppInfo, SessionInfo, StoreView } from "./ipc/types";
 import { CaseScreen } from "./screens/CaseScreen";
 import { StoreScreen } from "./screens/StoreScreen";
 
-/** "Ridge 0.2.0 (GUI 0.2.0)" for the screens' footers, or null until the engine answered. */
+/** "Ridge 0.2.0 0123abcd (GUI 0.2.0, protocol)" for the screens' footers, or null until the engine answered. */
 export function versionText(info: AppInfo | null): string | null {
-  return info ? `Ridge ${info.engine.ridge} (GUI ${info.gui}, ${info.engine.protocol})` : null;
+  if (!info) {
+    return null;
+  }
+  const commit = info.engine.commit && info.engine.commit !== "unknown" ? ` ${info.engine.commit.slice(0, 8)}` : "";
+  return `Ridge ${info.engine.ridge}${commit} (GUI ${info.gui}, ${info.engine.protocol})`;
 }
 
 export function App() {

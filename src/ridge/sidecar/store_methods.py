@@ -10,6 +10,7 @@ import uuid
 from datetime import date
 
 import ridge
+from ridge.build_info import source_commit
 from ridge.case.backup import backup_store
 from ridge.case.file_check import check_exported
 from ridge.case.identity import IDENTITY_FILE, create_identity, public_identity, unlock_identity
@@ -28,8 +29,8 @@ PROTOCOL = "ridge.sidecar/1"
 
 
 def version(session: Session, params: dict[str, Json]) -> Json:
-    """Ridge and protocol versions."""
-    return {"ridge": ridge.__version__, "protocol": PROTOCOL}
+    """Ridge and protocol versions, and the source commit (FR-34) the GUI shows beside them."""
+    return {"ridge": ridge.__version__, "protocol": PROTOCOL, **source_commit()}
 
 
 def cases(session: Session, params: dict[str, Json]) -> Json:
