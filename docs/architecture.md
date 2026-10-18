@@ -236,7 +236,8 @@ The **Rust core** (`gui/src-tauri/src`, trusted, `#![forbid(unsafe_code)]` throu
   - navigation is limited to the app origin and new windows are denied;
   - the CSP refuses inline and remote code, workers, frames and objects;
   - the asset protocol is off, `freezePrototype` is on, and `withGlobalTauri` is off;
-  - one capability file per window.
+  - one capability file per window;
+  - release builds remove the WebView2 and WebKit inspector environment variables (`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, `WEBKIT_INSPECTOR_SERVER` and others, `lib.rs`) before any window exists. Otherwise a same-user process could start Ridge with a DevTools port and drive the IPC of an unlocked case. This was found in the release smoke test on 2026-10-18 and verified fixed.
 
 The **WebView** (`gui/src`, untrusted, React and TypeScript with Motion) has these screens:
 

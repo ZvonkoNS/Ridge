@@ -105,6 +105,10 @@ See the pull request diff (105 files). Main areas: `gui/` (new), `src/ridge/side
 - Threat-model notes:
   - a compromised main WebView cannot reach the passphrase, paths, the dialog plugin or the network (CSP `connect-src` is limited to IPC);
   - service workers are blocked (`worker-src 'none'`), so the prompt window's page cannot be intercepted.
+- Found and fixed while testing a release build:
+  - WebView2 honoured `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=…` in release builds, so a same-user process could attach DevTools and call commands such as `preview` on an unlocked case;
+  - release builds now remove the WebView2 and WebKit inspector variables at startup (`WEBVIEW_ENV` in `gui/src-tauri/src/lib.rs`);
+  - verified: with the variable set, the release build no longer opens the port.
 - Open risks:
   - the ADR-010 residual risk (the prompt is a WebView);
   - the limits file is plaintext and unsigned (its hash is in every report). An FQM signature would make it tamper-evident before use (recommended next step).

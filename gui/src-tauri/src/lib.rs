@@ -23,8 +23,34 @@ use tauri::{Manager, RunEvent, WindowEvent};
 use crate::sidecar::Sidecar;
 use crate::state::AppState;
 
+/// Environment variables that would attach a debugger to the WebViews or swap their engine or
+/// profile. A process running as the same user could otherwise start Ridge with a DevTools port,
+/// wait until a case is unlocked and drive the IPC (previews of decrypted images). Release builds
+/// drop them before any window or thread exists; debug builds keep them for development.
+pub const WEBVIEW_ENV: [&str; 8] = [
+    "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+    "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER",
+    "WEBVIEW2_USER_DATA_FOLDER",
+    "WEBVIEW2_RELEASE_CHANNEL_PREFERENCE",
+    "WEBVIEW2_PIPE_FOR_SCRIPT_DEBUGGER",
+    "WEBKIT_INSPECTOR_SERVER",
+    "WEBKIT_INSPECTOR_HTTP_SERVER",
+    "WEBKIT_INSPECTOR_PIPE",
+];
+
+fn scrub_webview_environment() {
+    if cfg!(debug_assertions) {
+        return;
+    }
+    for name in WEBVIEW_ENV {
+        // Edition 2021: safe here because no other thread exists yet (first statement of `run`).
+        std::env::remove_var(name);
+    }
+}
+
 /// Start the application.
 pub fn run() {
+    scrub_webview_environment();
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
