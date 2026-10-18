@@ -39,6 +39,8 @@ def test_a_backup_is_an_exact_copy_that_opens(store: tuple[Path, MemoryKeyStore,
         assert len(case.items()) == 1
     with pytest.raises(OutputExistsError):
         backup_store(root, tmp_path / "backup")
+    assert not list(root.rglob("LOCK"))  # the locks held for the copy are released
+    assert not any(f["path"].endswith("LOCK") for f in manifest["files"])
 
 
 def test_only_a_ridge_store_is_backed_up(tmp_path: Path) -> None:
