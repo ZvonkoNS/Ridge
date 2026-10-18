@@ -41,6 +41,9 @@ def cmd_jobs(args: argparse.Namespace) -> None:
     """List the jobs recorded in the custody log."""
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
         jobs = list_jobs(case.entries)
+    if args.json:
+        common.say(json.dumps([j.to_json() for j in jobs], ensure_ascii=False, indent=2))
+        return
     if not jobs:
         common.say("no jobs")
     for job in jobs:
@@ -204,6 +207,7 @@ def add_commands(sub: Any) -> None:
     """Register the records commands on the ``ridge-case`` sub-parser."""
     p = sub.add_parser("jobs", help="list jobs from the custody log")
     p.add_argument("case", type=Path)
+    p.add_argument("--json", action="store_true", help="print the jobs as JSON (for laboratory scripts)")
     p.set_defaults(func=cmd_jobs)
     p = sub.add_parser("report", help="show or export a job's signed report (verified first)")
     p.add_argument("case", type=Path)

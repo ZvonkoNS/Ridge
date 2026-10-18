@@ -93,6 +93,10 @@ def test_cli_and_sidecar(
     assert "    Line one\n    line two" in shown
     assert main(["notes", str(case_dir), "--item", sha[:12]]) == 0
     assert capsys.readouterr().out.strip() == "no notes"
+    assert main(["notes", str(case_dir), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)[0]["text"] == "Line one\nline two"
+    assert main(["jobs", str(case_dir), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)[0]["job_id"] == job_id
     assert main(["log", str(case_dir), "--kind", "examiner"]) == 0
     assert all('"examiner.note"' in line for line in capsys.readouterr().out.splitlines())
     assert main(["note", str(case_dir), "bad\x1b[2J"]) == 1
