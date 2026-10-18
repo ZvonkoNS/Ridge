@@ -82,7 +82,7 @@ def test_cli_and_sidecar(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    case_dir, keystore, job_id, _ = case
+    case_dir, keystore, job_id, sha = case
     monkeypatch.setattr(cli_common, "KEYSTORE_FACTORY", lambda: keystore)
     monkeypatch.setattr(getpass, "getpass", lambda prompt="": PASSPHRASE)
     assert main(["note", str(case_dir), "Line one\nline two", "--job", job_id]) == 0
@@ -91,6 +91,10 @@ def test_cli_and_sidecar(
     shown = capsys.readouterr().out
     assert f"(job {job_id})" in shown
     assert "    Line one\n    line two" in shown
+    assert main(["notes", str(case_dir), "--item", sha[:12]]) == 0
+    assert capsys.readouterr().out.strip() == "no notes"
+    assert main(["log", str(case_dir), "--kind", "examiner"]) == 0
+    assert all('"examiner.note"' in line for line in capsys.readouterr().out.splitlines())
     assert main(["note", str(case_dir), "bad\x1b[2J"]) == 1
     session = Session(keystore_factory=lambda: keystore)
     unlock = {"store": str(case_dir.parent.resolve()), "case_id": case_dir.name, "passphrase": PASSPHRASE}

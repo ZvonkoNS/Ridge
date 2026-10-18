@@ -1,7 +1,7 @@
 """``ridge-case`` examiner notes: add a note to a case, a job or a stored item; list the notes.
 
 ridge-case note CASE "TEXT" [--job JOB] [--item SHA] [--corrects SEQ]
-ridge-case notes CASE [--job JOB]
+ridge-case notes CASE [--job JOB] [--item SHA]
 """
 
 from __future__ import annotations
@@ -33,9 +33,10 @@ def cmd_note(args: argparse.Namespace) -> None:
 
 
 def cmd_notes(args: argparse.Namespace) -> None:
-    """List the examiner notes of a case or one job."""
+    """List the examiner notes of a case, one job or one stored item."""
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
-        notes = list_notes(case.entries, job_id=args.job)
+        item = case.item(args.item).sha256 if args.item else None  # a unique prefix is enough
+        notes = list_notes(case.entries, job_id=args.job, sha256=item)
     common.say("\n".join(_line(n) for n in notes) if notes else "no notes")
 
 
@@ -51,4 +52,5 @@ def add_commands(sub: Any) -> None:
     p = sub.add_parser("notes", help="list the examiner notes")
     p.add_argument("case", type=Path)
     p.add_argument("--job")
+    p.add_argument("--item", metavar="SHA", help="only the notes on this stored item")
     p.set_defaults(func=cmd_notes)

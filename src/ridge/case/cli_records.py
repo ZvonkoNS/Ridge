@@ -144,7 +144,8 @@ def cmd_log(args: argparse.Namespace) -> None:
         return
     with open_case(args.case, passphrase, keystore) as case:
         for entry in case.entries:
-            common.say(json.dumps(entry, ensure_ascii=False, sort_keys=True))
+            if args.kind is None or entry["action"] == args.kind or entry["action"].startswith(f"{args.kind}."):
+                common.say(json.dumps(entry, ensure_ascii=False, sort_keys=True))
 
 
 def cmd_check_log(args: argparse.Namespace) -> int:
@@ -240,6 +241,7 @@ def _add_record_commands(sub: Any) -> None:
     p.add_argument("case", type=Path)
     p.add_argument("--to", type=Path, help="write a signed, verifiable processing record (JSON)")
     p.add_argument("--overwrite", action="store_true")
+    p.add_argument("--kind", help="print only entries of one kind, for example job or examiner.note")
     p.set_defaults(func=cmd_log)
     p = sub.add_parser("check-log", help="verify an exported processing record without the case store")
     p.add_argument("record", type=Path)
