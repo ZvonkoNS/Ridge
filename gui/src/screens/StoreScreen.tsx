@@ -8,6 +8,7 @@ import { Button, Hash, Notice } from "../components/ui";
 import { IpcError, ipc } from "../ipc/commands";
 import type { CaseOverview, SessionInfo, StoreCheck, StoreView } from "../ipc/types";
 import { CheckFiles } from "./CheckFiles";
+import { RecoveryCard } from "./RecoveryCard";
 import { type NewCase, NewCaseForm } from "./NewCaseForm";
 import { WorkstationCheck } from "./WorkstationCheck";
 import { CaseList, StoreChecks, findCases } from "./StoreCases";
@@ -266,6 +267,7 @@ export function StoreScreen({
           <NewCaseForm busy={busy === "create"} onCreate={(form) => void create(form)} />
         </>
       ) : null}
+      {store?.identity.exists ? <RecoveryCard /> : null}
       <CheckFiles />
       {/* keyed by store: findings belong to the store they were read from */}
       {store ? <WorkstationCheck key={store.path} /> : null}

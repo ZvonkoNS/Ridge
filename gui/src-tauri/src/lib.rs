@@ -123,6 +123,8 @@ pub fn run() {
             commands::store::backup_store,
             commands::case::export_all,
             commands::store::workstation_check,
+            commands::recovery::export_recovery,
+            commands::recovery::import_recovery,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

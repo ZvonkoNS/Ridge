@@ -21,6 +21,9 @@ from ridge.case.store import open_case
 from ridge.case.store_audit import FILE as AUDIT_FILE
 from ridge.case.store_audit import read_audit
 from ridge.errors import IntegrityError, KeyCustodyError, OutputExistsError, WeakPassphraseError
+from ridge.sidecar import recovery_methods
+from ridge.sidecar.handlers import Session
+from ridge.sidecar.server import handle
 from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, new_case
 
 RECOVERY = "a separate recovery passphrase for the safe"
@@ -210,3 +213,30 @@ def test_cli(
     answers[:] = [RECOVERY, PASSPHRASE]
     assert main(["recovery", "import", str(dest), "--store", str(root)]) == 1  # never replaced
     assert "never replaced" in capsys.readouterr().err
+
+
+def test_sidecar(store: tuple[Path, MemoryKeyStore, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root, old_account, _ = store
+    monkeypatch.setattr(recovery_methods, "export_recovery", partial(export_recovery, params=FAST_KDF))
+    new_account = MemoryKeyStore()
+    accounts = {"current": old_account}
+    session = Session(keystore_factory=lambda: accounts["current"])
+
+    def rpc(method: str, params: dict[str, Any]) -> dict[str, Any]:
+        message = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+        reply: dict[str, Any] = json.loads(handle(json.dumps(message).encode(), session))
+        return reply
+
+    dest = (tmp_path / "recovery.json").resolve()
+    base = {"store": str(root.resolve()), "examiner_passphrase": PASSPHRASE, "recovery_passphrase": RECOVERY}
+    made = rpc("recovery.export", {**base, "dest": str(dest)})["result"]
+    assert set(made) == {"key_id", "fingerprint", "created_utc", "file"}  # never the secret
+    checked = rpc("recovery.check", {"path": str(dest), "recovery_passphrase": RECOVERY})["result"]
+    assert checked["fingerprint"] == made["fingerprint"]
+    wrong = rpc("recovery.check", {"path": str(dest), "recovery_passphrase": "not the recovery passphrase"})
+    assert wrong["error"]["code"] == -32000  # a refusal: the prompt window may try again
+    accounts["current"] = new_account
+    restored = rpc("recovery.import", {**base, "path": str(dest)})["result"]
+    assert restored["fingerprint"] == made["fingerprint"]
+    assert new_account.values == old_account.values
+    assert rpc("recovery.check", {"path": "relative.json", "recovery_passphrase": RECOVERY})["error"]

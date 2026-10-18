@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use tauri::AppHandle;
 
 use crate::error::IpcError;
-use crate::prompt::Purpose;
+use crate::prompt::{Purpose, Secret};
 use crate::state::{self, path_text};
 
 const KDF_TIMEOUT: Duration = Duration::from_secs(180);
@@ -120,5 +120,71 @@ pub fn perform(app: &AppHandle, purpose: &Purpose, passphrase: &str) -> Result<V
             let session = state::call_now(app, "session.unlock", &unlock, KDF_TIMEOUT).ok();
             Ok(json!({"case_id": case_id, "session": session}))
         }
+        Purpose::RecoveryNew => {
+            state::stash_recovery(app, Secret::new(passphrase))?;
+            Ok(json!({"chosen": true}))
+        }
+        Purpose::RecoveryExport {
+            store,
+            dest,
+            recovery,
+        } => {
+            if recovery.expose() == passphrase {
+                return Err(IpcError::invalid(
+                    "the recovery passphrase must not be your examiner passphrase",
+                ));
+            }
+            let (store, dest) = (path_text(store)?, path_text(dest)?);
+            let params = Recovery {
+                store: Some(&store),
+                path: None,
+                dest: Some(&dest),
+                examiner_passphrase: Some(passphrase),
+                recovery_passphrase: recovery.expose(),
+            };
+            state::call_now(app, "recovery.export", &params, KDF_TIMEOUT)
+        }
+        Purpose::RecoveryOpen { path } => {
+            let path = path_text(path)?;
+            let params = Recovery {
+                store: None,
+                path: Some(&path),
+                dest: None,
+                examiner_passphrase: None,
+                recovery_passphrase: passphrase,
+            };
+            let opened = state::call_now(app, "recovery.check", &params, KDF_TIMEOUT)?;
+            state::stash_recovery(app, Secret::new(passphrase))?;
+            Ok(opened)
+        }
+        Purpose::RecoveryImport {
+            path,
+            store,
+            recovery,
+        } => {
+            let (path, store) = (path_text(path)?, path_text(store)?);
+            let params = Recovery {
+                store: Some(&store),
+                path: Some(&path),
+                dest: None,
+                examiner_passphrase: Some(passphrase),
+                recovery_passphrase: recovery.expose(),
+            };
+            state::call_now(app, "recovery.import", &params, KDF_TIMEOUT)
+        }
     }
+}
+
+/// Parameters of the recovery methods (ADR-012); absent fields are left out of the request.
+#[derive(Serialize)]
+struct Recovery<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    store: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    path: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dest: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    examiner_passphrase: Option<&'a str>,
+    recovery_passphrase: &'a str,
 }

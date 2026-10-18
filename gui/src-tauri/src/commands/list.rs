@@ -43,6 +43,8 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "backup_store",
     "export_all",
     "workstation_check",
+    "export_recovery",
+    "import_recovery",
 ];
 
 /// Commands of the passphrase window (capability `passphrase`).

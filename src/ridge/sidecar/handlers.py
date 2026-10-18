@@ -14,6 +14,7 @@ from collections.abc import Callable
 
 from ridge.sidecar import case_methods as case
 from ridge.sidecar import job_methods as job
+from ridge.sidecar import recovery_methods as recovery
 from ridge.sidecar import store_methods as store
 from ridge.sidecar.protocol import Json, Schema
 from ridge.sidecar.session import Session
@@ -38,6 +39,25 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "identity.card": (
         store.identity_card,
         {"store": (str_, True), "passphrase": (str_, True), "holder": (str_, True), "dest": (str_, True)},
+    ),
+    "recovery.export": (
+        recovery.export,
+        {
+            "store": (str_, True),
+            "dest": (str_, True),
+            "examiner_passphrase": (str_, True),
+            "recovery_passphrase": (str_, True),
+        },
+    ),
+    "recovery.check": (recovery.check_passphrase, {"path": (str_, True), "recovery_passphrase": (str_, True)}),
+    "recovery.import": (
+        recovery.restore,
+        {
+            "path": (str_, True),
+            "store": (str_, True),
+            "examiner_passphrase": (str_, True),
+            "recovery_passphrase": (str_, True),
+        },
     ),
     "case.create": (
         store.case_create,

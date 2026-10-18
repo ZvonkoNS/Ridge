@@ -131,6 +131,14 @@ export type LimitsSection =
     };
 
 /** The store's limits of use, as `store.limits` returns them. */
+/** A device-secret recovery file as the engine describes it (never the secret, ADR-012). */
+export interface RecoveryFileInfo {
+  key_id: string;
+  fingerprint: string;
+  created_utc: string;
+  file: string;
+}
+
 /** One line of the read-only workstation check. */
 export interface WorkstationFinding {
   topic: string;
@@ -390,7 +398,17 @@ export interface CaseOverview {
 }
 
 export interface PromptContext {
-  purpose: "create_identity" | "create_case" | "unlock" | "verify_store" | "store_overview" | "key_card";
+  purpose:
+    | "create_identity"
+    | "create_case"
+    | "unlock"
+    | "verify_store"
+    | "store_overview"
+    | "key_card"
+    | "recovery_new"
+    | "recovery_export"
+    | "recovery_open"
+    | "recovery_import";
   title: string;
   detail: string;
   confirm: boolean;
