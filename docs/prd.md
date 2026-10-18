@@ -174,7 +174,7 @@ Day 7 is reserved for the security review, release candidate and handoff.
 
 | ID | Requirement | Pri. | MS | Acceptance criteria |
 | --- | --- | --- | --- | --- |
-| FR-40 | Ridge SHOULD extract minutiae (ridge endings, bifurcations; position, direction, quality) from accepted exports. | S | M3 | Benchmark against a reference extractor on synthetic and consented sets. |
+| FR-40 | Ridge SHOULD extract minutiae (ridge endings, bifurcations; position, direction, quality) from accepted exports. | S | M3 | Benchmark against a reference extractor on synthetic and consented sets. GUI overlay implemented 2026-10-18: off by default, circles for endings and squares for bifurcations, on the print or the export, labelled "unvalidated, orientation only, never used for matching". |
 | FR-41 | Ridge SHOULD export images/templates in the AFIS exchange format confirmed in OQ-4. | S | M3 | Conformance check against the chosen standard's test tools or vendor import. |
 
 ### 8.6 Desktop GUI (M4)
@@ -248,7 +248,7 @@ ISO/IEC 17025 7.2.2 method validation, run by the Forensic Quality Manager with 
 5. **Robustness:** compression levels, resolution, focus and lighting variation; mixed skin tones (bias check across skin tones is mandatory).
 6. **Examiner study (recommended):** examiners rate usability of Ridge exports versus manual enhancement for a sample.
 7. **Per architecture:** the study runs on every CPU architecture that will be used for casework (x86-64, arm64). Results on one architecture do not validate another (NFR-3).
-8. **Outcome:** a validation report that defines the method's limits of use (e.g. minimum ridge spacing in pixels, minimum NFIQ 2) and enforces them in Ridge as warnings.
+8. **Outcome:** a validation report that defines the method's limits of use (e.g. minimum ridge spacing in pixels, minimum NFIQ 2) and enforces them in Ridge as warnings. **Mechanism implemented 2026-10-18** (architecture §8.3): the Forensic Quality Manager places `limits-of-use.json` in the store (source, architectures, ridge period range, maximum scale uncertainty, minimum NFIQ 2, ruler or located finger required). Every job report records the file's hash and any deviation as a warning, and the CLI and GUI show the warnings. No values are shipped: they come from the validation report.
 
 Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 0 open high/critical findings; characterization tests pass; `verify` detects 100% of tamper fixtures.
 

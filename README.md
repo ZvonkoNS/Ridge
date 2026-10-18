@@ -100,6 +100,8 @@ ridge-case reproduce D:/ridge-store/<case-id> <job-id>  # re-run from the report
 ridge-case log D:/ridge-store/<case-id> --to record.json # signed processing record for the DPO (logged)
 ridge-case check-log record.json --key-id <key-id>      # chain, sequence and signed heads, no store needed
 ridge-case hold D:/ridge-store/<case-id> --on --reason "..."
+ridge-case limits --store D:/ridge-store                 # limits of use from the lab's validation, if configured
+ridge-case limits --check limits-of-use.json             # validate a limits file before placing it in a store
 ridge-case dispose D:/ridge-store/<case-id> --confirm <case-id> --reason retention-expired
 ```
 
@@ -108,6 +110,11 @@ orientation, resampled to 500 ppi (PNG with resolution metadata). Without `--rul
 scale is estimated from the ridge spacing and an assumed 0.47 mm ridge distance (±15 %,
 to be validated); the report records the method and uncertainty. With `--nfiq2` an
 **indicative** NFIQ 2 score is recorded (NFIQ 2 is defined for contact prints).
+
+**Limits of use.** When the laboratory's validation report defines limits of use, the
+Forensic Quality Manager places them in the store as `limits-of-use.json`. Every job report
+then records whether the job stayed within them, and the CLI and GUI show any deviation as a
+warning. Ridge ships no limits.
 
 Passphrases (at least 15 characters) are only read interactively. There is no recovery
 key yet: losing the passphrase or the OS account makes a case unreadable (PRD OQ-12).

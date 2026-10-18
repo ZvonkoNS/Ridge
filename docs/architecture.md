@@ -189,6 +189,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `identity.create` | `store` (absolute), `passphrase` | Key id and public key of the new examiner identity (first run). **Rust core only**, from a native prompt |
 | `case.create` | `store`, `reference`, `legal_basis`, `retention_until` (YYYY-MM-DD), `passphrase` | New case id; the passphrase must unlock the identity. **Rust core only** |
 | `store.identity` | `store` (absolute) | Whether the store has an examiner identity, and its key id and public key (nothing unlocked); first-run detection |
+| `store.limits` | `store` (absolute) | The store's limits of use (§8.3): `configured: false`, or source, file SHA-256 and limits; a malformed file is refused |
 | `session.lock` / `session.status` | – | Locks the case (also done at end of input and after 15 minutes without requests) / unlocked state and idle timeout |
 | `case.info` / `case.hold` | – / `on`, `reason` | Decrypted case metadata / places or lifts a legal hold with a reason (logged as `case.hold`) |
 | `case.items` / `case.verify` | – | Stored items / verification result |
@@ -196,6 +197,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `job.run` | `evidence`, extraction options, `export`, `mirror`, `ppi`, `ruler`, `minutiae` | Outputs, measurements, export, quality, minutiae summary |
 | `preview.get` | `sha256`, `max_side` 16–2048 | Bounded PNG (base64) for display, with the full image's size after EXIF orientation (`source_width`, `source_height`: the space of `roi` and `ruler`); the read is logged |
 | `preview.region` | `sha256`, `x`, `y`, `width`, `height` (1–2048 px per side) | A full-resolution rectangle, unscaled and clipped to the image, for pixel inspection; the read is logged |
+| `minutiae.get` | `sha256` (a minutiae item) | The job's minutiae in print and export pixels, with the "unvalidated" label, for the GUI overlay; the read is logged |
 | `case.export` | `sha256`, `dest` (absolute), `overwrite` | Logged plaintext export |
 | `case.jobs` | – | Jobs from the custody log: id, evidence, start and end time, result, whether a signed report exists |
 | `report.get` | `job_id` (UUID or a unique prefix of 8 or more characters) | The report, returned only after its hash and signature are verified; the read is logged |
@@ -256,6 +258,7 @@ A development preview (`gui/src/dev/preview.ts`: mocked IPC and synthetic drawn 
 ```text
 <store_root>/                       examiner-chosen, on an FDE-protected volume
   identity.json                     examiner Ed25519 public key + sealed private key (§9.3)
+  limits-of-use.json                optional, placed by the Forensic Quality Manager: limits from the validation report (§8.3); no personal data
   <case_uuid>.disposal.json         kept after disposal: no personal data (§8.2)
   <case_uuid>/
     case.json                       schema, case id, KDF parameters, salt, wrapped DEK (no plaintext keys, no personal data)
@@ -307,6 +310,8 @@ There is no custom cryptography: only library AEAD, KDF and signature primitives
              "transforms": ["polarity:dark-ridges", "mirror:horizontal", "scale:500ppi:ruler"],
              "scale": {"method": "ruler", "px_per_mm": 20.0, "uncertainty_pct": 0.25}},
   "quality": {"nfiq2": {"computed": true, "score": 54, "version": "…", "label": "indicative only: …"}},
+  "limits_of_use": {"configured": true, "source": "VR-2027-01", "sha256": "…", "limits": {"require_ruler": true},
+                    "within": false, "warnings": ["the export scale comes from ridge-period; …"]},
   "outputs": [{"role": "print|debug|export", "label": "…", "sha256": "…", "size": 12345}],
   "custody_head": "head of the custody chain when the report was built",
   "signer": {"key_id": "…", "public_key": "base64 Ed25519"},
@@ -315,6 +320,25 @@ There is no custom cryptography: only library AEAD, KDF and signature primitives
 ```
 
 All timestamps are ISO 8601 UTC with a `Z` suffix. The report is canonicalised with RFC 8785 before signing. Without a ruler the scale is `ridge-period` (assumed 0.47 mm ridge distance, ±15 %, both to be validated, `assumed_ridge_period_mm` recorded). An impossible scale gives `"export": {"produced": false, "reason": …}` without failing the job; `--no-export` gives `null`. NFIQ 2 that is not configured or fails gives `{"computed": false, "reason": …}`.
+
+**Limits of use (PRD §12 item 8, `src/ridge/case/limits.py`).** The Forensic Quality Manager can place `limits-of-use.json` (schema `ridge.limits-of-use/1`) in the store. It holds:
+
+- the validation report it comes from (`source`);
+- optionally, the CPU architectures it covers;
+- a ridge period range in pixels;
+- a maximum export scale uncertainty;
+- a minimum NFIQ 2 score;
+- whether a ruler is required, and whether a located finger is required.
+
+Unknown fields, wrong types and inconsistent ranges are refused, and the file is limited to 64 KiB. Ridge ships no limits.
+
+For each job:
+
+- the file is loaded before the job starts, and a malformed file stops it before anything is logged (fail closed);
+- its SHA-256 is recorded in `job.start`;
+- the report's `limits_of_use` section is either `configured: false`, or the source, the hash, the limits, `within` and plain-language warnings.
+
+A job outside the limits is **not refused**: the examiner decides, informed. Reports made before this section existed have no `limits_of_use`. `ridge-case limits --check FILE` validates a file before it is deployed.
 
 ### 8.4 Custody log entry
 
