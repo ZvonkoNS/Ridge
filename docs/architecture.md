@@ -450,6 +450,7 @@ flowchart LR
 | Tampering (added 2026-10-18) | A swapped report in a disclosure package; loosened limits of use; an edited backup | Package manifest signed, and each report bound to the custody log's `report.sign` hash; signed limits fail closed; backup manifest hashes | `tests/test_package.py`, `tests/test_limits_signing.py`, `tests/test_backup.py` |
 | Elevation of privilege (added 2026-10-18) | Script in a readable HTML copy opened in a browser | Every value escaped; a page CSP of `default-src 'none'` with inline styles only; no images or forms; copies made only from verified bytes | `tests/test_report_html.py`, `tests/test_record_html.py` |
 | Repudiation (added 2026-10-18) | A record backdated past a key's revocation | Register checks use the time inside the signed data, never an unsigned envelope; full protection needs countersigned custody heads (OQ-8) | `tests/test_key_register.py` |
+| Information disclosure (added 2026-10-18) | The workstation check reading the OS-keystore entry; a malformed `identity.json` or `case.json` crashing a store-wide check | The check reports only whether the device secret is present and well formed, never its value, and creates nothing. `identity.json` and `case.json` are read within 64 KiB and every malformed form is a typed refusal | `tests/test_workstation.py`, `tests/test_case_crypto.py`, `tests/test_case_store.py` |
 
 The full ASVS 5.0 L3 mapping (applicable chapters only, with N/A rationale for server-only chapters) is kept in the standards profile.
 
