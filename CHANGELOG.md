@@ -30,7 +30,7 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 ### GUI
 
 - Copy buttons for full SHA-256 values and the signing key id. The result is announced to screen readers.
-- Custody log search for a hash, a job id or note text (also `ridge-case log --find`).
+- Custody log search for a hash, a job id or note text (also `ridge-case log --find`); <kbd>/</kbd> moves to the search box.
 - "About Ridge", on the store screen and in a case: what Ridge is and is not, where the data lives, and how exported files are checked.
 - Custody log view, case summary, note counts per job, job settings comparison (`ridge-case compare-jobs` in the CLI), and a view-only Measure tool on the comparison export.
 - Batch import of up to 50 photos. Only a refusal of a photo itself lets the batch continue.
@@ -44,6 +44,10 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 - Property-based fuzzing of the record formats a reviewer receives.
 - A malformed `identity.json` is refused cleanly, and it is read within a 64 KiB bound.
 - Bulk-export folders are private, and their file names stay distinct without regard to case.
+
+### Documentation
+
+- Examiner guide (`docs/examiner_guide.md`): working a case in the desktop application, task by task, and what Ridge never does.
 
 ### Known issues
 

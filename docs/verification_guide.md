@@ -1,6 +1,6 @@
 # Verifying Ridge records
 
-For reviewers, the Data Protection Officer (DPO), the Forensic Quality Manager (FQM) and anyone who receives files exported from Ridge. All checks run offline, without a case store, either from the command line (`ridge-case ...`) or in the GUI (store screen → "Check exported files").
+For reviewers, the Data Protection Officer (DPO), the Forensic Quality Manager (FQM) and anyone who receives files exported from Ridge. Examiners working a case: see the [examiner guide](examiner_guide.md). All checks run offline, without a case store, either from the command line (`ridge-case ...`) or in the GUI (store screen → "Check exported files").
 
 Ridge is an image-enhancement aid. None of these files, and none of these checks, identify anyone or compare fingerprints.
 

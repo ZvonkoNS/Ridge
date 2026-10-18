@@ -91,4 +91,21 @@ describe("custody log", () => {
     expect(screen.queryByText(/the older query/)).toBeNull(); // the first, slower page was dropped
     expect(screen.getByText(/the newer query/)).toBeInTheDocument();
   });
+
+  it("moves to the search box with /, but not while the examiner types", async () => {
+    routes({ custody_log: () => ({ total: 0, entries: [] }) });
+    render(<CustodyLog onFailure={vi.fn()} />);
+    const search = screen.getByRole("searchbox", { name: "Find" });
+    expect(search).toHaveAttribute("aria-keyshortcuts", "/");
+    await userEvent.keyboard("/");
+    expect(search).toHaveFocus();
+    expect(search).toHaveValue(""); // the key itself is not typed
+    const other = document.createElement("input");
+    document.body.append(other);
+    other.focus();
+    await userEvent.keyboard("/");
+    expect(other).toHaveFocus();
+    expect(other).toHaveValue("/");
+    other.remove();
+  });
 });

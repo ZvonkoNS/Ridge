@@ -342,7 +342,7 @@ export interface CaseStatus {
 
 /** The outcome of checking an exported file or package (every line is safe to show). */
 export interface FileCheck {
-  kind: "report" | "record" | "head" | "package" | "card" | "register" | "limits";
+  kind: "report" | "record" | "head" | "package" | "card" | "register" | "limits" | "backup";
   title: string;
   details: string[];
   key_id: string | null;
