@@ -12,10 +12,11 @@ export interface LoadedPreview {
   url: string | null;
   bitmap: Size | null;
   source: Size | null;
+  ppi: number | null;
   error: unknown;
 }
 
-const EMPTY: LoadedPreview = { url: null, bitmap: null, source: null, error: null };
+const EMPTY: LoadedPreview = { url: null, bitmap: null, source: null, ppi: null, error: null };
 
 export function usePreview(sha256: string | null, onError?: (error: unknown) => void): LoadedPreview {
   // The loaded preview remembers which item it belongs to; a stale one is never returned.
@@ -39,6 +40,7 @@ export function usePreview(sha256: string | null, onError?: (error: unknown) => 
           url,
           bitmap: { width: p.width, height: p.height },
           source: { width: p.source_width, height: p.source_height },
+          ppi: p.ppi ?? null,
           error: null,
         });
       })

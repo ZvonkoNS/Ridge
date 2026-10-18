@@ -63,6 +63,8 @@ export interface Preview {
   height: number;
   source_width: number;
   source_height: number;
+  /** Resolution the file declares, when it is a plausible fingerprint resolution (250-2000 ppi). */
+  ppi?: number | null;
   png_base64: string;
 }
 

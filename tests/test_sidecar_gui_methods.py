@@ -203,3 +203,14 @@ def test_minutiae_for_the_overlay_and_limits_in_job_results(unlocked: tuple[Sess
     assert error_code(call(session, "minutiae.get", {"sha256": printed["sha256"]})) == APPLICATION_ERROR
     reads = [e for e in (session.case.entries if session.case else []) if e["action"] == "minutiae.read"]
     assert len(reads) == 1  # the overlay read is logged (FR-22)
+
+
+def test_previews_report_only_plausible_declared_resolutions(unlocked: tuple[Session, Path], tmp_path: Path) -> None:
+    session, _ = unlocked
+    shown = {}
+    for dpi in (500, 96):
+        path = tmp_path / f"scan_{dpi}.png"
+        Image.fromarray(np.full((64, 48), 200, np.uint8)).save(path, dpi=(dpi, dpi))
+        sha = result(call(session, "case.import_reference", {"path": str(path.resolve()), "source": f"scan {dpi}"}))
+        shown[dpi] = result(call(session, "preview.get", {"sha256": sha["sha256"], "max_side": 64}))["ppi"]
+    assert shown == {500: 500.0, 96: None}  # a 96 ppi default is never passed on as a scale
