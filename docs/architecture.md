@@ -431,6 +431,10 @@ flowchart LR
 | Information disclosure | Plaintext biometrics on disk, in logs or temp files | Encryption at rest, single export path, no temp plaintext, log redaction, metadata stripping | Storage inspection, log tests |
 | Denial of service | Decompression bomb, huge RPC payloads | Size and pixel limits, RPC size and time limits | Hostile-input tests (QA-3) |
 | Elevation of privilege | WebView XSS calling file/shell APIs; malicious decoder plugin | No `fs`/`shell`/`http` capabilities, strict CSP, decoder allow-list, headless OpenCV | IPC denial tests; config review |
+| Spoofing (added 2026-10-18) | A file signed with a key that is not the examiner's or the FQM's; a forged key card | Every signed file names its key; `--register` checks holder, role and validity at the signed time; key cards prove possession only, and identity is confirmed in person before `register-add` | `tests/test_key_register.py`, `tests/test_key_card.py` |
+| Tampering (added 2026-10-18) | A swapped report in a disclosure package; loosened limits of use; an edited backup | Package manifest signed, and each report bound to the custody log's `report.sign` hash; signed limits fail closed; backup manifest hashes | `tests/test_package.py`, `tests/test_limits_signing.py`, `tests/test_backup.py` |
+| Elevation of privilege (added 2026-10-18) | Script in a readable HTML copy opened in a browser | Every value escaped; a page CSP of `default-src 'none'` with inline styles only; no images or forms; copies made only from verified bytes | `tests/test_report_html.py`, `tests/test_record_html.py` |
+| Repudiation (added 2026-10-18) | A record backdated past a key's revocation | Register checks use the time inside the signed data, never an unsigned envelope; full protection needs countersigned custody heads (OQ-8) | `tests/test_key_register.py` |
 
 The full ASVS 5.0 L3 mapping (applicable chapters only, with N/A rationale for server-only chapters) is kept in the standards profile.
 
