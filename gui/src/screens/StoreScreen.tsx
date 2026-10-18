@@ -313,7 +313,8 @@ export function StoreScreen({
         </>
       ) : null}
       <CheckFiles />
-      <WorkstationCheck />
+      {/* keyed by store: findings belong to the store they were read from */}
+      {store ? <WorkstationCheck key={store.path} /> : null}
       {versions ? <p className="versions">{versions}</p> : null}
     </main>
   );

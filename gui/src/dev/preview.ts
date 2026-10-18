@@ -287,7 +287,7 @@ const handlers: Record<string, Handler> = {
     limits: LIMITS,
   }),
   workstation_check: () => [
-    { topic: "Ridge", level: "ok", text: "Ridge 0.4.0, commit 9bc5ae0d1f2a (build)" },
+    { topic: "Ridge", level: "ok", text: "Ridge 0.2.0, commit 9bc5ae0d1f2a (build)" },
     {
       topic: "Platform",
       level: "ok",
@@ -299,7 +299,7 @@ const handlers: Record<string, Handler> = {
       text: "the Ridge device secret is present (not shown). Store backups do not carry it (ADR-012)",
     },
     { topic: "Identity", level: "ok", text: `examiner signing key ${KEY_ID}` },
-    { topic: "Store", level: "ok", text: "D:\ridge-store (2 active)" },
+    { topic: "Store", level: "ok", text: "D:\\Cases\\Ridge store (2 active)" },
     { topic: "Limits of use", level: "note", text: "VR-2027-01, not signed" },
   ],
   export_log: () => ({ exported: "D:\\Exports\\record.json", entries: 42, key_id: KEY_ID }),
