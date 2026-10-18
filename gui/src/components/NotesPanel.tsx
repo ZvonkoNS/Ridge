@@ -13,6 +13,8 @@ interface Props {
   /** A job's notes, or every note of the case when null. */
   jobId: string | null;
   onFailure: (error: unknown) => void;
+  /** h2 when the panel is a card of its own, h3 inside a report. */
+  level?: 2 | 3;
 }
 
 function NoteLine({ note, showJob, onCorrect }: { note: Note; showJob: boolean; onCorrect: () => void }) {
@@ -31,7 +33,8 @@ function NoteLine({ note, showJob, onCorrect }: { note: Note; showJob: boolean; 
   );
 }
 
-export function NotesPanel({ jobId, onFailure }: Props) {
+export function NotesPanel({ jobId, onFailure, level = 3 }: Props) {
+  const Heading = level === 2 ? "h2" : "h3";
   const titleId = useId();
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [text, setText] = useState("");
@@ -59,7 +62,7 @@ export function NotesPanel({ jobId, onFailure }: Props) {
 
   return (
     <section className="notes" aria-labelledby={titleId}>
-      <h3 id={titleId}>{jobId ? "Examiner notes on this job" : "Examiner notes"}</h3>
+      <Heading id={titleId}>{jobId ? "Examiner notes on this job" : "Examiner notes"}</Heading>
       <p className="muted">
         Each note is added to the custody log with your name and the time. Notes cannot be changed or removed;
         a correction is added as a new note and the original stays.

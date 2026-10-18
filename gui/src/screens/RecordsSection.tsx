@@ -137,7 +137,7 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
         </form>
       </section>
       <div className="card">
-        <NotesPanel jobId={null} onFailure={onFailure} />
+        <NotesPanel jobId={null} onFailure={onFailure} level={2} />
       </div>
       <LimitsCard limits={limits} />
       <Inventory items={items} limits={limits} onFailure={onFailure} notify={notify} />

@@ -448,6 +448,105 @@ code,
   justify-content: flex-end;
 }
 
+.rail-help {
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--step--1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rail-help:hover {
+  color: var(--ink);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--ink);
+  font: 400 var(--step--1) var(--font-mono);
+  text-align: center;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 45%);
+}
+
+.modal {
+  width: min(32rem, 100%);
+  max-height: calc(100vh - 2 * var(--space-4));
+  overflow: auto;
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.shortcuts {
+  width: 100%;
+  margin-bottom: var(--space-4);
+  border-collapse: collapse;
+}
+
+.shortcuts caption {
+  padding-bottom: var(--space-2);
+  color: var(--ink-2);
+  font-weight: 700;
+  text-align: left;
+}
+
+.shortcuts th,
+.shortcuts td {
+  padding: var(--space-1) 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.shortcuts th {
+  width: 45%;
+  font-weight: 400;
+}
+
+.job-compare {
+  margin-top: var(--space-5);
+}
+
+.compare-table {
+  width: 100%;
+  margin-top: var(--space-3);
+  border-collapse: collapse;
+}
+
+.compare-table caption {
+  padding-bottom: var(--space-2);
+  color: var(--ink-2);
+  text-align: left;
+}
+
+.compare-table th,
+.compare-table td {
+  padding: var(--space-1) var(--space-2);
+  border-top: 1px solid var(--line);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
 .newcase {
   display: grid;
   grid-template-columns: 1fr 1fr 12rem auto;

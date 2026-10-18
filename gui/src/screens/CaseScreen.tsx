@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 
+import { ShortcutsHelp, isTyping } from "../components/ShortcutsHelp";
 import { Button, Notice } from "../components/ui";
 import { IpcError, ipc, isLocked } from "../ipc/commands";
 import { revokeAll } from "../ipc/images";
@@ -37,6 +38,34 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
   const [idleTimeout, setIdleTimeout] = useState(15 * 60);
   const idle = useIdle(idleTimeout);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [help, setHelp] = useState(false);
+  const closeHelp = useCallback(() => {
+    setHelp(false);
+  }, []);
+
+  useEffect(() => {
+    if (help) {
+      return; // the dialog handles its own keys
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || isTyping(event.target)) {
+        return;
+      }
+      const digit = /^Digit([1-4])$/.exec(event.code);
+      if (event.altKey && digit) {
+        setSection(SECTIONS[Number(digit[1]) - 1]?.id ?? "evidence");
+      } else if (event.key === "?" && !event.altKey) {
+        setHelp(true);
+      } else {
+        return;
+      }
+      event.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [help]);
 
   const close = useCallback(
     (text: string | null) => {
@@ -110,6 +139,8 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
   };
 
   const hold = info?.legal_hold ?? session.legal_hold;
+  const retention = info?.retention_until ?? session.retention_until;
+  const retentionReached = !hold && retention <= new Date().toISOString().slice(0, 10); // dates are UTC days
   return (
     <div className="case">
       <header className="case-head">
@@ -119,7 +150,7 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
         </div>
         <dl className="case-facts">
           <dt>Retention until</dt>
-          <dd>{info?.retention_until ?? session.retention_until}</dd>
+          <dd>{retention}</dd>
           <dt>Legal hold</dt>
           <dd className={hold ? "on-hold" : undefined}>{hold ? "on hold" : "none"}</dd>
           {info ? (
@@ -135,10 +166,11 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
       </header>
       <div className="case-body">
         <nav className="rail" aria-label="Case sections">
-          {SECTIONS.map((s) => (
+          {SECTIONS.map((s, i) => (
             <button
               key={s.id}
               type="button"
+              aria-keyshortcuts={`Alt+${i + 1}`}
               className={`rail-item${section === s.id ? " rail-on" : ""}`}
               aria-current={section === s.id ? "page" : undefined}
               onClick={() => {
@@ -149,6 +181,16 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
               <small>{s.hint}</small>
             </button>
           ))}
+          <button
+            type="button"
+            className="rail-help"
+            aria-keyshortcuts="?"
+            onClick={() => {
+              setHelp(true);
+            }}
+          >
+            Keyboard shortcuts <kbd>?</kbd>
+          </button>
           {versions ? <p className="versions">{versions}</p> : null}
           <p className="rail-note">
             Image enhancement only. Ridge does not identify anyone and draws no conclusions.
@@ -164,6 +206,13 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
               </div>
               <Button onClick={keepOpen}>Keep the case open</Button>
             </div>
+          ) : null}
+          {retentionReached ? (
+            <Notice tone="caution">
+              The retention date ({retention}) has passed and the case is not on legal hold. Review whether it
+              should be disposed of (<code>ridge-case dispose</code>); Ridge never disposes of a case by
+              itself.
+            </Notice>
           ) : null}
           <AnimatePresence>
             {message ? (
@@ -205,6 +254,7 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
           ) : null}
         </main>
       </div>
+      {help ? <ShortcutsHelp onClose={closeHelp} /> : null}
     </div>
   );
 }

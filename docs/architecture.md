@@ -257,6 +257,8 @@ The **WebView** (`gui/src`, untrusted, React and TypeScript with Motion) has the
 
 Previews are in-memory `blob:` URLs and are revoked when the case closes. A refusal that says the case is no longer unlocked (idle lock, sidecar restart) returns the examiner to the store screen. The GUI never polls the sidecar, so the 15-minute idle lock still works.
 
+Added 2026-10-18: keyboard shortcuts in a case (`?` lists them; Alt+1–4 switch sections; the viewer keeps `+`, `-`, `0`, `1` and the arrow keys), never while the examiner types in a field. The case screen says when the retention date has passed without a legal hold, and the store screen can show every case's reference, retention date and hold after the passphrase prompt (`store_overview`). A job's report can be compared with another job's: the GUI reads both verified reports (each read logged) and lists the settings, input and Ridge version that differ, without ranking the outputs. Examiner notes (FR-29) are shown on each report and in Records.
+
 A development preview (`gui/src/dev/preview.ts`: mocked IPC and synthetic drawn images) runs only under `npm run dev` outside Tauri. The GUI gate checks that it is absent from production builds.
 
 ## 8. Data architecture [Implemented M1]
