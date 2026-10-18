@@ -26,8 +26,16 @@ def cmd_verify_store(args: argparse.Namespace) -> int:
 
 
 def cmd_overview(args: argparse.Namespace) -> None:
-    """List every case with its reference, retention date and legal hold (one passphrase)."""
-    for c in store_overview(args.store, common.read_passphrase(), common.KEYSTORE_FACTORY()):
+    """List every case with its reference, retention date and legal hold (one passphrase).
+
+    With ``--due`` only the cases past their retention date without a legal hold are listed, for
+    the periodic retention review; Ridge never disposes of them by itself.
+    """
+    cases = store_overview(args.store, common.read_passphrase(), common.KEYSTORE_FACTORY())
+    if args.due:
+        cases = [c for c in cases if c.due]
+        common.say(f"{len(cases)} case(s) past their retention date without a legal hold")
+    for c in cases:
         if c.reference is None:
             common.say(f"{c.case_id}  {c.state}{f': {c.problem}' if c.problem else ''}")
             continue
@@ -45,4 +53,5 @@ def add_commands(sub: Any) -> None:
     p.set_defaults(func=cmd_verify_store)
     p = sub.add_parser("overview", help="every case with its reference, retention date and legal hold")
     p.add_argument("--store", type=Path, required=True)
+    p.add_argument("--due", action="store_true", help="only cases past their retention date without a legal hold")
     p.set_defaults(func=cmd_overview)

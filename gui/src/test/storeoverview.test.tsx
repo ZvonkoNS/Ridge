@@ -81,4 +81,14 @@ describe("case details", () => {
     await userEvent.type(screen.getByRole("searchbox", { name: /reference or id/ }), "9");
     expect(screen.getByText(/No case matches/)).toBeInTheDocument();
   });
+
+  it("lists only the cases past their retention date when asked", async () => {
+    routes({ store_overview: () => OVERVIEW });
+    render(<StoreScreen store={STORE} notice={null} onStore={vi.fn()} onOpened={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: "Show case details..." }));
+    await screen.findByText("KT-2026-1");
+    await userEvent.click(screen.getByRole("checkbox", { name: /Only cases past their retention date/ }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByRole("listitem")).toHaveTextContent("KT-2026-2");
+  });
 });

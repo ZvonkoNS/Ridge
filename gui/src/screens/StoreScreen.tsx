@@ -38,9 +38,13 @@ export function StoreScreen({
   const [checked, setChecked] = useState<{ path: string; checks: StoreCheck[] } | null>(null);
   const checks = checked?.path === store?.path ? (checked?.checks ?? null) : null;
   const [query, setQuery] = useState("");
+  const [onlyDue, setOnlyDue] = useState(false);
   // Details belong to the store they were read from; choosing another store hides them.
   const [overview, setOverview] = useState<{ path: string; cases: Map<string, CaseOverview> } | null>(null);
   const details = overview?.path === store?.path ? (overview?.cases ?? null) : null;
+  const shown = store
+    ? findCases(store.cases, details, query).filter((c) => !onlyDue || details?.get(c.case_id)?.due === true)
+    : [];
 
   const attempt = async (key: string, work: () => Promise<void>) => {
     setBusy(key);
@@ -160,11 +164,25 @@ export function StoreScreen({
                 />
               </label>
             ) : null}
-            {query && findCases(store.cases, details, query).length === 0 ? (
-              <p className="empty">No case matches “{query}”.</p>
+            {details ? (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={onlyDue}
+                  onChange={(e) => {
+                    setOnlyDue(e.target.checked);
+                  }}
+                />{" "}
+                Only cases past their retention date without a legal hold
+              </label>
+            ) : null}
+            {(query || onlyDue) && shown.length === 0 ? (
+              <p className="empty">
+                {onlyDue && !query ? "No case is past its retention date." : `No case matches “${query}”.`}
+              </p>
             ) : null}
             <CaseList
-              cases={findCases(store.cases, details, query)}
+              cases={shown}
               details={details}
               busy={busy}
               onUnlock={(caseId) => void unlock(caseId)}
