@@ -121,6 +121,7 @@ pub fn run() {
             commands::store::export_key_card,
             commands::records::check_exported,
             commands::store::backup_store,
+            commands::case::export_all,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

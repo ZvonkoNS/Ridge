@@ -105,6 +105,8 @@ export const ipc = {
   lockCase: () => call<{ locked: true }>("lock_case"),
   verifyStore: () => call<StoreCheck[]>("verify_store"),
   storeOverview: () => call<CaseOverview[]>("store_overview"),
+  exportAll: (role: string) =>
+    call<{ exported: string; files: number; index: string }>("export_all", { role }),
   backupStore: () => call<{ exported: string; files: number; bytes: number }>("backup_store"),
   checkExported: (folder: boolean, withRegister: boolean) =>
     call<FileCheck>("check_exported", { folder, with_register: withRegister }),

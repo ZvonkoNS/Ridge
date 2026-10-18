@@ -2,6 +2,7 @@
 // can be exported with its detached signature, and a job can be reproduced (FR-34, NFR-3).
 import { useEffect, useState } from "react";
 
+import { CopyButton } from "../components/CopyButton";
 import { ExhibitLabel } from "../components/ExhibitLabel";
 import { ImageViewer } from "../components/ImageViewer";
 import { type KnownScale, MeasureReadout, MeasureToggle, useMeasure } from "../components/Measure";
@@ -101,6 +102,7 @@ function ReportView({
         <dt>Input</dt>
         <dd>
           {report.input.label} <Hash value={report.input.sha256} />{" "}
+          <CopyButton value={report.input.sha256} what="SHA-256 of the input photo" />{" "}
           {report.input.source ? `· ${report.input.source}` : ""}
         </dd>
         <dt>Ridge</dt>

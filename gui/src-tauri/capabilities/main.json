@@ -41,6 +41,7 @@
     "allow-export-report-html",
     "allow-export-key-card",
     "allow-check-exported",
-    "allow-backup-store"
+    "allow-backup-store",
+    "allow-export-all"
   ]
 }

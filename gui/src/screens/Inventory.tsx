@@ -2,6 +2,7 @@
 // (FR-25): originals, references, prints, exports, debug images and minutiae JSON.
 import { useState } from "react";
 
+import { CopyButton } from "../components/CopyButton";
 import { roleName } from "../components/ExhibitLabel";
 import { Button, Hash } from "../components/ui";
 import { ipc } from "../ipc/commands";
@@ -79,9 +80,39 @@ export function Inventory({ items, onFailure, notify, onExported }: Props) {
       setBusy(null);
     }
   };
+  const exportAll = async (role: string) => {
+    setBusy(`all-${role}`);
+    try {
+      const done = await ipc.exportAll(role);
+      notify(
+        `${String(done.files)} file(s) exported, listed in ${done.index}; each export is in the custody log.`,
+      );
+      onExported?.();
+    } catch (error) {
+      onFailure(error);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const exports = items.filter((i) => i.role === "export").length;
+  const prints = items.filter((i) => i.role === "print").length;
   return (
     <section className="card card-wide" aria-labelledby="inventory-title">
       <h2 id="inventory-title">Stored items</h2>
+      {exports > 1 || prints > 1 ? (
+        <div className="store-actions">
+          {exports > 1 ? (
+            <Button onClick={() => void exportAll("export")} busy={busy === "all-export"}>
+              Export all {exports} comparison exports...
+            </Button>
+          ) : null}
+          {prints > 1 ? (
+            <Button onClick={() => void exportAll("print")} busy={busy === "all-print"}>
+              Export all {prints} processed prints...
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       <table className="inventory">
         <caption className="visually-hidden">Every item stored in the case</caption>
         <thead>
@@ -104,7 +135,8 @@ export function Inventory({ items, onFailure, notify, onExported }: Props) {
               </td>
               <td>{roleName(item.role)}</td>
               <td>
-                <Hash value={item.sha256} length={16} />
+                <Hash value={item.sha256} length={16} />{" "}
+                <CopyButton value={item.sha256} what={`SHA-256 of ${item.label}`} />
               </td>
               <td>{size(item.size)}</td>
               <td>

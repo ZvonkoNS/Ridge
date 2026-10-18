@@ -55,6 +55,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "case.status": (case.status, {}),
     "case.hold": (case.hold, {"on": (bool_, True), "reason": (str_, True)}),
     "case.items": (case.items, {}),
+    "case.export_all": (case.export_all, {"role": (str_, True), "dest": (str_, True)}),
     "note.add": (
         case.note_add,
         {

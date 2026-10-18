@@ -2,6 +2,7 @@
 // Passphrases are never typed here: the Rust core opens its own prompt window (ADR-010).
 import { useState } from "react";
 
+import { CopyButton } from "../components/CopyButton";
 import { Button, Hash, Notice } from "../components/ui";
 import { IpcError, ipc } from "../ipc/commands";
 import type { CaseOverview, SessionInfo, StoreCheck, StoreView } from "../ipc/types";
@@ -175,7 +176,8 @@ export function StoreScreen({
           <section className="card" aria-labelledby="cases-title">
             <h2 id="cases-title">Cases</h2>
             <p className="muted">
-              Signing key <Hash value={store.identity.key_id} length={16} />
+              Signing key <Hash value={store.identity.key_id} length={16} />{" "}
+              <CopyButton value={store.identity.key_id} what="signing key id" />
             </p>
             <details className="key-card">
               <summary>Register this key with the laboratory</summary>
