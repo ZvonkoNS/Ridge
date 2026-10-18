@@ -29,7 +29,8 @@ function ReportView({
   onFailure,
   onChanged,
   notify,
-}: { shown: VerifiedReport; jobs: JobRecord[] } & Props) {
+  onNoteAdded,
+}: { shown: VerifiedReport; jobs: JobRecord[]; onNoteAdded: () => void } & Props) {
   const report = shown.report;
   const images = report.outputs.filter((o) => o.role !== "minutiae");
   const [selected, setSelected] = useState(images[0]?.sha256 ?? null);
@@ -148,7 +149,7 @@ function ReportView({
         </>
       ) : null}
       <JobCompare report={report} jobs={jobs} onFailure={onFailure} />
-      <NotesPanel jobId={report.job_id} onFailure={onFailure} />
+      <NotesPanel jobId={report.job_id} onFailure={onFailure} onAdded={onNoteAdded} />
     </article>
   );
 }
@@ -157,10 +158,24 @@ export function JobsSection(props: Props) {
   const { items, onFailure } = props;
   const [jobs, setJobs] = useState<JobRecord[] | null>(null);
   const [shown, setShown] = useState<VerifiedReport | null>(null);
+  const [noteCounts, setNoteCounts] = useState<Map<string, number>>(new Map());
   const labels = new Map(items.map((i) => [i.sha256, i.label]));
+
+  const countNotes = () => {
+    ipc.listNotes(null).then((notes) => {
+      const counts = new Map<string, number>();
+      for (const n of notes) {
+        if (n.job_id) {
+          counts.set(n.job_id, (counts.get(n.job_id) ?? 0) + 1);
+        }
+      }
+      setNoteCounts(counts);
+    }, onFailure);
+  };
 
   useEffect(() => {
     ipc.listJobs().then(setJobs, onFailure);
+    countNotes();
     // reload when the stored items change (a new job adds outputs)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length]);
@@ -199,6 +214,7 @@ export function JobsSection(props: Props) {
                   <span className="pick-meta">
                     job <Hash value={job.job_id} length={8} />
                     {job.error ? ` · ${job.error}` : ""}
+                    {noteCounts.get(job.job_id) ? ` · ${String(noteCounts.get(job.job_id))} note(s)` : ""}
                   </span>
                 </button>
               </StaggerItem>
@@ -208,7 +224,13 @@ export function JobsSection(props: Props) {
       </aside>
       <div className="section-main">
         {shown ? (
-          <ReportView key={shown.job_id} shown={shown} jobs={jobs ?? []} {...props} />
+          <ReportView
+            key={shown.job_id}
+            shown={shown}
+            jobs={jobs ?? []}
+            onNoteAdded={countNotes}
+            {...props}
+          />
         ) : (
           <p className="empty empty-main">Choose a job to see its verified report.</p>
         )}

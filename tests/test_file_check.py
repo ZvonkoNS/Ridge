@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from ridge.case.cli import main
 from ridge.case.custody_head import export_head
 from ridge.case.file_check import check_exported
 from ridge.case.identity import create_identity, public_identity, unlock_identity
@@ -94,3 +95,11 @@ def test_sidecar(files: dict[str, Path]) -> None:
     reply = rpc({"path": str(files["package"].resolve()), "register": str(files["register"].resolve())})
     assert (reply["result"]["kind"], reply["result"]["holder"]) == ("package", "Examiner A")
     assert "error" in rpc({"path": "relative/path.json"})
+
+
+def test_cli(files: dict[str, Path], capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["check", str(files["record"]), "--register", str(files["register"])]) == 0
+    shown = capsys.readouterr().out
+    assert "Processing record: verified" in shown
+    assert "registered to Examiner A" in shown
+    assert main(["check", str(files["card"])]) == 0
