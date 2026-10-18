@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "passphrase",
+  "description": "Passphrase prompt window (ADR-010): its three commands only.",
+  "windows": ["passphrase"],
+  "permissions": ["allow-passphrase-context", "allow-passphrase-submit", "allow-passphrase-cancel"]
+}

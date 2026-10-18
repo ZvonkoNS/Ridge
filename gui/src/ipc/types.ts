@@ -1,0 +1,232 @@
+// Result types of the Tauri commands (gui/src-tauri/src/commands), which forward the sidecar's
+// JSON-RPC results (architecture §7.3). Hand-written and checked by the IPC tests (ADR-011).
+
+export type ErrorKind = "invalid" | "refused" | "cancelled" | "busy" | "no_store" | "unavailable";
+
+export interface AppInfo {
+  gui: string;
+  engine: { ridge: string; protocol: string };
+}
+
+export type CaseState = "active" | "locked" | "erasing" | "disposed" | "invalid";
+
+export interface CaseSummary {
+  case_id: string;
+  state: CaseState;
+  created_utc: string | null;
+  disposed_utc: string | null;
+}
+
+export type IdentityStatus = { exists: false } | { exists: true; key_id: string; public_key: string };
+
+export interface StoreView {
+  path: string;
+  identity: IdentityStatus;
+  cases: CaseSummary[];
+}
+
+export interface IdentityCreated {
+  key_id: string;
+  public_key: string;
+}
+
+export interface SessionInfo {
+  case_id: string;
+  reference: string;
+  retention_until: string;
+  legal_hold: boolean;
+}
+
+export interface CaseInfo extends SessionInfo {
+  legal_basis: string;
+}
+
+export interface CaseCreated {
+  case_id: string;
+  session: SessionInfo | null;
+}
+
+export type Role = "evidence" | "reference" | "print" | "debug" | "export" | "minutiae";
+
+export interface Item {
+  sha256: string;
+  role: Role;
+  size: number;
+  label: string;
+  job_id: string | null;
+  source: string | null;
+}
+
+export interface Preview {
+  sha256: string;
+  width: number;
+  height: number;
+  source_width: number;
+  source_height: number;
+  png_base64: string;
+}
+
+export interface RegionPreview extends Preview {
+  x: number;
+  y: number;
+}
+
+export interface Measurements {
+  ridge_period_px: number;
+  found_finger: boolean;
+  output_scale: number;
+}
+
+export type ScaleMethod = "ruler" | "ridge-period" | "manual";
+
+export interface ScaleInfo {
+  method: ScaleMethod;
+  px_per_mm: number;
+  uncertainty_pct: number;
+  assumed_ridge_period_mm?: number;
+}
+
+export type ExportInfo =
+  | {
+      produced: true;
+      sha256: string;
+      ppi: number;
+      factor: number;
+      transforms: string[];
+      scale: ScaleInfo;
+    }
+  | { produced: false; reason: string };
+
+export type Nfiq2 =
+  { computed: true; score: number; version: string; label: string } | { computed: false; reason: string };
+
+export interface Quality {
+  nfiq2: Nfiq2;
+}
+
+export type MinutiaeSummary =
+  | { produced: true; sha256: string; count: number; endings: number; bifurcations: number; label: string }
+  | { produced: false; reason: string; label: string };
+
+export interface JobResult {
+  job_id: string;
+  outputs: Item[];
+  measurements: Measurements | null;
+  export: ExportInfo | null;
+  quality: Quality | null;
+  minutiae: MinutiaeSummary | null;
+}
+
+/** Options sent with `run_job`; every field is explicit, nothing is defaulted on the way. */
+export interface JobOptions {
+  evidence: string;
+  period: number | null;
+  min_quality: number;
+  flip: boolean;
+  crop: boolean;
+  debug: boolean;
+  export: boolean;
+  mirror: boolean;
+  ppi: number;
+  ruler: [number, number, number, number, number] | null;
+  minutiae: boolean;
+  roi: [number, number, number, number] | null;
+}
+
+export interface JobRecord {
+  job_id: string;
+  evidence_sha256: string;
+  started_utc: string;
+  ended_utc: string | null;
+  result: "ok" | "failed" | "open";
+  error: string | null;
+  report_sha256: string | null;
+  key_id: string | null;
+}
+
+export interface JobReport {
+  schema: string;
+  job_id: string;
+  case_id: string;
+  case_reference: string;
+  created_utc: string;
+  ridge: {
+    version: string;
+    python: string;
+    platform: string;
+    machine: string;
+    dependencies: Record<string, string>;
+  };
+  input: {
+    sha256: string;
+    label: string;
+    format?: string;
+    size_px?: [number, number];
+    source?: string | null;
+  };
+  parameters: Record<string, unknown>;
+  measurements: Measurements | null;
+  export: ExportInfo | null;
+  quality: Quality | null;
+  minutiae?: MinutiaeSummary | null;
+  outputs: { role: Role; label: string; sha256: string; size: number }[];
+  custody_head: string;
+  signer: { key_id: string; public_key: string };
+  disclaimer: string;
+}
+
+export interface VerifiedReport {
+  job_id: string;
+  key_id: string;
+  verified: true;
+  report: JobReport;
+}
+
+export interface Reproduction {
+  identical: boolean;
+  original_job: string;
+  new_job: string;
+  matched: string[];
+  differing: string[];
+  missing: string[];
+  extra: string[];
+  /** key -> [original, now] */
+  environment_changes: Record<string, [unknown, unknown]>;
+}
+
+export interface Verification {
+  ok: boolean;
+  problems: string[];
+  items: number;
+  reports: number;
+}
+
+export interface Exported {
+  exported: string;
+}
+
+export interface ReportExported extends Exported {
+  signature: string;
+  key_id: string;
+}
+
+export interface LogExported extends Exported {
+  entries: number;
+  key_id: string;
+}
+
+export interface SheetExported extends Exported {
+  sha256: string;
+  ppi: number;
+  reference_ppi: number;
+  reference_ppi_source: string;
+}
+
+export interface PromptContext {
+  purpose: "create_identity" | "create_case" | "unlock";
+  title: string;
+  detail: string;
+  confirm: boolean;
+  min_chars: number;
+  attempts_left: number;
+}
