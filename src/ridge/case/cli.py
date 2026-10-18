@@ -19,9 +19,11 @@ Exit codes: 0 ok, 1 refused or failed (message on stderr), 2 usage error, 3 inte
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import traceback
 from collections.abc import Sequence
+from dataclasses import asdict
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -176,6 +178,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
     """Verify hashes, chain and signatures."""
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
         result = verify_case(case, args.case.parent)
+    if args.json:
+        common.say(json.dumps({**asdict(result), "ok": result.ok}, ensure_ascii=False, indent=2))
+        return 0 if result.ok else 1
     counts = f"items {result.items}, reports {result.reports}, signed heads {result.signed_heads}"
     common.say(f"custody entries {result.entries}, {counts}")
     for problem in result.problems:
@@ -242,10 +247,13 @@ def _add_store_commands(sub: Any) -> None:
 
 
 def _add_case_commands(sub: Any) -> None:
-    for name, func, help_text in (("list", cmd_list, "list stored items"), ("verify", cmd_verify, "verify the case")):
-        p = sub.add_parser(name, help=help_text)
-        p.add_argument("case", type=Path)
-        p.set_defaults(func=func)
+    p = sub.add_parser("list", help="list stored items")
+    p.add_argument("case", type=Path)
+    p.set_defaults(func=cmd_list)
+    p = sub.add_parser("verify", help="verify the case")
+    p.add_argument("case", type=Path)
+    p.add_argument("--json", action="store_true", help="print the result as JSON (for laboratory monitoring)")
+    p.set_defaults(func=cmd_verify)
     p = sub.add_parser("import", help="import evidence photos")
     p.add_argument("case", type=Path)
     p.add_argument("files", type=Path, nargs="+")

@@ -19,6 +19,9 @@ from ridge.case.store_verify import verify_store
 def cmd_verify_store(args: argparse.Namespace) -> int:
     """Verify every active case of a store; exit 1 when any case failed or cannot be read."""
     results = verify_store(args.store, common.read_passphrase(), common.KEYSTORE_FACTORY())
+    if args.json:
+        common.say(json.dumps([r.to_json() for r in results], ensure_ascii=False, indent=2))
+        return 1 if any(not r.ok for r in results) else 0
     for r in results:
         status = ("ok" if r.ok else "FAILED") if r.checked else ("not checked" if r.ok else "NOT CHECKED")
         detail = f"{r.reference}: items {r.items}, reports {r.reports}" if r.checked and r.ok else "; ".join(r.problems)
@@ -85,6 +88,7 @@ def add_commands(sub: Any) -> None:
     """Register the store commands on the ``ridge-case`` sub-parser."""
     p = sub.add_parser("verify-store", help="verify every case of a store (hashes, custody chains, signatures)")
     p.add_argument("--store", type=Path, required=True)
+    p.add_argument("--json", action="store_true", help="print every case's result as JSON (for laboratory monitoring)")
     p.set_defaults(func=cmd_verify_store)
     p = sub.add_parser("backup", help="copy the encrypted store to a new folder with a hash manifest")
     p.add_argument("--store", type=Path, required=True)
