@@ -81,6 +81,7 @@ describe("store screen", () => {
       list_items: () => [],
       case_info: () => INFO,
       limits_of_use: () => ({ configured: false }),
+      session_status: () => ({ unlocked: true, idle_timeout_s: 900 }),
     });
     render(<App />);
     await userEvent.click(screen.getByRole("button", { name: "Choose case store..." }));
@@ -114,6 +115,7 @@ describe("case screen", () => {
       list_items: () => [EVIDENCE],
       case_info: () => INFO,
       limits_of_use: () => ({ configured: false }),
+      session_status: () => ({ unlocked: true, idle_timeout_s: 900 }),
       preview: () => ipcError("refused", "no case is unlocked"),
     });
     const onClosed = vi.fn();
@@ -130,6 +132,7 @@ describe("case screen", () => {
       list_items: () => [],
       case_info: () => INFO,
       limits_of_use: () => ({ configured: false }),
+      session_status: () => ({ unlocked: true, idle_timeout_s: 900 }),
       verify_case: () => ipcError("refused", "custody entry 12 does not match its hash"),
     });
     render(<CaseScreen session={SESSION} storePath="C:/cases" onClosed={vi.fn()} />);
@@ -144,6 +147,7 @@ describe("case screen", () => {
       list_items: () => [EVIDENCE],
       case_info: () => INFO,
       limits_of_use: () => ({ configured: false }),
+      session_status: () => ({ unlocked: true, idle_timeout_s: 900 }),
       preview: () => ipcError("refused", "x"),
     });
     render(<CaseScreen session={SESSION} storePath="C:/cases" onClosed={vi.fn()} />);

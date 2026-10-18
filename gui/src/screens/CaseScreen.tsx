@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button, Notice } from "../components/ui";
 import { IpcError, ipc, isLocked } from "../ipc/commands";
 import { revokeAll } from "../ipc/images";
+import { useIdle } from "../lib/idle";
 import type { CaseInfo, Item, LimitsStatus, SessionInfo } from "../ipc/types";
 import { EvidenceSection } from "./EvidenceSection";
 import { JobsSection } from "./JobsSection";
@@ -32,6 +33,8 @@ export function CaseScreen({ session, storePath, onClosed }: Props) {
   const [items, setItems] = useState<Item[]>([]);
   const [info, setInfo] = useState<CaseInfo | null>(null);
   const [limits, setLimits] = useState<LimitsStatus | null>(null);
+  const [idleTimeout, setIdleTimeout] = useState(15 * 60);
+  const idle = useIdle(idleTimeout);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const close = useCallback(
@@ -65,7 +68,24 @@ export function CaseScreen({ session, storePath, onClosed }: Props) {
     refresh();
     ipc.caseInfo().then(setInfo, onFailure);
     ipc.limitsOfUse().then(setLimits, onFailure);
+    ipc.sessionStatus().then((status) => {
+      setIdleTimeout(status.idle_timeout_s);
+    }, onFailure);
   }, [refresh, onFailure]);
+
+  useEffect(() => {
+    if (idle.expired) {
+      // lock on time, as the engine does, rather than waiting for the next request to fail
+      void ipc
+        .lockCase()
+        .catch(() => undefined)
+        .finally(() => {
+          close(
+            `The case was locked after ${Math.round(idleTimeout / 60)} minutes without activity. Unlock it again.`,
+          );
+        });
+    }
+  }, [idle.expired, idleTimeout, close]);
 
   const notify = (text: string) => {
     setMessage({ tone: "ok", text });
@@ -124,6 +144,22 @@ export function CaseScreen({ session, storePath, onClosed }: Props) {
           </p>
         </nav>
         <main className="case-main" id="main">
+          {idle.secondsLeft !== null && !idle.expired ? (
+            <div className="notice notice-caution idle-banner" role="alert">
+              <div className="notice-body">
+                Nothing was done in Ridge for a while: the case locks in{" "}
+                <span aria-hidden="true">{idle.secondsLeft} s</span>
+                <span className="visually-hidden">about a minute</span>.
+              </div>
+              <Button
+                onClick={() => {
+                  ipc.sessionStatus().catch(onFailure);
+                }}
+              >
+                Keep the case open
+              </Button>
+            </div>
+          ) : null}
           <AnimatePresence>
             {message ? (
               <motion.div
