@@ -79,9 +79,31 @@ export function Inventory({ items, onFailure, notify, onExported }: Props) {
       setBusy(null);
     }
   };
+  const exportAll = async (role: string) => {
+    setBusy(`all-${role}`);
+    try {
+      const done = await ipc.exportAll(role);
+      notify(
+        `${String(done.files)} file(s) exported, listed in ${done.index}; each export is in the custody log.`,
+      );
+      onExported?.();
+    } catch (error) {
+      onFailure(error);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const exports = items.filter((i) => i.role === "export").length;
   return (
     <section className="card card-wide" aria-labelledby="inventory-title">
       <h2 id="inventory-title">Stored items</h2>
+      {exports > 1 ? (
+        <div className="store-actions">
+          <Button onClick={() => void exportAll("export")} busy={busy === "all-export"}>
+            Export all {exports} comparison exports...
+          </Button>
+        </div>
+      ) : null}
       <table className="inventory">
         <caption className="visually-hidden">Every item stored in the case</caption>
         <thead>

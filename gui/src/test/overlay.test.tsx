@@ -144,4 +144,31 @@ describe("stored items", () => {
     });
     expect(notify).toHaveBeenCalledWith(expect.stringContaining("custody log"));
   });
+
+  it("exports every comparison export at once", async () => {
+    const exportItem = (n: number): Item => ({
+      sha256: String(n).repeat(64),
+      role: "export",
+      size: 4096,
+      label: "finger_comparison_500ppi.png",
+      job_id: `job-${String(n)}`,
+      source: null,
+    });
+    const mocked = routes({ export_all: () => ({ exported: "D:/out", files: 2, index: "EXPORTS.csv" }) });
+    const notify = vi.fn();
+    const onExported = vi.fn();
+    render(
+      <Inventory
+        items={[exportItem(1), exportItem(2)]}
+        limits={null}
+        onFailure={vi.fn()}
+        notify={notify}
+        onExported={onExported}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Export all 2 comparison exports..." }));
+    expect(mocked).toHaveBeenCalledWith("export_all", { request: { role: "export" } });
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining("listed in EXPORTS.csv"));
+    expect(onExported).toHaveBeenCalled();
+  });
 });

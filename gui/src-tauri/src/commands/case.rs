@@ -30,6 +30,32 @@ pub async fn case_info(app: AppHandle, window: WebviewWindow) -> Result<Value, I
     call(&app, "case.info", json!({}), QUICK).await
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExportAll {
+    role: String,
+}
+
+/// Roles that can be exported all at once (the sidecar checks the same list).
+const EXPORT_ROLES: [&str; 5] = ["export", "print", "minutiae", "evidence", "reference"];
+
+/// Export every item of one role into a new folder named in a native dialog (each export logged).
+#[tauri::command]
+pub async fn export_all(
+    app: AppHandle,
+    window: WebviewWindow,
+    request: ExportAll,
+) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    if !EXPORT_ROLES.contains(&request.role.as_str()) {
+        return Err(IpcError::invalid("not a kind of stored item"));
+    }
+    let suggested = format!("Ridge {} files", request.role);
+    let dest = dialogs::new_folder(&app, "Name the new export folder", suggested).await?;
+    let params = json!({"role": request.role, "dest": path_text(&dest)?});
+    call(&app, "case.export_all", params, VERIFY).await
+}
+
 /// A one-screen summary of the unlocked case (reads only).
 #[tauri::command]
 pub async fn case_status(app: AppHandle, window: WebviewWindow) -> Result<Value, IpcError> {

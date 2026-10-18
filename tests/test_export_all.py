@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import csv
 import getpass
+import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -15,6 +17,8 @@ from ridge.case.identity import create_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.store import StoredItem, open_case
 from ridge.errors import OutputExistsError, ParameterError
+from ridge.sidecar.handlers import Session
+from ridge.sidecar.server import handle
 from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, new_case, photo_file
 
 
@@ -78,3 +82,19 @@ def test_a_label_cannot_become_a_spreadsheet_formula(tmp_path: Path) -> None:
     with (tmp_path / "out" / INDEX).open(encoding="utf-8") as index:
         row = next(csv.DictReader(index))
     assert row["label"].startswith("'=")
+
+
+def test_sidecar(case_dir: tuple[Path, MemoryKeyStore], tmp_path: Path) -> None:
+    folder, keystore = case_dir
+    session = Session(keystore_factory=lambda: keystore)
+
+    def rpc(method: str, params: dict[str, Any]) -> Any:
+        message = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+        return json.loads(handle(json.dumps(message).encode(), session))
+
+    unlock = {"store": str(folder.parent.resolve()), "case_id": folder.name, "passphrase": PASSPHRASE}
+    rpc("session.unlock", unlock)
+    reply = rpc("case.export_all", {"role": "export", "dest": str((tmp_path / "gui").resolve())})
+    assert reply["result"]["files"] == 2
+    assert rpc("case.export_all", {"role": "secrets", "dest": str((tmp_path / "x").resolve())})["error"]
+    session.close()

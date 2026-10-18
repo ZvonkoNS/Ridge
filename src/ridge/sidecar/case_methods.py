@@ -15,6 +15,7 @@ import cv2
 from ridge.arrays import ImageU8
 from ridge.case.case_status import case_status
 from ridge.case.compare import PLAUSIBLE_PPI, file_ppi
+from ridge.case.export_all import INDEX, export_role
 from ridge.case.export_step import MINUTIAE_LABEL
 from ridge.case.notes import add_note, list_notes
 from ridge.case.store import OpenCase, StoredItem
@@ -73,6 +74,13 @@ def notes(session: Session, params: dict[str, Json]) -> Json:
     case, _ = session.require()
     notes = list_notes(case.entries, job_id=params.get("job_id"), sha256=params.get("sha256"))
     return [n.to_json() for n in notes]
+
+
+def export_all(session: Session, params: dict[str, Json]) -> Json:
+    """Export every item of one role into a new native-dialog folder (each export logged)."""
+    case, _ = session.require()
+    written = export_role(case, params["role"], absolute(params["dest"], "dest"))
+    return {"exported": params["dest"], "files": len(written), "index": INDEX}
 
 
 def items(session: Session, params: dict[str, Json]) -> Json:
