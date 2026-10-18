@@ -31,6 +31,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "store.limits": (store.limits_of_use, {"store": (str_, True)}),
     "files.check": (store.files_check, {"path": (str_, True), "register": ((str, type(None)), False)}),
     "store.backup": (store.backup, {"store": (str_, True), "dest": (str_, True)}),
+    "store.workstation": (store.workstation, {"store": (str_, True), "register": ((str, type(None)), False)}),
     "store.verify": (store.verify_all, {"store": (str_, True), "passphrase": (str_, True)}),
     "store.overview": (store.overview, {"store": (str_, True), "passphrase": (str_, True)}),
     "identity.create": (store.identity_create, {"store": (str_, True), "passphrase": (str_, True)}),
