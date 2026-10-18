@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case import cli_common as common
+from ridge.case.case_status import case_status, render_status
+from ridge.case.reports import printable
+from ridge.case.store import open_case
 from ridge.case.store_overview import store_overview
 from ridge.case.store_verify import verify_store
 
@@ -46,11 +49,22 @@ def cmd_overview(args: argparse.Namespace) -> None:
         )
 
 
+def cmd_status(args: argparse.Namespace) -> None:
+    """Summarise one case: what is stored, jobs, notes, retention and the last verification."""
+    with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
+        status = case_status(case)
+    for line in render_status(status):
+        common.say(printable(line))
+
+
 def add_commands(sub: Any) -> None:
     """Register the store commands on the ``ridge-case`` sub-parser."""
     p = sub.add_parser("verify-store", help="verify every case of a store (hashes, custody chains, signatures)")
     p.add_argument("--store", type=Path, required=True)
     p.set_defaults(func=cmd_verify_store)
+    p = sub.add_parser("status", help="a one-screen summary of a case (reads only)")
+    p.add_argument("case", type=Path)
+    p.set_defaults(func=cmd_status)
     p = sub.add_parser("overview", help="every case with its reference, retention date and legal hold")
     p.add_argument("--store", type=Path, required=True)
     p.add_argument("--due", action="store_true", help="only cases past their retention date without a legal hold")
