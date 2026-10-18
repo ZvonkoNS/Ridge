@@ -42,4 +42,32 @@ describe("records", () => {
     });
     expect(mocked).toHaveBeenCalledWith("export_head", {});
   });
+
+  it("exports a disclosure package to a new folder", async () => {
+    const mocked = routes({
+      list_notes: () => [],
+      export_package: () => ({
+        exported: "D:/out/package",
+        package_id: "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+        reports: 3,
+        key_id: "0123456789abcdef",
+      }),
+    });
+    const notify = vi.fn();
+    render(
+      <RecordsSection
+        info={INFO}
+        items={[]}
+        limits={{ configured: false }}
+        onInfo={vi.fn()}
+        onFailure={vi.fn()}
+        notify={notify}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Export disclosure package..." }));
+    await waitFor(() => {
+      expect(notify).toHaveBeenCalledWith(expect.stringContaining("3 signed report(s)"));
+    });
+    expect(mocked).toHaveBeenCalledWith("export_package", {});
+  });
 });

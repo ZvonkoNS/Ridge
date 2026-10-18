@@ -22,6 +22,7 @@ import type {
   HeadExported,
   LogExported,
   Note,
+  PackageExported,
   Preview,
   PromptContext,
   RegionPreview,
@@ -107,6 +108,7 @@ export const ipc = {
   addNote: (text: string, jobId: string | null, corrects: number | null) =>
     call<Note>("add_note", { text, job_id: jobId, sha256: null, corrects }),
   listNotes: (jobId: string | null) => call<Note[]>("list_notes", { job_id: jobId }),
+  exportPackage: () => call<PackageExported>("export_package"),
   importEvidence: (source: string | null) => call<Item>("import_evidence", { source }),
   importReference: (source: string) => call<Item>("import_reference", { source }),
   verifyCase: () => call<Verification>("verify_case"),

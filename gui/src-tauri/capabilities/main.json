@@ -34,6 +34,7 @@
     "allow-verify-store",
     "allow-store-overview",
     "allow-add-note",
-    "allow-list-notes"
+    "allow-list-notes",
+    "allow-export-package"
   ]
 }

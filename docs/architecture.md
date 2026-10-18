@@ -179,6 +179,8 @@ Reproduction check (`src/ridge/case/reproduce.py`, PRD FR-34, NFR-3): `ridge-cas
 
 Processing record (`src/ridge/case/processing_record.py`, PRD PRIV-3): `ridge-case log --to` first logs `log.export` (with the case id), then signs the custody head, and then writes every decrypted entry with the case id and the examiner's public key as readable JSON (`ridge.processing-record/1`). Every entry in the file is therefore covered by a signed head. `ridge-case check-log` recomputes the sequence and the hash links from the entries and verifies every signed head. It refuses a record that does not end with that signed `log.export`, which catches appended entries and stripped signatures. It also refuses a record whose case id differs from the one in the signed entry. Truncation after a signed head cannot be detected offline (R-5); the DPO compares the last entry with what the examiner reports.
 
+Disclosure package (`src/ridge/case/package.py`, implemented 2026-10-18): `ridge-case package CASE --to NEW_FOLDER` (GUI → Records) creates the folder (an existing one is refused) and writes the signed processing record, every signed report with its detached signature, and `MANIFEST.json` (schema `ridge.package/1`: package id, case id, Ridge version, examiner key, every file's SHA-256 and size; RFC 8785 canonical) with `MANIFEST.json.sig`. It holds **no images**; reports name the hash of every image. `package.export` is logged with the package id and its job ids before the processing record is signed, so the record names its own package. `ridge-case check-package` verifies offline: the manifest signature and canonical form, every file, that no file was added or removed (only `processing-record.json` and `reports/<uuid>.json[.sig]` are allowed), the processing record, every report signature, and that each report is the one whose hash the custody log signed. Swapping in another valid report fails even with a re-signed manifest.
+
 ### 7.3 GUI ↔ sidecar (M4) [Implemented]
 
 Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`):
@@ -210,6 +212,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `job.reproduce` | `job_id` | Re-run from the verified report; per-output comparison and environment changes (logged, signed) |
 | `log.export` | `dest` (absolute), `overwrite` | Logged, signed processing record (PRIV-3) |
 | `head.export` | `dest` (absolute), `overwrite` | Logged, signed custody head for out-of-band countersigning (§8.4) |
+| `package.export` | `dest` (absolute, a new folder named in a native dialog) | Disclosure package: processing record, signed reports, signed manifest; no images (logged) |
 | `case.import_reference` | `path` (absolute), `source` | Reference item (NAFIS/AFIS candidate; view only, never processed) |
 | `compare.export` | `export`, `reference`, `dest` (absolute), `reference_ppi`, `ppi`, `overwrite` | Logged equal-scale side-by-side sheet (FR-52) |
 

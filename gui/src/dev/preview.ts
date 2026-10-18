@@ -248,6 +248,12 @@ const handlers: Record<string, Handler> = {
   unlock_case: () => session,
   lock_case: () => ({ locked: true }),
   session_status: () => ({ unlocked: true, idle_timeout_s: 900 }),
+  export_package: () => ({
+    exported: "D:/Exports/Ridge disclosure package",
+    package_id: "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+    reports: reports.size,
+    key_id: KEY_ID,
+  }),
   case_info: () => ({ ...session, legal_basis: "ZKP art. 149 (synthetic preview)" }),
   set_legal_hold: (r) => ({ ...session, legal_basis: "ZKP art. 149 (synthetic preview)", legal_hold: r.on }),
   list_items: () => [...items],

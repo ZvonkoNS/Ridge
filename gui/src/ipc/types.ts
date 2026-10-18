@@ -298,6 +298,14 @@ export interface StoreCheck {
   problems: string[];
 }
 
+/** A disclosure package written to a new folder. */
+export interface PackageExported {
+  exported: string;
+  package_id: string;
+  reports: number;
+  key_id: string;
+}
+
 /** An examiner note from the custody log (custody action `examiner.note`). */
 export interface Note {
   seq: number;

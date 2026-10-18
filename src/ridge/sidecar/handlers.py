@@ -67,6 +67,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "report.export": (job.report_export, {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
     "log.export": (job.log_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
     "head.export": (job.head_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
+    "package.export": (job.package_export, {"dest": (str_, True)}),
     "case.import_reference": (case.import_reference, {"path": (str_, True), "source": (str_, True)}),
     "compare.export": (
         job.compare_export,

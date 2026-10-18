@@ -18,16 +18,23 @@ interface Props {
   notify: (message: string) => void;
 }
 
+type Action = "verify" | "log" | "hold" | "head" | "package";
+
 export function RecordsSection({ info, items, limits, onInfo, onFailure, notify }: Props) {
   const [verification, setVerification] = useState<Verification | null>(null);
-  const [busy, setBusy] = useState<"verify" | "log" | "hold" | "head" | null>(null);
+  const [busy, setBusy] = useState<Action | null>(null);
   const [reason, setReason] = useState("");
 
-  const run = async (what: "verify" | "log" | "hold" | "head") => {
+  const run = async (what: Action) => {
     setBusy(what);
     try {
       if (what === "verify") {
         setVerification(await ipc.verifyCase());
+      } else if (what === "package") {
+        const done = await ipc.exportPackage();
+        notify(
+          `Disclosure package written: the processing record and ${done.reports} signed report(s), signed with key ${done.key_id}.`,
+        );
       } else if (what === "head") {
         const done = await ipc.exportHead();
         notify(`Custody head at entry ${done.seq} exported for countersigning (key ${done.key_id}).`);
@@ -86,6 +93,17 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
         </p>
         <Button onClick={() => void run("log")} busy={busy === "log"}>
           Export processing record...
+        </Button>
+      </section>
+      <section className="card" aria-labelledby="package-title">
+        <h2 id="package-title">Disclosure package</h2>
+        <p>
+          Writes the signed processing record and every signed job report to a new folder, with a manifest
+          signed by your key. It contains no images: the reports name the SHA-256 of every image, so exported
+          images can be matched to them. <code>ridge-case check-package</code> verifies the folder offline.
+        </p>
+        <Button onClick={() => void run("package")} busy={busy === "package"}>
+          Export disclosure package...
         </Button>
       </section>
       <section className="card" aria-labelledby="head-title">
