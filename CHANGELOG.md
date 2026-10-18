@@ -43,4 +43,4 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 
 - Installer build and code signing, Tauri WebDriver E2E and a manual screen-reader pass are open (Handoff_18 §10).
 - Signing times come from the signer's clock. Revocation dates are fully effective only together with countersigned custody heads (OQ-8).
-- Restoring a store backup on another account or machine needs the examiner's OS-keystore secret, which no Ridge file carries.
+- Restoring a store backup on another account or machine needs the examiner's OS-keystore secret, which no Ridge file carries. ADR-012 proposes a recovery procedure for decision.
