@@ -1,5 +1,5 @@
 // View-only measuring between two points of a shown image. Millimetres are given only where the
-// image's scale is known (a comparison export at its recorded resolution), always with the scale's
+// image's scale is known (the comparison export, or the processed print through the same scale), always with
 // method and uncertainty; elsewhere only pixels. Nothing is recorded or logged.
 import type { Point } from "../lib/viewport";
 import type { ScaleSource } from "./ScaleBar";
