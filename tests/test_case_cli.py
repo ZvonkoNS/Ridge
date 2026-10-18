@@ -186,6 +186,8 @@ def test_jobs_and_reports(case_dir: Path, tmp_path: Path, capsys: pytest.Capture
     assert "ok      evidence" in listing
     assert "signed report" in listing
     job_id = listing.split()[0]
+    assert main(["jobs", str(case_dir), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)[0]["job_id"] == job_id
 
     assert main(["report", str(case_dir), job_id[:8]]) == 0
     assert f"Job report {job_id}   signature verified" in capsys.readouterr().out
