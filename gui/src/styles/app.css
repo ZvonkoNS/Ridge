@@ -774,6 +774,17 @@ kbd {
   color: var(--ink-2);
 }
 
+.link-button {
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .rail .versions {
   margin-top: auto;
 }

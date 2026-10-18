@@ -2,6 +2,7 @@
 // Passphrases are never typed here: the Rust core opens its own prompt window (ADR-010).
 import { useState } from "react";
 
+import { AboutRidge } from "../components/AboutRidge";
 import { CopyButton } from "../components/CopyButton";
 import { Button, Hash, Notice } from "../components/ui";
 import { IpcError, ipc } from "../ipc/commands";
@@ -45,6 +46,7 @@ export function StoreScreen({
   const [cardNote, setCardNote] = useState<string | null>(null);
   const [backupNote, setBackupNote] = useState<string | null>(null);
   const [onlyDue, setOnlyDue] = useState(false);
+  const [about, setAbout] = useState(false);
   // Details belong to the store they were read from; choosing another store hides them.
   const [overview, setOverview] = useState<{ path: string; cases: Map<string, CaseOverview> } | null>(null);
   const details = overview?.path === store?.path ? (overview?.cases ?? null) : null;
@@ -268,6 +270,26 @@ export function StoreScreen({
       {/* keyed by store: findings belong to the store they were read from */}
       {store ? <WorkstationCheck key={store.path} /> : null}
       {versions ? <p className="versions">{versions}</p> : null}
+      <p className="versions">
+        <button
+          type="button"
+          className="link-button"
+          onClick={() => {
+            setAbout(true);
+          }}
+        >
+          About Ridge
+        </button>
+      </p>
+      {about ? (
+        <AboutRidge
+          versions={versions}
+          storePath={store?.path ?? null}
+          onClose={() => {
+            setAbout(false);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
