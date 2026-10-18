@@ -18,7 +18,7 @@ describe("check exported files", () => {
     });
     const { container } = render(<CheckFiles />);
     await userEvent.click(screen.getByRole("checkbox", { name: /key register/ }));
-    await userEvent.click(screen.getByRole("button", { name: "Check a package folder..." }));
+    await userEvent.click(screen.getByRole("button", { name: "Check a package or backup folder..." }));
     expect(await screen.findByText("Disclosure package: verified.")).toBeInTheDocument();
     expect(screen.getByText(/registered to Examiner A/)).toBeInTheDocument();
     expect(mocked).toHaveBeenCalledWith("check_exported", { request: { folder: true, with_register: true } });

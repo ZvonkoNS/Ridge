@@ -106,7 +106,7 @@ def add_commands(sub: Any) -> None:
     p = sub.add_parser("register", help="check the laboratory's key register (holders, roles, validity)")
     p.add_argument("--check", type=Path, required=True, help="a ridge.key-register/1 file")
     p.set_defaults(func=cmd_register)
-    p = sub.add_parser("check", help="verify any exported Ridge file, or a package folder, by its kind")
+    p = sub.add_parser("check", help="verify any exported Ridge file, or a package or backup folder, by its kind")
     p.add_argument("path", type=Path)
     add_register_argument(p)
     p.set_defaults(func=cmd_check)

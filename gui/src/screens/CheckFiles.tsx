@@ -1,5 +1,6 @@
 // "Check exported files": verify a report, processing record, custody head, key card, key register,
-// limits file or disclosure package without a case store (for the FQM, the DPO or a reviewer).
+// limits file, disclosure package or store backup without a case store (for the FQM, the DPO, IT or
+// a reviewer).
 // The Rust core opens the dialogs and the sidecar runs the same verifiers as the CLI.
 import { useId, useState } from "react";
 
@@ -33,8 +34,8 @@ export function CheckFiles() {
     <section className="card" aria-labelledby="check-files-title">
       <h2 id="check-files-title">Check exported files</h2>
       <p>
-        Verify a signed report, processing record, custody head, key card, key register, limits file or
-        disclosure package that you received. No case store is needed and nothing is changed.
+        Verify a signed report, processing record, custody head, key card, key register, limits file,
+        disclosure package or store backup. No case store is needed and nothing is changed.
       </p>
       <label className="check" htmlFor={registerId}>
         <input
@@ -52,7 +53,7 @@ export function CheckFiles() {
           Check a file...
         </Button>
         <Button onClick={() => void check(true)} busy={busy === "folder"}>
-          Check a package folder...
+          Check a package or backup folder...
         </Button>
       </div>
       {result ? (

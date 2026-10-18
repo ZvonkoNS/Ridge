@@ -2,7 +2,8 @@
 
 Reviewers, the DPO and the FQM receive reports, processing records, custody heads, packages, key
 cards, key registers and limits files. The kind is read from the file's schema (a folder is a
-disclosure package) and each kind goes to the verifier the CLI uses, so the GUI and the CLI
+store backup when it holds a backup manifest, otherwise a disclosure package) and each kind goes
+to the verifier the CLI uses, so the GUI and the CLI
 cannot disagree. With a key register the signer's holder is named and checked. Nothing is
 written and no case store is needed.
 """
@@ -15,6 +16,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from ridge.case.backup import MANIFEST as BACKUP_MANIFEST
+from ridge.case.backup import check_backup
 from ridge.case.custody_head import SCHEMA as HEAD_SCHEMA
 from ridge.case.custody_head import check_head
 from ridge.case.jobs import REPORT_SCHEMA
@@ -116,8 +119,23 @@ _BY_SCHEMA = {
 }
 
 
+def _backup(folder: Path) -> FileCheck:
+    b = check_backup(folder)
+    return FileCheck(
+        "backup",
+        "Store backup",
+        [
+            f"{b.files} encrypted file(s), {b.bytes} bytes, made {b.created_utc}: every file matches the manifest",
+            "The manifest is not signed: each case's custody chain and signatures are checked when it is opened",
+            "A backup does not hold the OS-keystore secret that unlocking also needs (ADR-012)",
+        ],
+    )
+
+
 def check_exported(path: Path, register: Path | None = None) -> FileCheck:
-    """Verify one exported file or package folder; with `register`, name and check the signer."""
+    """Verify one exported file, package or backup folder; with `register`, name and check the signer."""
+    if path.is_dir() and (path / BACKUP_MANIFEST).exists():
+        return _backup(path)
     if path.is_dir():
         c = check_package(path)
         lines = [f"Case {c.case_id}: {c.reports} report(s), processing record with {c.record_entries} entries"]
