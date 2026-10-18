@@ -36,6 +36,7 @@ from ridge.case import (
     cli_notes,
     cli_package,
     cli_records,
+    cli_recovery,
     cli_register,
     cli_store,
 )
@@ -176,6 +177,7 @@ def build_parser() -> argparse.ArgumentParser:
     cli_limits.add_commands(sub)
     cli_package.add_commands(sub)
     cli_register.add_commands(sub)
+    cli_recovery.add_commands(sub)
     return ap
 
 
