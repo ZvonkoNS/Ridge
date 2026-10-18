@@ -1,11 +1,10 @@
 """Check an exported file without a case store: the GUI's "Check exported files".
 
-Reviewers, the DPO and the FQM receive reports, processing records, custody heads, packages, key
-cards, key registers and limits files. The kind is read from the file's schema (a folder is a
-store backup when it holds a backup manifest, otherwise a disclosure package) and each kind goes
-to the verifier the CLI uses, so the GUI and the CLI
-cannot disagree. With a key register the signer's holder is named and checked. Nothing is
-written and no case store is needed.
+Reviewers, the DPO, the FQM and IT receive reports, processing records, custody heads, packages,
+key cards, key registers, limits files and store backups. The kind is read from the file's schema
+(a folder is a store backup when it holds a backup manifest, otherwise a disclosure package) and
+each kind goes to the verifier the CLI uses, so the GUI and the CLI cannot disagree. With a key
+register the signer's holder is named and checked. Nothing is written and no case store is needed.
 """
 
 from __future__ import annotations
