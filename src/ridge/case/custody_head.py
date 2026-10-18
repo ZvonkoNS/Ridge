@@ -22,7 +22,7 @@ import rfc8785
 from ridge.case.custody import utc_now
 from ridge.case.identity import Signer, key_id_for, public_identity, verify_signature
 from ridge.case.keys import b64, unb64
-from ridge.case.processing_record import MAX_RECORD_BYTES, check_exported_log
+from ridge.case.processing_record import load_record, verify_record
 from ridge.case.store import OpenCase
 from ridge.errors import IntegrityError, OutputExistsError
 from ridge.image_io import publish, read_bounded
@@ -114,10 +114,9 @@ def check_head(path: Path, *, record: Path | None = None, expected_key_id: str |
 
 
 def _check_record(doc: dict[str, Any], record: Path) -> int:
-    checked = check_exported_log(record, expected_key_id=doc["key_id"])
+    checked, entries = verify_record(load_record(record), expected_key_id=doc["key_id"])  # one read, verified
     if checked.case_id != doc["case_id"]:
         raise IntegrityError("the processing record belongs to another case")
-    entries = json.loads(read_bounded(record, MAX_RECORD_BYTES).decode("utf-8"))["entries"]
     if doc["seq"] >= len(entries):
         raise IntegrityError(
             f"the processing record ends at entry {len(entries) - 1}, before the countersigned head "

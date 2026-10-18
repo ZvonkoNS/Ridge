@@ -92,6 +92,18 @@ pub fn with_prompt<T>(
     Ok(f(&mut slot))
 }
 
+/// Lock an idle case from the trusted core, whatever the WebView does (checked every 15 s).
+pub fn start_idle_watchdog(app: AppHandle) {
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_secs(15));
+        let state = app.state::<AppState>();
+        let guard = state.sidecar.lock();
+        if let Ok(mut sidecar) = guard {
+            sidecar.lock_if_idle(crate::sidecar::IDLE_LOCK);
+        }
+    });
+}
+
 /// Stop the sidecar (it locks the case and exits); used when the application closes.
 pub fn shutdown(app: &AppHandle) {
     let state = app.state::<AppState>();

@@ -53,6 +53,7 @@ export function ReferencesSection({ items, onFailure, onChanged, notify }: Props
       notify(`Reference ${item.label} imported and logged; it is never processed.`);
       setSource("");
       setReferenceSha(item.sha256);
+      setReferencePpi(""); // a typed resolution belongs to the reference it was typed for
       onChanged();
     } catch (error) {
       onFailure(error);
@@ -126,6 +127,7 @@ export function ReferencesSection({ items, onFailure, onChanged, notify }: Props
               value={referenceSha}
               onChange={(e) => {
                 setReferenceSha(e.target.value);
+                setReferencePpi(""); // never carry one reference's resolution over to another
               }}
             >
               <option value="">Choose a reference</option>

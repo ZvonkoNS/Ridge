@@ -94,4 +94,23 @@ describe("equal-scale comparison", () => {
     await userEvent.type(screen.getByLabelText("Reference ppi"), "1000");
     expect(screen.getByLabelText("Equal scale: link the zoom of both images")).toBeEnabled();
   });
+
+  it("forgets a typed resolution when another reference is chosen", async () => {
+    const other: Item = { ...REFERENCE, sha256: "d".repeat(64), source: "NAFIS candidate 2" };
+    routes({
+      preview: (request) => (request?.sha256 === EXPORT.sha256 ? preview(500, 400) : preview(null, 800)),
+    });
+    render(
+      <ReferencesSection
+        items={[EXPORT, REFERENCE, other]}
+        onFailure={vi.fn()}
+        onChanged={vi.fn()}
+        notify={vi.fn()}
+      />,
+    );
+    await userEvent.selectOptions(screen.getByLabelText("Reference"), REFERENCE.sha256);
+    await userEvent.type(screen.getByLabelText("Reference ppi"), "1000");
+    await userEvent.selectOptions(screen.getByLabelText("Reference"), other.sha256);
+    expect(screen.getByLabelText("Reference ppi")).toHaveValue("");
+  });
 });

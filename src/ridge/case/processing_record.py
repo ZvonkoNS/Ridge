@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case.crypto import sha256_hex
-from ridge.case.custody import GENESIS, canonical, utc_now, verify_signed_heads
+from ridge.case.custody import GENESIS, Entry, canonical, utc_now, verify_signed_heads
 from ridge.case.identity import Signer, key_id_for, public_identity
 from ridge.case.keys import b64
 from ridge.case.store import OpenCase
@@ -75,7 +75,14 @@ class LogCheck:
 
 def check_exported_log(path: Path, *, expected_key_id: str | None = None) -> LogCheck:
     """Verify an exported processing record offline: chain links, sequence, signed heads, key."""
-    record = _load(path)
+    return verify_record(load_record(path), expected_key_id=expected_key_id)[0]
+
+
+def verify_record(record: dict[str, Any], *, expected_key_id: str | None = None) -> tuple[LogCheck, list[Entry]]:
+    """Verify a parsed processing record; return the result and the entries that were verified.
+
+    Callers that inspect entries (``check-head``) use these, never a second read of the file.
+    """
     identity = record.get("identity")
     if not isinstance(identity, dict):
         raise IntegrityError("the record names no identity")
@@ -107,20 +114,22 @@ def check_exported_log(path: Path, *, expected_key_id: str | None = None) -> Log
     export = entries[-2] if len(entries) > 1 else {}
     if export.get("action") != "log.export" or export.get("case_id") != record.get("case_id"):
         raise IntegrityError("the record's case id is not the one named by its signed log.export entry")
-    return LogCheck(
+    check = LogCheck(
         case_id=str(record.get("case_id")),
         entries=len(entries),
         signed_heads=signed,
         key_id=key_id,
         key_confirmed=expected_key_id is not None,
     )
+    return check, entries
 
 
 def _no_constant(name: str) -> None:
     raise ValueError(f"{name} is not JSON")  # NaN and Infinity cannot be canonicalised
 
 
-def _load(path: Path) -> dict[str, Any]:
+def load_record(path: Path) -> dict[str, Any]:
+    """Read and parse a processing record (bounded; duplicate keys and NaN refused)."""
     data = read_bounded(path, MAX_RECORD_BYTES)  # size refusals stay InputRejectedError
     try:
         record = json.loads(data.decode("utf-8"), parse_constant=_no_constant)

@@ -62,6 +62,7 @@ pub fn run() {
                 )),
             };
             app.manage(AppState::new(Sidecar::new(Box::new(launch))));
+            state::start_idle_watchdog(app.handle().clone());
             if let Some(store) = settings::load(app.handle()) {
                 state::set_store(app.handle(), store)?;
             }
