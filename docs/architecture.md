@@ -199,7 +199,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `identity.create` | `store` (absolute), `passphrase` | Key id and public key of the new examiner identity (first run). **Rust core only**, from a native prompt |
 | `case.export_all` | `role` (export, print, minutiae, evidence, reference), `dest` (absolute, a new folder named in a native dialog) | Every item of that role exported through the single export path (one `artefact.export` each) under safe unique names, with `EXPORTS.csv` (file, SHA-256, role, job, label; labels kept from being read as spreadsheet formulas). The folder is private (0700 on POSIX); a name taken without regard to case falls back to the full SHA-256. A failure part-way keeps the exported files (each logged), indexes exactly those and says how many of how many left; a failure on the first file leaves no folder |
 | `store.backup` | `store` (absolute), `dest` (absolute, a new folder named in a native dialog) | Encrypted byte copy of the store with `BACKUP-MANIFEST.json`; nothing decrypted, no passphrase; refused while a case is open |
-| `files.check` | `path` (absolute, from a native dialog; a folder is a package), `register` (optional) | Verifies an exported report, processing record, custody head, key card, key register, limits file or disclosure package with the CLI's verifiers; names the signer from a key register. No store needed, nothing written |
+| `files.check` | `path` (absolute, from a native dialog; a folder is a store backup when it holds `BACKUP-MANIFEST.json`, otherwise a package), `register` (optional) | Verifies an exported report, processing record, custody head, key card, key register, limits file, disclosure package or store backup with the CLI's verifiers; names the signer from a key register. No store needed, nothing written |
 | `identity.card` | `store` (absolute), `passphrase`, `holder`, `dest` (absolute, from a native dialog) | Writes a self-signed key card (`ridge.key-card/1`) for the laboratory's key register. **Rust core only**, from the prompt window |
 | `case.create` | `store`, `reference`, `legal_basis`, `retention_until` (YYYY-MM-DD), `passphrase` | New case id; the passphrase must unlock the identity. **Rust core only** |
 | `store.identity` | `store` (absolute) | Whether the store has an examiner identity, and its key id and public key (nothing unlocked); first-run detection |
@@ -309,7 +309,8 @@ Workstation check (`src/ridge/case/workstation.py`, added 2026-10-18): `ridge-ca
 - whether this account's OS keystore holds the device secret (only looked up, never shown);
 - the examiner identity and the store's cases by state;
 - the limits of use: signed or not, whether they cover this CPU architecture, and an NFIQ 2 minimum;
-- optionally, whether the store's key is in a key register.
+- optionally, whether the store's key is in a key register (also from the GUI, with a native dialog);
+- optionally (CLI `--nfiq2`), whether the NFIQ 2 tool is at its absolute path and reports a version. It is asked only `--version` and never sees an image.
 
 Each finding is `ok`, `note` or `problem`; the command exits 1 on a problem. Nothing is created, decrypted or logged. The check is not a validation of the method or of the installation (NFR-3, OQ-15).
 
@@ -449,6 +450,7 @@ flowchart LR
 | Tampering (added 2026-10-18) | A swapped report in a disclosure package; loosened limits of use; an edited backup | Package manifest signed, and each report bound to the custody log's `report.sign` hash; signed limits fail closed; backup manifest hashes | `tests/test_package.py`, `tests/test_limits_signing.py`, `tests/test_backup.py` |
 | Elevation of privilege (added 2026-10-18) | Script in a readable HTML copy opened in a browser | Every value escaped; a page CSP of `default-src 'none'` with inline styles only; no images or forms; copies made only from verified bytes | `tests/test_report_html.py`, `tests/test_record_html.py` |
 | Repudiation (added 2026-10-18) | A record backdated past a key's revocation | Register checks use the time inside the signed data, never an unsigned envelope; full protection needs countersigned custody heads (OQ-8) | `tests/test_key_register.py` |
+| Information disclosure (added 2026-10-18) | The workstation check reading the OS-keystore entry; a malformed `identity.json` or `case.json` crashing a store-wide check | The check reports only whether the device secret is present and well formed, never its value, and creates nothing. `identity.json` and `case.json` are read within 64 KiB and every malformed form is a typed refusal | `tests/test_workstation.py`, `tests/test_case_crypto.py`, `tests/test_case_store.py` |
 
 The full ASVS 5.0 L3 mapping (applicable chapters only, with N/A rationale for server-only chapters) is kept in the standards profile.
 

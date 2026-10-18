@@ -15,10 +15,10 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 - Readable HTML copies of reports and processing records (`report --html`; `check-report --html` and `check-log --html` after offline verification). They are escaped, script-free and not signed.
 - Custody heads carry a whole-file signature; `check-head --record` detects truncation after a head.
 - Reports record the source commit (`commit`, `commit_source`), stamped by the release build or read from git's files in a development checkout. The engine reports it too, the GUI footer shows it, and the frozen-sidecar build refuses a bundle without the stamp.
-- `ridge-case check PATH` and GUI "Check exported files" verify any exported file or package by its kind.
+- `ridge-case check PATH` and GUI "Check exported files" verify any exported file, package or store backup by its kind.
 - Export every item of one role at once (`ridge-case export-all`, GUI "Export all N comparison exports"): one logged export each, with an `EXPORTS.csv` index.
 - Store backups (`ridge-case backup`, `check-backup`, GUI "Back up this store"): an encrypted byte copy with a hash manifest. A backup does **not** hold the OS-keystore device secret.
-- Workstation check (`ridge-case workstation`, GUI "This workstation"): the build, the OS keystore, the store and its limits of use, with what to fix before casework. It reads only, and it validates nothing.
+- Workstation check (`ridge-case workstation`, GUI "This workstation"): the build, the OS keystore, the store and its limits of use, with what to fix before casework. Optionally it also checks the key register (CLI and GUI) and the NFIQ 2 tool (`--nfiq2`, asked only its version). It reads only, and it validates nothing.
 - `jobs --json` and `notes --json` for laboratory scripts.
 
 ### Keys
@@ -31,7 +31,7 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 
 - Copy buttons for full SHA-256 values and the signing key id. The result is announced to screen readers.
 - Custody log search for a hash, a job id or note text (also `ridge-case log --find`).
-- "About Ridge": what Ridge is and is not, where the data lives, and how exported files are checked.
+- "About Ridge", on the store screen and in a case: what Ridge is and is not, where the data lives, and how exported files are checked.
 - Custody log view, case summary, note counts per job, job settings comparison (`ridge-case compare-jobs` in the CLI), and a view-only Measure tool on the comparison export.
 - Batch import of up to 50 photos. Only a refusal of a photo itself lets the batch continue.
 - Keyboard shortcuts (`?`, Alt+1–4), a retention-date reminder, case search, and an idle lock mirrored from the engine.

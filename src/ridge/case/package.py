@@ -40,7 +40,14 @@ from ridge.case.notes import list_notes
 from ridge.case.processing_record import export_log, load_record, verify_record
 from ridge.case.record_html import write_record_html
 from ridge.case.report_html import render_report_html
-from ridge.case.reports import check_exported_report, list_jobs, load_report
+from ridge.case.reports import (
+    MAX_REPORT_BYTES,
+    MAX_SIGNATURE_BYTES,
+    check_report_bytes,
+    list_jobs,
+    load_report,
+    signature_path,
+)
 from ridge.case.store import OpenCase
 from ridge.errors import IntegrityError, OutputExistsError, RidgeError
 from ridge.image_io import publish, read_bounded
@@ -187,10 +194,12 @@ def check_package(root: Path, *, expected_key_id: str | None = None) -> PackageC
         raise IntegrityError("a readable copy has no signed report in this package")
     signed = {j.job_id: j.report_sha256 for j in list_jobs(entries)}
     for path, job_id in zip(reports, job_ids, strict=True):
-        report = check_exported_report(root / path, expected_key_id=key_id)
+        canonical = read_bounded(root / path, MAX_REPORT_BYTES)  # read once: the bytes checked are the bytes hashed
+        signature = read_bounded(signature_path(root / path), MAX_SIGNATURE_BYTES)
+        report, _ = check_report_bytes(canonical, signature, expected_key_id=key_id)
         if report.job_id != job_id or report.case_id != record_check.case_id:
             raise IntegrityError(f"{path} belongs to another job or case")
-        if sha256_hex((root / path).read_bytes()) != signed.get(job_id):
+        if sha256_hex(canonical) != signed.get(job_id):
             raise IntegrityError(f"{path} is not the report the custody log signed")
     return PackageCheck(
         package_id=str(manifest.get("package_id")),

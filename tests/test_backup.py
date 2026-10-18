@@ -10,6 +10,7 @@ import pytest
 
 from ridge.case.backup import MANIFEST, backup_store, check_backup
 from ridge.case.cli import main
+from ridge.case.file_check import check_exported
 from ridge.case.identity import create_identity
 from ridge.case.store import open_case
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
@@ -92,8 +93,15 @@ def test_cli(store: tuple[Path, MemoryKeyStore, Path], tmp_path: Path, capsys: p
     assert "OS-keystore secret" in capsys.readouterr().out
     assert main(["check-backup", str(tmp_path / "b")]) == 0
     assert "backup verified" in capsys.readouterr().out
+    assert main(["check", str(tmp_path / "b")]) == 0  # the generic check knows a backup folder too
+    assert "Store backup: verified" in capsys.readouterr().out
+    shown = check_exported(tmp_path / "b")
+    assert (shown.kind, shown.key_id) == ("backup", None)
+    assert "every file matches the manifest" in shown.details[0]
     (tmp_path / "b" / "extra").write_text("x", encoding="utf-8")
     assert main(["check-backup", str(tmp_path / "b")]) == 1
+    with pytest.raises(IntegrityError):
+        check_exported(tmp_path / "b")
 
 
 def test_sidecar_backup(store: tuple[Path, MemoryKeyStore, Path], tmp_path: Path) -> None:

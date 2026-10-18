@@ -2,11 +2,13 @@
 // Passphrases are never typed here: the Rust core opens its own prompt window (ADR-010).
 import { useState } from "react";
 
+import { AboutRidge } from "../components/AboutRidge";
 import { CopyButton } from "../components/CopyButton";
 import { Button, Hash, Notice } from "../components/ui";
 import { IpcError, ipc } from "../ipc/commands";
 import type { CaseOverview, SessionInfo, StoreCheck, StoreView } from "../ipc/types";
 import { CheckFiles } from "./CheckFiles";
+import { type NewCase, NewCaseForm } from "./NewCaseForm";
 import { WorkstationCheck } from "./WorkstationCheck";
 import { CaseList, StoreChecks, findCases } from "./StoreCases";
 
@@ -36,7 +38,6 @@ export function StoreScreen({
 }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const [form, setForm] = useState({ reference: "", legalBasis: "", retention: "" });
   // Results belong to the store they were read from; choosing another store hides them.
   const [checked, setChecked] = useState<{ path: string; checks: StoreCheck[] } | null>(null);
   const checks = checked?.path === store?.path ? (checked?.checks ?? null) : null;
@@ -45,6 +46,7 @@ export function StoreScreen({
   const [cardNote, setCardNote] = useState<string | null>(null);
   const [backupNote, setBackupNote] = useState<string | null>(null);
   const [onlyDue, setOnlyDue] = useState(false);
+  const [about, setAbout] = useState(false);
   // Details belong to the store they were read from; choosing another store hides them.
   const [overview, setOverview] = useState<{ path: string; cases: Map<string, CaseOverview> } | null>(null);
   const details = overview?.path === store?.path ? (overview?.cases ?? null) : null;
@@ -104,7 +106,7 @@ export function StoreScreen({
         `Key card for key ${card.key_id} saved. Give it to the laboratory, which confirms who you are before registering it.`,
       );
     });
-  const create = () =>
+  const create = (form: NewCase) =>
     attempt("create", async () => {
       const created = await ipc.createCase(form.reference, form.legalBasis, form.retention);
       onStore(await ipc.refreshStore());
@@ -261,61 +263,33 @@ export function StoreScreen({
             ) : null}
             {checks ? <StoreChecks checks={checks} /> : null}
           </section>
-          <section className="card" aria-labelledby="new-title">
-            <h2 id="new-title">New case</h2>
-            <form
-              className="newcase"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void create();
-              }}
-            >
-              <label className="field">
-                <span>Case reference</span>
-                <input
-                  required
-                  maxLength={200}
-                  value={form.reference}
-                  placeholder="KT-2026-0001"
-                  onChange={(e) => {
-                    setForm({ ...form, reference: e.target.value });
-                  }}
-                />
-              </label>
-              <label className="field">
-                <span>Legal basis</span>
-                <input
-                  required
-                  maxLength={500}
-                  value={form.legalBasis}
-                  placeholder="Order or article"
-                  onChange={(e) => {
-                    setForm({ ...form, legalBasis: e.target.value });
-                  }}
-                />
-              </label>
-              <label className="field">
-                <span>Keep until (retention date)</span>
-                <input
-                  required
-                  type="date"
-                  value={form.retention}
-                  onChange={(e) => {
-                    setForm({ ...form, retention: e.target.value });
-                  }}
-                />
-              </label>
-              <Button variant="primary" type="submit" busy={busy === "create"}>
-                Create case...
-              </Button>
-            </form>
-          </section>
+          <NewCaseForm busy={busy === "create"} onCreate={(form) => void create(form)} />
         </>
       ) : null}
       <CheckFiles />
       {/* keyed by store: findings belong to the store they were read from */}
       {store ? <WorkstationCheck key={store.path} /> : null}
       {versions ? <p className="versions">{versions}</p> : null}
+      <p className="versions">
+        <button
+          type="button"
+          className="link-button"
+          onClick={() => {
+            setAbout(true);
+          }}
+        >
+          About Ridge
+        </button>
+      </p>
+      {about ? (
+        <AboutRidge
+          versions={versions}
+          storePath={store?.path ?? null}
+          onClose={() => {
+            setAbout(false);
+          }}
+        />
+      ) : null}
     </main>
   );
 }

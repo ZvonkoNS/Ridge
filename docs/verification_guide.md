@@ -15,8 +15,9 @@ Ridge is an image-enhancement aid. None of these files, and none of these checks
 | `limits-of-use.json` + `.sig` | The FQM (`ridge-case limits --sign`) | `ridge-case limits --check FILE` | The limits are well formed and, if signed, signed with the key named |
 | `card.json` (key card) | An examiner or the FQM (`ridge-case key-card`, GUI "Register this key") | `ridge-case check card.json` | Whoever made the card held the private key. **Not** who they are |
 | `lab-keys.json` (key register) | The laboratory (`ridge-case register-add`) | `ridge-case register --check FILE` | The register is well formed; its SHA-256 identifies the version |
+| Store backup (folder with `BACKUP-MANIFEST.json`) | IT or the examiner (`ridge-case backup`, GUI "Back up this store") | `ridge-case check-backup FOLDER` | Every encrypted file is as listed in the manifest and nothing was added or removed. The manifest is not signed; each case's custody chain and signatures are checked when the case is opened. The backup cannot be opened without the examiner's OS-keystore secret (ADR-012) |
 
-`ridge-case check PATH` (or the GUI card) recognises every kind above by its schema.
+`ridge-case check PATH` (or the GUI card) recognises every kind above by its schema, or a folder by its manifest.
 
 ## Who signed it
 

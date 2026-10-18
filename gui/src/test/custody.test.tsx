@@ -71,4 +71,24 @@ describe("custody log", () => {
       request: { offset: 0, limit: 100, action: null, text: "glare" },
     });
   });
+
+  it("drops a slow answer to an older query", async () => {
+    let releaseAll: (page: unknown) => void = () => undefined;
+    const slowAll = new Promise((resolve) => {
+      releaseAll = resolve;
+    });
+    routes({
+      custody_log: (request) =>
+        request?.action === "examiner"
+          ? { total: 1, entries: [entry(9, "examiner.note", { text: "the newer query" })] }
+          : slowAll,
+    });
+    render(<CustodyLog onFailure={vi.fn()} />);
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Show" }), "examiner");
+    expect(await screen.findByText(/the newer query/)).toBeInTheDocument();
+    releaseAll({ total: 1, entries: [entry(1, "case.create", { label: "the older query" })] });
+    await slowAll;
+    expect(screen.queryByText(/the older query/)).toBeNull(); // the first, slower page was dropped
+    expect(screen.getByText(/the newer query/)).toBeInTheDocument();
+  });
 });

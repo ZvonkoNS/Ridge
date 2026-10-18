@@ -14,6 +14,8 @@ use crate::{dialogs, validate};
 
 const QUICK: Duration = Duration::from_secs(30);
 const RECORD_IO: Duration = Duration::from_secs(120);
+/// A folder may be a store backup, which is rehashed file by file: allow time for a large store.
+const FOLDER_CHECK: Duration = Duration::from_secs(60 * 60);
 const HTML_FILE: (&str, &[&str]) = ("Web page", &["html"]);
 /// The sidecar enforces the same page size.
 const MAX_PAGE: u32 = 500;
@@ -91,8 +93,9 @@ pub struct CheckRequest {
 
 const JSON_FILE: (&str, &[&str]) = ("Ridge file (JSON)", &["json"]);
 
-/// Verify an exported file, or a disclosure package folder, chosen in a native dialog; with a key
-/// register (a second dialog) the signer is named. Needs no store and writes nothing.
+/// Verify an exported file, or a disclosure package or store backup folder, chosen in a native
+/// dialog; with a key register (a second dialog) the signer is named. Needs no store and writes
+/// nothing.
 #[tauri::command]
 pub async fn check_exported(
     app: AppHandle,
@@ -101,7 +104,7 @@ pub async fn check_exported(
 ) -> Result<Value, IpcError> {
     require(&window, MAIN_LABEL)?;
     let path = if request.folder {
-        dialogs::pick_folder(&app, "Choose a disclosure package folder").await?
+        dialogs::pick_folder(&app, "Choose a disclosure package or store backup folder").await?
     } else {
         dialogs::pick_file(&app, "Choose an exported Ridge file", JSON_FILE).await?
     };
@@ -113,7 +116,12 @@ pub async fn check_exported(
         None
     };
     let params = json!({"path": path_text(&path)?, "register": register});
-    call(&app, "files.check", params, RECORD_IO).await
+    let timeout = if request.folder {
+        FOLDER_CHECK
+    } else {
+        RECORD_IO
+    };
+    call(&app, "files.check", params, timeout).await
 }
 
 #[cfg(test)]

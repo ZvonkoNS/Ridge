@@ -186,11 +186,32 @@ pub async fn limits_of_use(app: AppHandle, window: WebviewWindow) -> Result<Valu
     call(&app, "store.limits", json!({"store": store}), QUICK).await
 }
 
-/// Check the installation, the OS keystore, the chosen store and its limits of use. Read-only:
+const REGISTER_FILE: (&str, &[&str]) = ("Key register (JSON)", &["json"]);
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorkstationRequest {
+    with_register: bool,
+}
+
+/// Check the installation, the OS keystore, the chosen store and its limits of use; with a key
+/// register (chosen in a native dialog) also whether the store's key is registered. Read-only:
 /// nothing is decrypted or logged, and the device secret is only looked up.
 #[tauri::command]
-pub async fn workstation_check(app: AppHandle, window: WebviewWindow) -> Result<Value, IpcError> {
+pub async fn workstation_check(
+    app: AppHandle,
+    window: WebviewWindow,
+    request: WorkstationRequest,
+) -> Result<Value, IpcError> {
     require(&window, MAIN_LABEL)?;
     let store = path_text(&state::store(&app)?)?;
-    call(&app, "store.workstation", json!({"store": store}), QUICK).await
+    let register = if request.with_register {
+        let chosen =
+            dialogs::pick_file(&app, "Choose the laboratory's key register", REGISTER_FILE).await?;
+        Some(path_text(&chosen)?)
+    } else {
+        None
+    };
+    let params = json!({"store": store, "register": register});
+    call(&app, "store.workstation", params, QUICK).await
 }

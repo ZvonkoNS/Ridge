@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import os
 import platform
+import tempfile
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,8 +25,9 @@ from ridge.case.key_register import confirm_key, describe, load_register
 from ridge.case.keys import DEVICE_SECRET_NAME, KeyStore
 from ridge.case.limits import load_limits
 from ridge.case.listing import list_cases
-from ridge.errors import RidgeError
+from ridge.errors import QualityToolError, RidgeError
 from ridge.image_io import HEIF_AVAILABLE
+from ridge.quality.nfiq2 import Nfiq2
 
 REFERENCE_ARCHITECTURES = ("x86_64", "arm64")  # those with stored reference results (tests/golden)
 _ARCH_FAMILY = {"amd64": "x86_64", "x86_64": "x86_64", "x64": "x86_64", "arm64": "arm64", "aarch64": "arm64"}
@@ -43,12 +46,16 @@ class Finding:
         return asdict(self)
 
 
-def check_workstation(store: Path, keystore: KeyStore, register: Path | None = None) -> list[Finding]:
-    """Check the software, the OS keystore, the store, its limits of use and, if given, the key register."""
+def check_workstation(
+    store: Path, keystore: KeyStore, register: Path | None = None, nfiq2: Sequence[str] | None = None
+) -> list[Finding]:
+    """Check the software, the OS keystore, the store and its limits; if given, the key register and NFIQ 2."""
     found = [*_software(), _keystore(keystore, has_identity=(store / IDENTITY_FILE).is_file()), *_store(store)]
     found.extend(_limits(store))
     if register is not None:
         found.append(_register(store, register))
+    if nfiq2 is not None:
+        found.append(_nfiq2(nfiq2))
     return found
 
 
@@ -132,6 +139,24 @@ def _limits(store: Path) -> list[Finding]:
         text = f"a minimum NFIQ 2 score of {limits.min_nfiq2:g} is set: jobs without the NFIQ 2 tool record a deviation"
         found.append(Finding("Limits of use", "note", text))
     return found
+
+
+def _nfiq2(command: Sequence[str]) -> Finding:
+    """Whether the configured NFIQ 2 tool is there and reports its version (it is asked nothing else)."""
+    try:
+        tool = Nfiq2(command, work_dir=Path(tempfile.gettempdir()))  # no image is written for a version query
+    except RidgeError as exc:
+        return Finding("NFIQ 2", "problem", str(exc))
+    try:
+        exit_code, version = tool.ask_version()
+    except QualityToolError as exc:  # missing, cannot start, timed out or printed too much
+        return Finding("NFIQ 2", "problem", f"{exc}: jobs cannot compute NFIQ 2 scores")
+    if exit_code != 0:
+        text = f"the tool exited with code {exit_code} when asked for its version: check the path and arguments"
+        return Finding("NFIQ 2", "problem", text)
+    if version is None:
+        return Finding("NFIQ 2", "note", "the tool ran but reported no version; its scores are indicative only")
+    return Finding("NFIQ 2", "ok", f"{version}; its scores are indicative only (photos are outside NFIQ 2's scope)")
 
 
 def _register(store: Path, register: Path) -> Finding:

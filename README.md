@@ -100,6 +100,7 @@ ridge-case overview --store D:/ridge-store              # references, retention 
 ridge-case overview --store D:/ridge-store --due        # only cases past retention without a hold (retention review)
 ridge-case backup --store D:/ridge-store --to E:/backup-2026-10-18   # encrypted byte copy with a hash manifest
 ridge-case workstation --store D:/ridge-store          # build, OS keystore, store, limits: what to fix before casework
+ridge-case workstation --store D:/ridge-store --register lab-keys.json --nfiq2 "C:/Program Files/NFIQ2/bin/nfiq2.exe"
 ridge-case check-backup E:/backup-2026-10-18            # every file against the manifest
 ridge-case note D:/ridge-store/<case-id> "text" --job <job-id>   # examiner note in the custody log (--corrects SEQ)
 ridge-case notes D:/ridge-store/<case-id>               # every note, with time and examiner
@@ -110,7 +111,7 @@ ridge-case register-add --card card.json --register lab-keys.json --to lab-keys-
 ridge-case register --check lab-keys.json                # the laboratory's key register (holders, roles, validity)
 ridge-case check-report report.json --register lab-keys.json   # name the holder; refuse unregistered or revoked keys
 ridge-case check-log record.json --html record.html     # verify, then write a readable copy for the DPO
-ridge-case check <file-or-package-folder> --register lab-keys.json   # verify any exported Ridge file by its kind
+ridge-case check <file-package-or-backup-folder> --register lab-keys.json   # verify any exported Ridge file by its kind
 ridge-case log D:/ridge-store/<case-id>                 # decrypted custody log (processing record)
 ridge-case log D:/ridge-store/<case-id> --find <sha>     # only entries containing a hash, a job id or note words
 ridge-case jobs D:/ridge-store/<case-id>                # jobs: started, result, signed report or not (--json)
