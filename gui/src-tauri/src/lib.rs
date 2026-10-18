@@ -116,6 +116,7 @@ pub fn run() {
             commands::package::export_package,
             commands::records::custody_log,
             commands::records::export_report_html,
+            commands::store::export_key_card,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

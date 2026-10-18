@@ -38,6 +38,8 @@ export function StoreScreen({
   const [checked, setChecked] = useState<{ path: string; checks: StoreCheck[] } | null>(null);
   const checks = checked?.path === store?.path ? (checked?.checks ?? null) : null;
   const [query, setQuery] = useState("");
+  const [holder, setHolder] = useState("");
+  const [cardNote, setCardNote] = useState<string | null>(null);
   const [onlyDue, setOnlyDue] = useState(false);
   // Details belong to the store they were read from; choosing another store hides them.
   const [overview, setOverview] = useState<{ path: string; cases: Map<string, CaseOverview> } | null>(null);
@@ -82,6 +84,13 @@ export function StoreScreen({
       const path = store?.path ?? "";
       const cases = await ipc.storeOverview();
       setOverview({ path, cases: new Map(cases.map((c) => [c.case_id, c])) });
+    });
+  const exportCard = () =>
+    attempt("card", async () => {
+      const card = await ipc.exportKeyCard(holder);
+      setCardNote(
+        `Key card for key ${card.key_id} saved. Give it to the laboratory, which confirms who you are before registering it.`,
+      );
     });
   const create = () =>
     attempt("create", async () => {
@@ -146,6 +155,32 @@ export function StoreScreen({
             <p className="muted">
               Signing key <Hash value={store.identity.key_id} length={16} />
             </p>
+            <details className="key-card">
+              <summary>Register this key with the laboratory</summary>
+              <form
+                className="import"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void exportCard();
+                }}
+              >
+                <label className="field">
+                  <span>Your name as the laboratory registers it</span>
+                  <input
+                    required
+                    maxLength={200}
+                    value={holder}
+                    onChange={(e) => {
+                      setHolder(e.target.value);
+                    }}
+                  />
+                </label>
+                <Button type="submit" busy={busy === "card"} disabled={holder.trim() === ""}>
+                  Export key card...
+                </Button>
+              </form>
+              {cardNote ? <Notice tone="ok">{cardNote}</Notice> : null}
+            </details>
             {store.cases.length === 0 ? <p className="empty">No cases in this store yet.</p> : null}
             {store.cases.length > 1 ? (
               <label className="field case-find">

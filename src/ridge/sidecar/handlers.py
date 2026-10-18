@@ -32,6 +32,10 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "store.verify": (store.verify_all, {"store": (str_, True), "passphrase": (str_, True)}),
     "store.overview": (store.overview, {"store": (str_, True), "passphrase": (str_, True)}),
     "identity.create": (store.identity_create, {"store": (str_, True), "passphrase": (str_, True)}),
+    "identity.card": (
+        store.identity_card,
+        {"store": (str_, True), "passphrase": (str_, True), "holder": (str_, True), "dest": (str_, True)},
+    ),
     "case.create": (
         store.case_create,
         {

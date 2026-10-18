@@ -379,6 +379,15 @@ code,
   padding: 0 var(--space-2);
 }
 
+.key-card {
+  margin-bottom: var(--space-4);
+}
+
+.key-card summary {
+  cursor: pointer;
+  color: var(--ink-2);
+}
+
 .case-find {
   max-width: 28rem;
   margin-bottom: var(--space-3);

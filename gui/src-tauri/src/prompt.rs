@@ -52,6 +52,12 @@ pub enum Purpose {
     StoreOverview {
         store: PathBuf,
     },
+    /// Sign a key card for the laboratory's key register, saved to `dest` (chosen in a native dialog).
+    KeyCard {
+        store: PathBuf,
+        holder: String,
+        dest: PathBuf,
+    },
 }
 
 impl Purpose {
@@ -146,6 +152,12 @@ fn describe(purpose: &Purpose, attempts_left: u32) -> Context {
             "verify_store",
             "Verify all cases".to_owned(),
             "Enter your examiner passphrase to check every case of this store. Each check is recorded in that case's custody log."
+                .to_owned(),
+        ),
+        Purpose::KeyCard { .. } => (
+            "key_card",
+            "Export your key card".to_owned(),
+            "Enter your examiner passphrase to sign a card of your public key for the laboratory's key register."
                 .to_owned(),
         ),
         Purpose::StoreOverview { .. } => (
@@ -253,6 +265,27 @@ fn perform(app: &AppHandle, purpose: &Purpose, passphrase: &str) -> Result<Value
                 passphrase,
             };
             state::call_now(app, "store.verify", &params, STORE_VERIFY_TIMEOUT)
+        }
+        Purpose::KeyCard {
+            store,
+            holder,
+            dest,
+        } => {
+            #[derive(Serialize)]
+            struct Card<'a> {
+                store: &'a str,
+                passphrase: &'a str,
+                holder: &'a str,
+                dest: &'a str,
+            }
+            let (store, dest) = (path_text(store)?, path_text(dest)?);
+            let params = Card {
+                store: &store,
+                passphrase,
+                holder,
+                dest: &dest,
+            };
+            state::call_now(app, "identity.card", &params, KDF_TIMEOUT)
         }
         Purpose::StoreOverview { store } => {
             let store = path_text(store)?;
@@ -395,5 +428,13 @@ mod tests {
             ("store_overview", false)
         );
         assert!(!overview.detail.contains("/s"));
+        let card = Purpose::KeyCard {
+            store: PathBuf::from("/s"),
+            holder: "Examiner A".into(),
+            dest: PathBuf::from("/out/card.json"),
+        };
+        let shown = describe(&card, 5);
+        assert_eq!((shown.purpose, shown.confirm), ("key_card", false));
+        assert!(!shown.detail.contains("/out"));
     }
 }

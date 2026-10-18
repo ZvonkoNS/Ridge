@@ -103,6 +103,8 @@ export const ipc = {
   lockCase: () => call<{ locked: true }>("lock_case"),
   verifyStore: () => call<StoreCheck[]>("verify_store"),
   storeOverview: () => call<CaseOverview[]>("store_overview"),
+  exportKeyCard: (holder: string) =>
+    call<{ key_id: string; holder: string; exported: string }>("export_key_card", { holder }),
   sessionStatus: () => call<{ unlocked: boolean; idle_timeout_s: number }>("session_status"),
   caseInfo: () => call<CaseInfo>("case_info"),
   setLegalHold: (on: boolean, reason: string) => call<CaseInfo>("set_legal_hold", { on, reason }),

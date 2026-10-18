@@ -53,17 +53,27 @@ pub fn note(value: &str, max: usize) -> Result<String, IpcError> {
     let joined = value.replace("\r\n", "\n");
     let trimmed = joined.trim();
     let count = trimmed.chars().count();
-    let refused = |c: char| {
-        (c.is_control() && c != '\n' && c != '\t')
-            || ('\u{202a}'..='\u{202e}').contains(&c)
-            || ('\u{2066}'..='\u{2069}').contains(&c)
-    };
+    let refused = |c: char| (c.is_control() && c != '\n' && c != '\t') || disguises(c);
     if count == 0 || count > max || trimmed.chars().any(refused) {
         return Err(IpcError::invalid(&format!(
             "a note must be 1 to {max} printable characters (line breaks are allowed)"
         )));
     }
     Ok(trimmed.to_owned())
+}
+
+/// Bidirectional overrides and isolates: text with them can display differently from what it is.
+fn disguises(c: char) -> bool {
+    ('\u{202a}'..='\u{202e}').contains(&c) || ('\u{2066}'..='\u{2069}').contains(&c)
+}
+
+/// A person's name for a key card: plain text, no bidirectional overrides or isolates.
+pub fn holder(value: &str) -> Result<String, IpcError> {
+    let name = text(value, "the name", 200)?;
+    if name.chars().any(disguises) {
+        return Err(IpcError::invalid("the name must be plain text"));
+    }
+    Ok(name)
 }
 
 /// Optional free text: absent or blank means none.
@@ -176,6 +186,14 @@ mod tests {
             assert!(note(bad, 10).is_err(), "{bad:?}");
         }
         assert!(note(&"x".repeat(11), 10).is_err());
+    }
+
+    #[test]
+    fn holders_are_plain_names() {
+        assert_eq!(holder("  Examiner A ").unwrap(), "Examiner A");
+        assert!(holder("").is_err());
+        assert!(holder("Examiner\u{202e}A").is_err());
+        assert!(holder(&"x".repeat(201)).is_err());
     }
 
     #[test]

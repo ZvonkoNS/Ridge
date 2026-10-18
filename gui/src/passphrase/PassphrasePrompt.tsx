@@ -12,6 +12,7 @@ const ACTION: Record<PromptContext["purpose"], string> = {
   unlock: "Unlock",
   verify_store: "Verify all cases",
   store_overview: "Show case details",
+  key_card: "Sign key card",
 };
 
 export function PassphrasePrompt() {

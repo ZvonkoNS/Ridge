@@ -37,6 +37,7 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "export_package",
     "custody_log",
     "export_report_html",
+    "export_key_card",
 ];
 
 /// Commands of the passphrase window (capability `passphrase`).

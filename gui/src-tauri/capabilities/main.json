@@ -37,6 +37,7 @@
     "allow-list-notes",
     "allow-export-package",
     "allow-custody-log",
-    "allow-export-report-html"
+    "allow-export-report-html",
+    "allow-export-key-card"
   ]
 }

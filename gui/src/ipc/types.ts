@@ -354,7 +354,7 @@ export interface CaseOverview {
 }
 
 export interface PromptContext {
-  purpose: "create_identity" | "create_case" | "unlock" | "verify_store" | "store_overview";
+  purpose: "create_identity" | "create_case" | "unlock" | "verify_store" | "store_overview" | "key_card";
   title: string;
   detail: string;
   confirm: boolean;

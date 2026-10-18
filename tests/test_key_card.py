@@ -16,6 +16,8 @@ from ridge.case.key_card import check_card, register_add, write_card
 from ridge.case.key_register import confirm_key, load_register
 from ridge.case.limits_signing import create_fqm_key
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
+from ridge.sidecar.handlers import Session
+from ridge.sidecar.server import handle
 from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore
 
 FQM_PASSPHRASE = "quality manager's own long passphrase"  # noqa: S105  # synthetic test passphrase
@@ -104,3 +106,23 @@ def test_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.Cap
     shown = capsys.readouterr().out
     assert "Synthetic Lab key register, 2 key(s)" in shown
     assert "FQM B" in shown
+
+
+def test_sidecar_identity_card(tmp_path: Path) -> None:
+    keystore = MemoryKeyStore()
+    create_identity(tmp_path / "store", PASSPHRASE, keystore, FAST_KDF)
+    session = Session(keystore_factory=lambda: keystore)
+    params = {
+        "store": str((tmp_path / "store").resolve()),
+        "passphrase": PASSPHRASE,
+        "holder": "Examiner A",
+        "dest": str((tmp_path / "card.json").resolve()),
+    }
+    message = {"jsonrpc": "2.0", "id": 1, "method": "identity.card", "params": params}
+    reply = json.loads(handle(json.dumps(message).encode(), session))
+    assert check_card(tmp_path / "card.json").key_id == reply["result"]["key_id"]
+    params["passphrase"] = "not the right passphrase at all"
+    params["dest"] = str((tmp_path / "other.json").resolve())
+    message["params"] = params
+    assert "error" in json.loads(handle(json.dumps(message).encode(), session))
+    assert not (tmp_path / "other.json").exists()
