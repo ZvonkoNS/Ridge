@@ -43,7 +43,7 @@ describe("custody log", () => {
     const table = await screen.findByRole("table");
     expect(await within(table).findByText(/Glare on the upper third/)).toBeInTheDocument();
     expect(mocked).toHaveBeenCalledWith("custody_log", {
-      request: { offset: 0, limit: 100, action: "examiner" },
+      request: { offset: 0, limit: 100, action: "examiner", text: null },
     });
   });
 
@@ -59,12 +59,16 @@ describe("custody log", () => {
   it("searches the whole log for a hash, a job id or note text", async () => {
     const mocked = routes({
       custody_log: (request) =>
-        request?.text ? { total: 1, entries: [entry(4, "examiner.note", { text: "glare" })] } : { total: 0, entries: [] },
+        request?.text
+          ? { total: 1, entries: [entry(4, "examiner.note", { text: "glare" })] }
+          : { total: 0, entries: [] },
     });
     render(<CustodyLog onFailure={vi.fn()} />);
     await userEvent.type(screen.getByRole("searchbox", { name: "Find" }), "glare");
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
     expect(await screen.findByText(/glare/)).toBeInTheDocument();
-    expect(mocked).toHaveBeenCalledWith("custody_log", { request: { offset: 0, limit: 100, action: null, text: "glare" } });
+    expect(mocked).toHaveBeenCalledWith("custody_log", {
+      request: { offset: 0, limit: 100, action: null, text: "glare" },
+    });
   });
 });

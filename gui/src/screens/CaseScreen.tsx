@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 
+import { AboutRidge } from "../components/AboutRidge";
 import { ShortcutsHelp, isTyping } from "../components/ShortcutsHelp";
 import { Button, Notice } from "../components/ui";
 import { IpcError, ipc, isLocked } from "../ipc/commands";
@@ -39,13 +40,14 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
   const idle = useIdle(idleTimeout);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [help, setHelp] = useState(false);
+  const [about, setAbout] = useState(false);
   const closeHelp = useCallback(() => {
     setHelp(false);
   }, []);
 
   useEffect(() => {
-    if (help) {
-      return; // the dialog handles its own keys
+    if (help || about) {
+      return; // the open dialog handles its own keys
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || isTyping(event.target)) {
@@ -65,7 +67,7 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
     return () => {
       window.removeEventListener("keydown", onKey);
     };
-  }, [help]);
+  }, [help, about]);
 
   const close = useCallback(
     (text: string | null) => {
@@ -191,6 +193,15 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
           >
             Keyboard shortcuts <kbd>?</kbd>
           </button>
+          <button
+            type="button"
+            className="rail-help"
+            onClick={() => {
+              setAbout(true);
+            }}
+          >
+            About Ridge
+          </button>
           {versions ? <p className="versions">{versions}</p> : null}
           <p className="rail-note">
             Image enhancement only. Ridge does not identify anyone and draws no conclusions.
@@ -255,6 +266,15 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
         </main>
       </div>
       {help ? <ShortcutsHelp onClose={closeHelp} /> : null}
+      {about ? (
+        <AboutRidge
+          versions={versions}
+          storePath={storePath}
+          onClose={() => {
+            setAbout(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
