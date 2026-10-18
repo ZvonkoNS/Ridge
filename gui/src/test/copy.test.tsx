@@ -20,6 +20,7 @@ describe("copy button", () => {
     await userEvent.click(screen.getByRole("button", { name: "Copy SHA-256 of finger.png" }));
     expect(writeText).toHaveBeenCalledWith("a".repeat(64));
     expect(screen.getByRole("button")).toHaveTextContent("Copied");
+    expect(screen.getByRole("status")).toHaveTextContent("SHA-256 of finger.png copied"); // announced
   });
 
   it("says when the copy failed", async () => {
@@ -30,5 +31,6 @@ describe("copy button", () => {
       await userEvent.click(screen.getByRole("button"));
     });
     expect(screen.getByRole("button")).toHaveTextContent("Copy failed");
+    expect(screen.getByRole("status")).toHaveTextContent("Copying the signing key id failed");
   });
 });

@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import getpass
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -12,11 +13,11 @@ import pytest
 
 from ridge.case import cli_common
 from ridge.case.cli import main
-from ridge.case.export_all import INDEX, export_role, file_name
+from ridge.case.export_all import INDEX, export_role, file_name, file_names
 from ridge.case.identity import create_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.store import StoredItem, open_case
-from ridge.errors import OutputExistsError, ParameterError
+from ridge.errors import OutputError, OutputExistsError, ParameterError
 from ridge.sidecar.handlers import Session
 from ridge.sidecar.server import handle
 from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, new_case, photo_file
@@ -62,6 +63,47 @@ def test_names_and_index_cells_are_safe(tmp_path: Path) -> None:
     assert "/" not in name
     assert ".." not in name
     assert name.endswith("_abababababab.png")
+
+
+def test_names_stay_distinct_when_prefixes_or_case_collide() -> None:
+    first = StoredItem("ab" * 32, "export", 1, "print.png")
+    same_prefix = StoredItem("ab" * 6 + "cd" * 26, "export", 1, "print.png")
+    other_case = StoredItem("ab" * 32, "export", 1, "PRINT.png")
+    again = StoredItem("ab" * 32, "export", 1, "Print.png")
+    names = file_names([first, same_prefix, other_case, again])
+    assert len({n.lower() for n in names}) == 4
+    assert names[1] == f"print_{same_prefix.sha256}.png"  # the full hash breaks the tie
+    assert names[3] == f"Print_{'ab' * 32}-2.png"  # and a counter after that
+
+
+def test_a_failed_export_part_way_is_reported_and_indexed(
+    case_dir: tuple[Path, MemoryKeyStore], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    folder, keystore = case_dir
+    with open_case(folder, PASSPHRASE, keystore) as case:
+        real = case.export
+        calls: list[str] = []
+
+        def fail_second(sha256: str, path: Path) -> Any:
+            calls.append(sha256)
+            if len(calls) == 2:
+                raise OutputError("the disk is full")
+            return real(sha256, path)
+
+        monkeypatch.setattr(case, "export", fail_second)
+        with pytest.raises(OutputError, match="stopped after 1 of 2 file"):
+            export_role(case, "export", tmp_path / "half")
+        calls.clear()
+        calls.append("pretend the first already failed")
+        with pytest.raises(OutputError, match="the disk is full"):
+            export_role(case, "print", tmp_path / "none")
+    with (tmp_path / "half" / INDEX).open(encoding="utf-8") as index:
+        rows = list(csv.DictReader(index))
+    assert len(rows) == 1  # exactly the file that was exported
+    assert (tmp_path / "half" / rows[0]["file"]).is_file()
+    assert not (tmp_path / "none").exists()  # nothing was exported: no folder is left
+    if os.name == "posix":
+        assert (tmp_path / "half").stat().st_mode & 0o077 == 0  # private folder
 
 
 def test_cli(case_dir: tuple[Path, MemoryKeyStore], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

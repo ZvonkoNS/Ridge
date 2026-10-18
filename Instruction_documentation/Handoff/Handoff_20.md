@@ -16,9 +16,16 @@ Completed work on this branch:
 | Area | What |
 | --- | --- |
 | Export all (FR-32) | `ridge-case export-all CASE --to NEW_FOLDER [--role ...]`, sidecar `case.export_all`, Tauri `export_all` (role allow-listed in Rust, native dialog for the new folder), and Records inventory buttons "Export all N comparison exports / processed prints...". Each file leaves through the single export path, one `artefact.export` each, under a safe, unique name. `EXPORTS.csv` lists file, SHA-256, role, job and label; labels are kept from being read as spreadsheet formulas (CWE-1236) |
-| Copy buttons | Copy the full SHA-256 of inventory items and of a report's input, and the signing key id. A failed copy says so |
+| Copy buttons | Copy the full SHA-256 of inventory items and of a report's input, and the signing key id. A failed copy says so, and the result is announced in a status region for screen readers |
 | ADR-012 (proposed) | Recovering the OS-keystore device secret, without which a store backup cannot be opened elsewhere. Four options are compared; the recommendation is a recovery file sealed under a separate recovery passphrase. **Needs a decision by the Security Owner and the product owner**; nothing is implemented |
 | Code health | `ridge-case extract` moved to `cli_extract.py`; `cli.py` is back to 254 lines |
+
+Codex review of PR #19 (four P2 findings), fixed on this branch:
+
+- the bulk-export folder is created private (`0o700`);
+- file names are distinct without regard to case, using the full SHA-256 and then a counter when a name is taken (hash prefixes can be made to collide);
+- a failure part-way keeps the exported files, which are already logged, writes the index of exactly those, and reports "stopped after N of M". A failure on the first file removes the empty folder;
+- the copy result is announced in a `role="status"` region (the button's label names the value, so its text change alone was not announced).
 
 Out of scope (unchanged):
 
@@ -78,8 +85,8 @@ See the pull request. Main areas:
 ## 9. Tests
 
 - Added:
-  - Python: `test_export_all.py` (5);
-  - Vitest: export-all buttons, copy button (2).
+  - Python: `test_export_all.py` (7: also colliding names, and a failure part-way);
+  - Vitest: export-all buttons, copy button with its announcement (2).
 - Commands: `python tools/gate.py all` on this branch; the result is recorded in the pull request.
 - Not run:
   - `tauri build` installers;
