@@ -1,6 +1,8 @@
 // View-only measuring between two points of a shown image. Millimetres are given only where the
 // image's scale is known (the comparison export, or the processed print through the same scale),
 // always with the scale's method and uncertainty; elsewhere only pixels. Nothing is recorded.
+import { useState } from "react";
+
 import type { Point } from "../lib/viewport";
 import type { ScaleSource } from "./ScaleBar";
 
@@ -38,5 +40,42 @@ export function MeasureReadout({ points, scale }: { points: Point[]; scale: Know
         ? `Distance: ${text}. View only; nothing is recorded.`
         : `Click ${points.length === 0 ? "two points" : "a second point"} on the image to measure.`}
     </p>
+  );
+}
+
+/** Measuring state for one viewer: a toggle, the clicked points, and the viewer props it needs. */
+export function useMeasure() {
+  const [measuring, setMeasuring] = useState(false);
+  const [points, setPoints] = useState<Point[]>([]);
+  return {
+    measuring,
+    points,
+    reset: () => {
+      setPoints([]);
+    },
+    toggle: () => {
+      setMeasuring(!measuring);
+      setPoints([]);
+    },
+    viewer: {
+      tool: measuring ? ("ruler" as const) : ("pan" as const),
+      ruler: measuring ? points : [],
+      onRulerPoint: (point: Point) => {
+        setPoints(points.length >= 2 ? [point] : [...points, point]);
+      },
+    },
+  };
+}
+
+export function MeasureToggle({ measuring, onToggle }: { measuring: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={measuring}
+      className={`tab${measuring ? " tab-on" : ""}`}
+      onClick={onToggle}
+    >
+      Measure
+    </button>
   );
 }
