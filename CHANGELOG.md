@@ -31,7 +31,7 @@ Forensic impact: **output pixels unchanged.** No default or recorded parameter c
 
 - Copy buttons for full SHA-256 values and the signing key id. The result is announced to screen readers.
 - Custody log search for a hash, a job id or note text (also `ridge-case log --find`).
-- "About Ridge": what Ridge is and is not, where the data lives, and how exported files are checked.
+- "About Ridge", on the store screen and in a case: what Ridge is and is not, where the data lives, and how exported files are checked.
 - Custody log view, case summary, note counts per job, job settings comparison (`ridge-case compare-jobs` in the CLI), and a view-only Measure tool on the comparison export.
 - Batch import of up to 50 photos. Only a refusal of a photo itself lets the batch continue.
 - Keyboard shortcuts (`?`, Alt+1–4), a retention-date reminder, case search, and an idle lock mirrored from the engine.
