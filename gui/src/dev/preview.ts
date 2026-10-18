@@ -286,6 +286,22 @@ const handlers: Record<string, Handler> = {
     sha256: LIMITS_WITHIN.sha256,
     limits: LIMITS,
   }),
+  workstation_check: () => [
+    { topic: "Ridge", level: "ok", text: "Ridge 0.4.0, commit 9bc5ae0d1f2a (build)" },
+    {
+      topic: "Platform",
+      level: "ok",
+      text: "Windows-11, AMD64, Python 3.13.5. Results are reproducible per architecture (x86_64)",
+    },
+    {
+      topic: "OS keystore",
+      level: "ok",
+      text: "the Ridge device secret is present (not shown). Store backups do not carry it (ADR-012)",
+    },
+    { topic: "Identity", level: "ok", text: `examiner signing key ${KEY_ID}` },
+    { topic: "Store", level: "ok", text: "D:\ridge-store (2 active)" },
+    { topic: "Limits of use", level: "note", text: "VR-2027-01, not signed" },
+  ],
   export_log: () => ({ exported: "D:\\Exports\\record.json", entries: 42, key_id: KEY_ID }),
   store_overview: () => [
     {

@@ -38,6 +38,7 @@ import type {
   StoreView,
   VerifiedReport,
   Verification,
+  WorkstationFinding,
 } from "./types";
 
 /** A failed command, with the category the Rust core assigned (no paths, no internals). */
@@ -143,6 +144,7 @@ export const ipc = {
   exportHead: () => call<HeadExported>("export_head"),
   minutiae: (sha256: string) => call<MinutiaeView>("get_minutiae", { sha256 }),
   limitsOfUse: () => call<LimitsStatus>("limits_of_use"),
+  workstationCheck: () => call<WorkstationFinding[]>("workstation_check"),
   exportComparison: (exportSha: string, referenceSha: string, referencePpi: number | null) =>
     call<SheetExported>("export_comparison", {
       export: exportSha,

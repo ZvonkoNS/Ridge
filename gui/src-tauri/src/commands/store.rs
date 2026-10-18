@@ -185,3 +185,12 @@ pub async fn limits_of_use(app: AppHandle, window: WebviewWindow) -> Result<Valu
     let store = path_text(&state::store(&app)?)?;
     call(&app, "store.limits", json!({"store": store}), QUICK).await
 }
+
+/// Check the installation, the OS keystore, the chosen store and its limits of use. Read-only:
+/// nothing is decrypted or logged, and the device secret is only looked up.
+#[tauri::command]
+pub async fn workstation_check(app: AppHandle, window: WebviewWindow) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    let store = path_text(&state::store(&app)?)?;
+    call(&app, "store.workstation", json!({"store": store}), QUICK).await
+}
