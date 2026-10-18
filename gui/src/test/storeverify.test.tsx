@@ -41,7 +41,7 @@ describe("verify all cases", () => {
       ],
       refresh_store: () => STORE,
     });
-    const { container } = render(
+    const { container, rerender } = render(
       <StoreScreen store={STORE} notice={null} onStore={vi.fn()} onOpened={vi.fn()} />,
     );
     await userEvent.click(screen.getByRole("button", { name: "Verify all cases..." }));
@@ -51,5 +51,14 @@ describe("verify all cases", () => {
     expect(alert).toHaveTextContent("KT-1 verified: 3 items, 1 signed reports");
     expect(mocked).toHaveBeenCalledWith("verify_store", {});
     expect(await axeViolations(container)).toEqual([]);
+    rerender(
+      <StoreScreen
+        store={{ ...STORE, path: "D:/other" }}
+        notice={null}
+        onStore={vi.fn()}
+        onOpened={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText(/cases verified/)).toBeNull(); // results belong to the store they came from
   });
 });

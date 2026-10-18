@@ -34,7 +34,9 @@ export function StoreScreen({
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [form, setForm] = useState({ reference: "", legalBasis: "", retention: "" });
-  const [checks, setChecks] = useState<StoreCheck[] | null>(null);
+  // Results belong to the store they were read from; choosing another store hides them.
+  const [checked, setChecked] = useState<{ path: string; checks: StoreCheck[] } | null>(null);
+  const checks = checked?.path === store?.path ? (checked?.checks ?? null) : null;
   const [query, setQuery] = useState("");
   // Details belong to the store they were read from; choosing another store hides them.
   const [overview, setOverview] = useState<{ path: string; cases: Map<string, CaseOverview> } | null>(null);
@@ -67,7 +69,8 @@ export function StoreScreen({
     });
   const verifyAll = () =>
     attempt("verify", async () => {
-      setChecks(await ipc.verifyStore());
+      const path = store?.path ?? "";
+      setChecked({ path, checks: await ipc.verifyStore() });
       onStore(await ipc.refreshStore());
     });
   const showDetails = () =>

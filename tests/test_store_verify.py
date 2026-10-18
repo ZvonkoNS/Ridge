@@ -64,7 +64,7 @@ def test_cases_that_cannot_be_checked_are_reported(store: tuple[Path, MemoryKeyS
     (root / "1b4e28ba-2fa1-11d2-883f-0016d3cca427").mkdir()  # a case folder without case.json
     results = {r.case_id: r for r in verify_store(root, PASSPHRASE, keystore)}
     locked = results[cases[0].name]
-    assert (locked.state, locked.checked, locked.ok) == ("locked", False, True)
+    assert (locked.state, locked.checked, locked.ok) == ("locked", False, False)  # an incomplete check is no success
     invalid = results["1b4e28ba-2fa1-11d2-883f-0016d3cca427"]
     assert (invalid.state, invalid.ok) == ("invalid", False)
 
@@ -94,3 +94,18 @@ def test_cli_and_sidecar(
     blob.write_bytes(blob.read_bytes()[:-1])
     assert main(["verify-store", "--store", str(root)]) == 1
     assert "FAILED" in capsys.readouterr().out
+
+
+def test_a_store_check_with_an_open_case_is_not_a_success(
+    store: tuple[Path, MemoryKeyStore, list[Path]],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    root, keystore, cases = store
+    monkeypatch.setattr(cli_common, "KEYSTORE_FACTORY", lambda: keystore)
+    monkeypatch.setattr(getpass, "getpass", lambda prompt="": PASSPHRASE)
+    (cases[0] / "LOCK").write_text("open elsewhere", encoding="utf-8")
+    assert main(["verify-store", "--store", str(root)]) == 1
+    shown = capsys.readouterr().out
+    assert "NOT CHECKED" in shown
+    assert "1 of 1 cases verified; 1 problem(s)" in shown

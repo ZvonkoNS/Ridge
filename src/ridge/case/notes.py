@@ -77,16 +77,18 @@ def add_note(
 ) -> Note:
     """Append a note about the case, one of its jobs or one stored item (logged as ``examiner.note``)."""
     text = clean_note(text)
-    if corrects is not None:
-        earlier = next((n for n in list_notes(case.entries) if n.seq == corrects), None)
-        if earlier is None:
-            raise ParameterError(f"custody entry {corrects} is not a note of this case")
-        job_id = job_id or earlier.job_id  # a correction belongs where the corrected note does
-        sha256 = sha256 or earlier.sha256
     if job_id is not None and not any(e["action"] == "job.start" and e.get("job_id") == job_id for e in case.entries):
         raise ParameterError(f"no job {job_id} in this case")
     if sha256 is not None:
         sha256 = case.item(sha256).sha256  # refuses an unknown or ambiguous item
+    if corrects is not None:
+        earlier = next((n for n in list_notes(case.entries) if n.seq == corrects), None)
+        if earlier is None:
+            raise ParameterError(f"custody entry {corrects} is not a note of this case")
+        # A correction belongs where the corrected note does: same job, same item, or the case.
+        if (job_id is not None and job_id != earlier.job_id) or (sha256 is not None and sha256 != earlier.sha256):
+            raise ParameterError(f"a correction of note {corrects} must be about the same job or item as that note")
+        job_id, sha256 = earlier.job_id, earlier.sha256
     entry = case.custody.append(ACTION, text=text, job_id=job_id, sha256=sha256, corrects=corrects)
     case.entries.append(entry)
     return _note(entry)

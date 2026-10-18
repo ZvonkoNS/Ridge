@@ -26,7 +26,7 @@ export function StoreChecks({ checks }: { checks: StoreCheck[] }) {
             <Hash value={c.case_id} length={8} /> {c.reference ?? ""}{" "}
             {c.checked && c.ok
               ? `verified: ${c.items} items, ${c.reports} signed reports`
-              : `${c.ok ? "not checked" : "FAILED"}: ${c.problems.join("; ")}`}
+              : `${c.checked ? "FAILED" : c.ok ? "not checked" : "NOT CHECKED"}: ${c.problems.join("; ")}`}
           </li>
         ))}
       </ul>

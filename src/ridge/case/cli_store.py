@@ -15,7 +15,7 @@ def cmd_verify_store(args: argparse.Namespace) -> int:
     """Verify every active case of a store; exit 1 when any case failed or cannot be read."""
     results = verify_store(args.store, common.read_passphrase(), common.KEYSTORE_FACTORY())
     for r in results:
-        status = "ok" if r.ok and r.checked else ("not checked" if r.ok else "FAILED")
+        status = ("ok" if r.ok else "FAILED") if r.checked else ("not checked" if r.ok else "NOT CHECKED")
         detail = f"{r.reference}: items {r.items}, reports {r.reports}" if r.checked and r.ok else "; ".join(r.problems)
         common.say(f"{status:11} {r.case_id}  {detail}")
     checked = [r for r in results if r.checked]

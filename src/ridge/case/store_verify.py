@@ -3,7 +3,8 @@
 One examiner passphrase unlocks the identity and all of that examiner's cases, so a periodic
 integrity check of a whole store needs it once. Each active case is opened, verified exactly as
 ``ridge-case verify`` does (the verification is logged in that case's custody log) and closed
-again. Cases that cannot be checked are reported, never skipped silently.
+again. Cases that cannot be checked are reported, never skipped silently; a case that is open
+elsewhere counts as a problem, because the store check is then incomplete.
 """
 
 from __future__ import annotations
@@ -20,10 +21,10 @@ from ridge.case.verify import verify_case
 from ridge.errors import RidgeError
 
 NOT_CHECKED = {
-    "locked": "open in another Ridge window; not checked",
     "disposed": "disposed; only the disposal record remains",
 }
-FAULTS = {
+FAULTS = {  # the store check is incomplete or a case needs attention: never reported as success
+    "locked": "open in another Ridge window, so not checked; close it there and verify again",
     "erasing": "disposal was interrupted; finish it with ridge-case dispose",
     "invalid": "the case folder is unreadable or not a Ridge case",
 }
