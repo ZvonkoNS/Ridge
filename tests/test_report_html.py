@@ -14,6 +14,7 @@ from ridge.case.cli import main
 from ridge.case.crypto import sha256_hex
 from ridge.case.identity import create_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
+from ridge.case.notes import add_note
 from ridge.case.report_html import CSP, export_report_html, render_report_html
 from ridge.case.reports import SignedReport, load_report
 from ridge.case.store import open_case
@@ -41,6 +42,7 @@ def test_the_page_renders_the_signed_report(signed_case: tuple[Path, MemoryKeySt
     case_dir, keystore, job = signed_case
     with open_case(case_dir, PASSPHRASE, keystore) as case:
         signed = load_report(case, case_dir.parent, job, log=False)
+        add_note(case, "Ridge flow unclear\nnear the delta <b>", job_id=job)
         export_report_html(case, case_dir.parent, job, tmp_path / "r.html")
         with pytest.raises(OutputExistsError):
             export_report_html(case, case_dir.parent, job, tmp_path / "r.html")
@@ -53,6 +55,8 @@ def test_the_page_renders_the_signed_report(signed_case: tuple[Path, MemoryKeySt
     assert "<script" not in page
     assert "<img" not in page
     assert logged[-1]["format"] == "html"
+    assert "Ridge flow unclear<br>near the delta &lt;b&gt;" in page
+    assert "not part of the signed report" in page
 
 
 def test_hostile_values_are_escaped() -> None:

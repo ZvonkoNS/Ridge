@@ -50,6 +50,7 @@ def test_a_package_holds_the_signed_records_and_no_images(package: tuple[Path, s
     folder, key_id, keystore, case_dir = package
     names = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file())
     assert len([n for n in names if n.startswith("reports/") and n.endswith(".json")]) == 2
+    assert len([n for n in names if n.endswith(".html")]) == 2  # readable copies, listed in the manifest
     assert RECORD in names
     assert MANIFEST in names
     assert not [n for n in names if n.endswith((".png", ".jpg", ".tif"))]
@@ -81,6 +82,7 @@ def _rewrite_report(folder: Path) -> None:
     [
         (_rewrite_report, "changed after signing"),
         (lambda f: (f / "reports" / "extra.txt").write_text("x", encoding="utf-8"), "files added"),
+        (lambda f: next((f / "reports").glob("*.html")).write_text("<p>edited</p>", encoding="utf-8"), "changed"),
         (lambda f: next((f / "reports").glob("*.sig")).unlink(), "removed"),
         (lambda f: (f / MANIFEST).write_bytes((f / MANIFEST).read_bytes() + b" "), "canonical"),
         (lambda f: (f / (MANIFEST + ".sig")).write_bytes(base64.b64encode(b"\0" * 64)), "does not verify"),

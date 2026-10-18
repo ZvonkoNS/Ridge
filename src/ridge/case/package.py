@@ -4,6 +4,8 @@
 
 - ``processing-record.json``: the signed custody log, as ``ridge-case log --to`` writes it;
 - ``reports/<job-id>.json`` and ``.json.sig``: every signed job report, exactly as signed;
+- ``reports/<job-id>.html``: a readable copy of each report with the job's examiner notes (not
+  signed itself, but listed with its hash in the signed manifest);
 - ``MANIFEST.json`` and ``MANIFEST.json.sig``: every file's SHA-256 and size, RFC 8785
   canonical, signed with the examiner key.
 
@@ -33,7 +35,9 @@ from ridge.case.crypto import sha256_hex
 from ridge.case.custody import utc_now
 from ridge.case.identity import Signer, key_id_for, public_identity, verify_signature
 from ridge.case.keys import b64
+from ridge.case.notes import list_notes
 from ridge.case.processing_record import export_log, load_record, verify_record
+from ridge.case.report_html import render_report_html
 from ridge.case.reports import check_exported_report, list_jobs, load_report
 from ridge.case.store import OpenCase
 from ridge.errors import IntegrityError, OutputExistsError, RidgeError
@@ -43,7 +47,7 @@ SCHEMA = "ridge.package/1"
 MANIFEST, RECORD = "MANIFEST.json", "processing-record.json"
 MAX_MANIFEST_BYTES = 1024 * 1024
 MAX_FILE_BYTES = 64 * 1024 * 1024
-_REPORT_PATH = re.compile(r"reports/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.json(\.sig)?")
+_REPORT_PATH = re.compile(r"reports/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(json(\.sig)?|html)")
 NOTE = "Disclosure package of a Ridge case. Verify with `ridge-case check-package`. It contains no images."
 
 
@@ -67,6 +71,8 @@ def export_package(case: OpenCase, store: Path, signer: Signer, dest: Path) -> d
             signed = load_report(case, store, job_id, log=False)  # checked against the log and the identity
             publish(dest / "reports" / f"{job_id}.json", signed.canonical)
             publish(dest / "reports" / f"{job_id}.json.sig", base64.b64encode(signed.signature) + b"\n")
+            readable = render_report_html(signed, list_notes(case.entries, job_id=job_id))
+            publish(dest / "reports" / f"{job_id}.html", readable.encode("utf-8"))
         export_log(case, store, signer, dest / RECORD)
         manifest = _manifest_for(dest, package_id, case.case_id, key_id, public)
         canonical = bytes(rfc8785.dumps(manifest))
@@ -172,6 +178,9 @@ def check_package(root: Path, *, expected_key_id: str | None = None) -> PackageC
     job_ids = [Path(p).stem for p in reports]
     if mine is None or sorted(mine.get("jobs") or []) != job_ids:
         raise IntegrityError("the processing record does not name this package and its reports")
+    readable = [Path(f["path"]).stem for f in files if f["path"].endswith(".html")]
+    if any(job_id not in job_ids for job_id in readable):
+        raise IntegrityError("a readable copy has no signed report in this package")
     signed = {j.job_id: j.report_sha256 for j in list_jobs(entries)}
     for path, job_id in zip(reports, job_ids, strict=True):
         report = check_exported_report(root / path, expected_key_id=key_id)

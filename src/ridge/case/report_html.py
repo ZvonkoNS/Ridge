@@ -14,6 +14,7 @@ from typing import Any
 
 from ridge.case.crypto import sha256_hex
 from ridge.case.limits import render_lines as render_limits
+from ridge.case.notes import Note, list_notes
 from ridge.case.reports import SignedReport, export_line, load_report, minutiae_line, nfiq2_line, printable
 from ridge.case.store import OpenCase, publish_logged
 from ridge.errors import OutputExistsError
@@ -57,8 +58,27 @@ def _limits(section: dict[str, Any] | None) -> str:
     return "<br>".join(_text(_value(line)) for line in lines)
 
 
-def render_report_html(signed: SignedReport) -> str:
-    """Render a verified report as a self-contained HTML page (no scripts, no images)."""
+def _notes(notes: list[Note]) -> str:
+    if not notes:
+        return ""
+    items = "".join(
+        f"<li><code>#{n.seq}</code> {_text(n.ts_utc)} · {_text(n.actor)}"
+        f"{f' · corrects #{n.corrects}' if n.corrects is not None else ''}<br>"
+        f"{'<br>'.join(_text(line) for line in n.text.splitlines())}</li>"
+        for n in notes
+    )
+    return (
+        "<h2>Examiner notes</h2><p>From the custody log. They are not part of the signed report and may "
+        f"have been added after it; corrections never replace the original note.</p><ol>{items}</ol>"
+    )
+
+
+def render_report_html(signed: SignedReport, notes: list[Note] | None = None) -> str:
+    """Render a verified report as a self-contained HTML page (no scripts, no images).
+
+    `notes` are the examiner notes on the job from the custody log; they are shown in their own
+    section, marked as not part of the signed report.
+    """
     report = signed.report
     env, source = report.get("ridge") or {}, report.get("input") or {}
     params, meas = report.get("parameters") or {}, report.get("measurements") or {}
@@ -107,6 +127,7 @@ def render_report_html(signed: SignedReport) -> str:
 <h2>Outputs</h2><table><tr><th scope="col">Role</th><th scope="col">File</th><th scope="col">SHA-256</th>
 <th scope="col">Bytes</th></tr>{outputs}</table>
 <p>{_text(report.get("disclaimer", ""))}</p>
+{_notes(notes or [])}
 <footer>This page renders the signed report whose SHA-256 is {_code(canonical_sha)}, custody head
 {_code(report.get("custody_head"))}. The signed JSON report and its detached signature are authoritative;
 verify them with <code>ridge-case check-report</code>. This page is not signed.</footer>
@@ -119,8 +140,9 @@ def export_report_html(case: OpenCase, store: Path, ref: str, dest: Path, *, ove
     signed = load_report(case, store, ref, log=False)
     if not overwrite and dest.exists():
         raise OutputExistsError(f"{dest.name} already exists (use --overwrite to replace)")
+    page = render_report_html(signed, list_notes(case.entries, job_id=signed.job_id))
     publish_logged(
-        [(dest, render_report_html(signed).encode("utf-8"))],
+        [(dest, page.encode("utf-8"))],
         lambda: case.entries.append(
             case.custody.append("report.export", job_id=signed.job_id, destination=str(dest.resolve()), format="html")
         ),
