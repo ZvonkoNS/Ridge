@@ -119,6 +119,7 @@ def render_report_html(signed: SignedReport, notes: list[Note] | None = None) ->
         ("Signed with key", _code(signed.key_id)),
         ("Ridge", _text(f"{env.get('version')} on {env.get('platform')} ({env.get('machine')})")),
         ("Python", _text(env.get("python"))),
+        ("Commit", _code(f"{env.get('commit')} ({env.get('commit_source')})") if env.get("commit") else ""),
     ]
     inputs = [
         ("Photo", _text(f"{source.get('label')} · {source.get('format')} {size[0]} x {size[1]} px")),

@@ -11,6 +11,7 @@ mod commands;
 mod dialogs;
 mod error;
 mod prompt;
+mod prompt_calls;
 mod rpc;
 mod settings;
 mod sidecar;
@@ -91,6 +92,7 @@ pub fn run() {
             commands::store::lock_case,
             commands::store::session_status,
             commands::case::case_info,
+            commands::case::case_status,
             commands::case::set_legal_hold,
             commands::case::list_items,
             commands::case::import_evidence,
@@ -117,6 +119,8 @@ pub fn run() {
             commands::records::custody_log,
             commands::records::export_report_html,
             commands::store::export_key_card,
+            commands::records::check_exported,
+            commands::store::backup_store,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

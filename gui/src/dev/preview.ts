@@ -332,6 +332,21 @@ const handlers: Record<string, Handler> = {
     const offset = Number(r.offset ?? 0);
     return { total: all.length, entries: all.slice(offset, offset + Number(r.limit ?? 100)) };
   },
+  check_exported: (r) => ({
+    kind: r.folder ? "package" : "report",
+    title: r.folder ? "Disclosure package" : "Signed job report",
+    details: [
+      "Synthetic preview: nothing was read from disk",
+      r.with_register ? `Key ${KEY_ID} registered to Examiner (preview)` : `Signed with key ${KEY_ID}`,
+    ],
+    key_id: KEY_ID,
+    holder: r.with_register ? "Examiner (preview)" : null,
+  }),
+  export_key_card: (r) => ({
+    key_id: KEY_ID,
+    holder: String(r.holder),
+    exported: "D:\\Exports\\ridge_key_card.json",
+  }),
   export_report_html: (r) => ({ exported: "D:\\Exports\\ridge_job_report.html", job_id: r.job_id }),
   import_evidence: () => ({
     imported: [],

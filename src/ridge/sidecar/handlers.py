@@ -29,6 +29,8 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "store.cases": (store.cases, {"store": (str_, True)}),
     "store.identity": (store.identity_status, {"store": (str_, True)}),
     "store.limits": (store.limits_of_use, {"store": (str_, True)}),
+    "files.check": (store.files_check, {"path": (str_, True), "register": ((str, type(None)), False)}),
+    "store.backup": (store.backup, {"store": (str_, True), "dest": (str_, True)}),
     "store.verify": (store.verify_all, {"store": (str_, True), "passphrase": (str_, True)}),
     "store.overview": (store.overview, {"store": (str_, True), "passphrase": (str_, True)}),
     "identity.create": (store.identity_create, {"store": (str_, True), "passphrase": (str_, True)}),
@@ -50,6 +52,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "session.lock": (store.lock, {}),
     "session.status": (store.status, {}),
     "case.info": (case.info, {}),
+    "case.status": (case.status, {}),
     "case.hold": (case.hold, {"on": (bool_, True), "reason": (str_, True)}),
     "case.items": (case.items, {}),
     "note.add": (

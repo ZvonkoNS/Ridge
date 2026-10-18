@@ -13,6 +13,7 @@
     "allow-lock-case",
     "allow-session-status",
     "allow-case-info",
+    "allow-case-status",
     "allow-set-legal-hold",
     "allow-list-items",
     "allow-import-evidence",
@@ -38,6 +39,8 @@
     "allow-export-package",
     "allow-custody-log",
     "allow-export-report-html",
-    "allow-export-key-card"
+    "allow-export-key-card",
+    "allow-check-exported",
+    "allow-backup-store"
   ]
 }

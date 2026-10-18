@@ -4,6 +4,7 @@
 import { useState } from "react";
 
 import { ExhibitLabel } from "../components/ExhibitLabel";
+import { MeasureReadout, MeasureToggle, useMeasure } from "../components/Measure";
 import { MinutiaeNote, MinutiaeToggle, useMinutiaeOverlay } from "../components/MinutiaeToggle";
 import { ImageViewer, type Detail, type Tool } from "../components/ImageViewer";
 import type { ScaleSource } from "../components/ScaleBar";
@@ -71,6 +72,7 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
   const [result, setResult] = useState<JobResult | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const measure = useMeasure();
   const [problem, setProblem] = useState<string | null>(null);
   const original = usePreview(evidence.sha256, onFailure);
   const images = result?.outputs.filter((o) => o.role !== "minutiae") ?? [];
@@ -132,6 +134,7 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
     try {
       const done = await ipc.runJob(options);
       setResult(done);
+      measure.reset(); // points belong to the previous output
       const preferred =
         done.outputs.find((o) => o.role === "export") ?? done.outputs.find((o) => o.role === "print");
       setSelected(preferred?.sha256 ?? null);
@@ -214,14 +217,19 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
                 className={`tab${o.sha256 === current?.sha256 ? " tab-on" : ""}`}
                 onClick={() => {
                   setSelected(o.sha256);
+                  measure.reset();
                 }}
               >
                 {o.role === "debug" ? o.label : o.role}
               </button>
             ))}
             <MinutiaeToggle overlay={overlay} />
+            {current ? <MeasureToggle measuring={measure.measuring} onToggle={measure.toggle} /> : null}
           </div>
           <MinutiaeNote overlay={overlay} />
+          {measure.measuring && current && result ? (
+            <MeasureReadout points={measure.points} scale={outputScale(current, result)} />
+          ) : null}
           {current && result ? (
             <ImageViewer
               title={`${current.role} output`}
@@ -229,6 +237,7 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
               bitmap={output.bitmap}
               source={output.source}
               marks={overlay.marks}
+              {...measure.viewer}
               label={(zoom) => (
                 <ExhibitLabel
                   role={current.role}

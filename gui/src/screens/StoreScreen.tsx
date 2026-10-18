@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button, Hash, Notice } from "../components/ui";
 import { IpcError, ipc } from "../ipc/commands";
 import type { CaseOverview, SessionInfo, StoreCheck, StoreView } from "../ipc/types";
+import { CheckFiles } from "./CheckFiles";
 import { CaseList, StoreChecks, findCases } from "./StoreCases";
 
 interface Props {
@@ -40,6 +41,7 @@ export function StoreScreen({
   const [query, setQuery] = useState("");
   const [holder, setHolder] = useState("");
   const [cardNote, setCardNote] = useState<string | null>(null);
+  const [backupNote, setBackupNote] = useState<string | null>(null);
   const [onlyDue, setOnlyDue] = useState(false);
   // Details belong to the store they were read from; choosing another store hides them.
   const [overview, setOverview] = useState<{ path: string; cases: Map<string, CaseOverview> } | null>(null);
@@ -84,6 +86,14 @@ export function StoreScreen({
       const path = store?.path ?? "";
       const cases = await ipc.storeOverview();
       setOverview({ path, cases: new Map(cases.map((c) => [c.case_id, c])) });
+    });
+  const backup = () =>
+    attempt("backup", async () => {
+      const done = await ipc.backupStore();
+      setCardNote(null);
+      setBackupNote(
+        `Backup written: ${String(done.files)} encrypted file(s) with a hash manifest. It does not hold the OS-keystore secret that unlocking also needs.`,
+      );
     });
   const exportCard = () =>
     attempt("card", async () => {
@@ -132,9 +142,21 @@ export function StoreScreen({
         ) : (
           <p>Choose the folder that holds your encrypted cases, or an empty folder to start one.</p>
         )}
-        <Button variant={store ? "quiet" : "primary"} onClick={() => void choose()} busy={busy === "choose"}>
-          {store ? "Choose another store..." : "Choose case store..."}
-        </Button>
+        <div className="store-actions">
+          <Button
+            variant={store ? "quiet" : "primary"}
+            onClick={() => void choose()}
+            busy={busy === "choose"}
+          >
+            {store ? "Choose another store..." : "Choose case store..."}
+          </Button>
+          {store?.identity.exists ? (
+            <Button onClick={() => void backup()} busy={busy === "backup"}>
+              Back up this store...
+            </Button>
+          ) : null}
+        </div>
+        {backupNote ? <Notice tone="ok">{backupNote}</Notice> : null}
       </section>
       {store && !store.identity.exists ? (
         <section className="card" aria-labelledby="identity-title">
@@ -287,6 +309,7 @@ export function StoreScreen({
           </section>
         </>
       ) : null}
+      <CheckFiles />
       {versions ? <p className="versions">{versions}</p> : null}
     </main>
   );

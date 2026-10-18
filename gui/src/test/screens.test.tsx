@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { App } from "../App";
+import { App, versionText } from "../App";
 import { PassphrasePrompt } from "../passphrase/PassphrasePrompt";
 import { CaseScreen } from "../screens/CaseScreen";
 import { axeViolations, ipcError, routes } from "./ipc";
@@ -121,6 +121,14 @@ describe("store screen", () => {
     routes({ app_info: APP_INFO });
     render(<App />);
     expect(await screen.findByText("Ridge 0.2.0 (GUI 0.2.0, ridge.sidecar/1)")).toBeInTheDocument();
+  });
+
+  it("shows the engine's source commit when it is known", () => {
+    const engine = { ridge: "0.2.0", protocol: "ridge.sidecar/1" };
+    const known = { gui: "0.2.0", engine: { ...engine, commit: "0123456789abcdef", commit_source: "build" } };
+    expect(versionText(known)).toBe("Ridge 0.2.0 01234567 (GUI 0.2.0, ridge.sidecar/1)");
+    const unknown = { gui: "0.2.0", engine: { ...engine, commit: "unknown", commit_source: "unknown" } };
+    expect(versionText(unknown)).toBe("Ridge 0.2.0 (GUI 0.2.0, ridge.sidecar/1)");
   });
 });
 

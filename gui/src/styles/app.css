@@ -570,6 +570,12 @@ kbd {
   color: var(--seal);
 }
 
+.measure-readout {
+  margin: var(--space-2) 0;
+  font: 400 var(--step--1) var(--font-mono);
+  color: var(--ink);
+}
+
 .job-compare {
   margin-top: var(--space-5);
 }

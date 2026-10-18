@@ -13,6 +13,8 @@ use crate::windows::{require, MAIN_LABEL};
 use crate::{dialogs, settings, validate};
 
 const QUICK: Duration = Duration::from_secs(30);
+/// A large store is copied file by file: allow time for it.
+const BACKUP: Duration = Duration::from_secs(60 * 60);
 
 /// Versions of the GUI and the processing engine.
 #[tauri::command]
@@ -149,6 +151,17 @@ pub async fn export_key_card(
         },
     )
     .await
+}
+
+/// Copy the encrypted store to a new folder with a hash manifest (no passphrase; nothing decrypted).
+#[tauri::command]
+pub async fn backup_store(app: AppHandle, window: WebviewWindow) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    let store = path_text(&state::store(&app)?)?;
+    let suggested = "Ridge store backup".to_owned();
+    let dest = dialogs::new_folder(&app, "Name the new backup folder", suggested).await?;
+    let params = json!({"store": store, "dest": path_text(&dest)?});
+    call(&app, "store.backup", params, BACKUP).await
 }
 
 /// Lock the open case.

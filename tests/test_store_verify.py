@@ -109,3 +109,8 @@ def test_a_store_check_with_an_open_case_is_not_a_success(
     shown = capsys.readouterr().out
     assert "NOT CHECKED" in shown
     assert "1 of 1 cases verified; 1 problem(s)" in shown
+    assert main(["verify-store", "--store", str(root), "--json"]) == 1
+    listed = json.loads(capsys.readouterr().out)
+    assert {c["state"] for c in listed} == {"locked", "active"}
+    assert main(["verify", str(cases[1]), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["ok"] is True

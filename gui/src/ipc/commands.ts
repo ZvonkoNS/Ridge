@@ -10,8 +10,10 @@ import type {
   CaseCreated,
   CaseInfo,
   CaseOverview,
+  CaseStatus,
   CustodyPage,
   ErrorKind,
+  FileCheck,
   Exported,
   IdentityCreated,
   ImportBatch,
@@ -103,10 +105,14 @@ export const ipc = {
   lockCase: () => call<{ locked: true }>("lock_case"),
   verifyStore: () => call<StoreCheck[]>("verify_store"),
   storeOverview: () => call<CaseOverview[]>("store_overview"),
+  backupStore: () => call<{ exported: string; files: number; bytes: number }>("backup_store"),
+  checkExported: (folder: boolean, withRegister: boolean) =>
+    call<FileCheck>("check_exported", { folder, with_register: withRegister }),
   exportKeyCard: (holder: string) =>
     call<{ key_id: string; holder: string; exported: string }>("export_key_card", { holder }),
   sessionStatus: () => call<{ unlocked: boolean; idle_timeout_s: number }>("session_status"),
   caseInfo: () => call<CaseInfo>("case_info"),
+  caseStatus: () => call<CaseStatus>("case_status"),
   setLegalHold: (on: boolean, reason: string) => call<CaseInfo>("set_legal_hold", { on, reason }),
   listItems: () => call<Item[]>("list_items"),
   addNote: (text: string, jobId: string | null, corrects: number | null, sha256: string | null = null) =>

@@ -24,6 +24,7 @@ from PIL import Image
 
 import ridge
 from ridge.arrays import ImageU8
+from ridge.build_info import source_commit
 from ridge.case.crypto import sha256_hex
 from ridge.case.custody import utc_now
 from ridge.case.export_step import ExportOptions, export_and_score, minutiae_step, validate_job_settings
@@ -104,6 +105,7 @@ def environment() -> dict[str, Any]:
     """Software and platform facts needed to reproduce a result (NFR-3: per OS and CPU architecture)."""
     return {
         "version": ridge.__version__,
+        **source_commit(),  # commit and commit_source (FR-34)
         "python": platform.python_version(),
         "platform": platform.platform(),
         "machine": platform.machine(),

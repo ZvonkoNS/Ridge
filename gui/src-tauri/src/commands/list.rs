@@ -12,6 +12,7 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "lock_case",
     "session_status",
     "case_info",
+    "case_status",
     "set_legal_hold",
     "list_items",
     "import_evidence",
@@ -38,6 +39,8 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "custody_log",
     "export_report_html",
     "export_key_card",
+    "check_exported",
+    "backup_store",
 ];
 
 /// Commands of the passphrase window (capability `passphrase`).

@@ -16,10 +16,12 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case import cli_common as common
+from ridge.case.file_check import check_exported
 from ridge.case.identity import unlock_identity
 from ridge.case.key_card import check_card, register_add, write_card
 from ridge.case.key_register import confirm_key, describe, load_register
 from ridge.case.limits_signing import unlock_fqm_key
+from ridge.case.reports import printable
 
 
 def add_register_argument(parser: Any) -> None:
@@ -65,6 +67,15 @@ def cmd_register(args: argparse.Namespace) -> None:
         common.say(f"  {key.key_id}  {key.role:8}  {key.holder}  {key.valid_from} to {until}{revoked}")
 
 
+def cmd_check(args: argparse.Namespace) -> int:
+    """Verify any exported Ridge file, or a package folder, by its kind (as the GUI's check does)."""
+    result = check_exported(args.path, args.register)
+    common.say(f"{result.title}: verified")
+    for line in result.details:
+        common.say(f"  {printable(line)}")
+    return 0
+
+
 def cmd_key_card(args: argparse.Namespace) -> None:
     """Write a self-signed key card for the examiner identity or the FQM key."""
     if args.fqm_key:
@@ -95,6 +106,10 @@ def add_commands(sub: Any) -> None:
     p = sub.add_parser("register", help="check the laboratory's key register (holders, roles, validity)")
     p.add_argument("--check", type=Path, required=True, help="a ridge.key-register/1 file")
     p.set_defaults(func=cmd_register)
+    p = sub.add_parser("check", help="verify any exported Ridge file, or a package folder, by its kind")
+    p.add_argument("path", type=Path)
+    add_register_argument(p)
+    p.set_defaults(func=cmd_check)
     p = sub.add_parser("key-card", help="write a self-signed card of your public key for the laboratory")
     whose = p.add_mutually_exclusive_group(required=True)
     whose.add_argument("--store", type=Path, help="the case store whose examiner identity the card is for")

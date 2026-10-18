@@ -98,6 +98,7 @@ def test_errors_echo_a_known_request_id(session: Session) -> None:
 
 def test_version(session: Session) -> None:
     assert call(session, "ridge.version")["result"]["protocol"] == "ridge.sidecar/1"
+    assert {"commit", "commit_source"} <= set(call(session, "ridge.version")["result"])  # FR-34
 
 
 def test_case_methods_need_an_unlocked_case(session: Session) -> None:

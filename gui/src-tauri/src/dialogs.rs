@@ -43,6 +43,23 @@ pub async fn pick_folder(app: &AppHandle, title: &'static str) -> Result<PathBuf
     .await
 }
 
+/// Choose an existing file with the given filter (for example an exported JSON record).
+pub async fn pick_file(
+    app: &AppHandle,
+    title: &'static str,
+    filter: (&'static str, &'static [&'static str]),
+) -> Result<PathBuf, IpcError> {
+    let app = app.clone();
+    blocking(move || {
+        chosen(
+            builder(&app, title)
+                .add_filter(filter.0, filter.1)
+                .blocking_pick_file(),
+        )
+    })
+    .await
+}
+
 /// Choose an image to import.
 pub async fn pick_image(app: &AppHandle, title: &'static str) -> Result<PathBuf, IpcError> {
     let app = app.clone();

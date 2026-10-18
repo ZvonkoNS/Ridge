@@ -7,6 +7,7 @@ import { NotesPanel } from "../components/NotesPanel";
 import { Button, Notice, utc } from "../components/ui";
 import { ipc } from "../ipc/commands";
 import type { CaseInfo, CustodyEntry, Item, LimitsStatus, Verification } from "../ipc/types";
+import { CaseSummary } from "./CaseSummary";
 import { CustodyLog } from "./CustodyLog";
 import { Inventory, LimitsCard } from "./Inventory";
 
@@ -50,6 +51,12 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
   const [busy, setBusy] = useState<Action | null>(null);
   const [reason, setReason] = useState("");
 
+  // Every logged action changes the custody log: the summary, last-verified line and log view reload.
+  const [changes, setChanges] = useState(0);
+  const changed = () => {
+    setChanges((n) => n + 1);
+  };
+
   const run = async (what: Action) => {
     setBusy(what);
     try {
@@ -74,6 +81,7 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
           next.legal_hold ? "Legal hold placed; disposal is refused while it lasts." : "Legal hold lifted.",
         );
       }
+      changed();
     } catch (error) {
       onFailure(error);
     } finally {
@@ -83,13 +91,14 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
 
   return (
     <div className="section section-wide records">
+      <CaseSummary refresh={changes} onFailure={onFailure} />
       <section className="card" aria-labelledby="verify-title">
         <h2 id="verify-title">Verify the case</h2>
         <p>
           Checks the hash of every stored item, the custody chain and every signature, and reports the first
           problem precisely.
         </p>
-        <LastVerified refresh={verification} onFailure={onFailure} />
+        <LastVerified refresh={changes} onFailure={onFailure} />
         <Button variant="primary" onClick={() => void run("verify")} busy={busy === "verify"}>
           Verify now
         </Button>
@@ -181,11 +190,11 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
         </form>
       </section>
       <div className="card">
-        <NotesPanel jobId={null} onFailure={onFailure} level={2} />
+        <NotesPanel jobId={null} onFailure={onFailure} level={2} onAdded={changed} />
       </div>
       <LimitsCard limits={limits} />
-      <Inventory items={items} limits={limits} onFailure={onFailure} notify={notify} />
-      <CustodyLog onFailure={onFailure} />
+      <Inventory items={items} limits={limits} onFailure={onFailure} notify={notify} onExported={changed} />
+      <CustodyLog refresh={changes} onFailure={onFailure} />
     </div>
   );
 }

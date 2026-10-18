@@ -12,6 +12,8 @@ interface Props {
   limits: LimitsStatus | null;
   onFailure: (error: unknown) => void;
   notify: (message: string) => void;
+  /** Told after each export (it is logged), so custody views can reload. */
+  onExported?: () => void;
 }
 
 function size(bytes: number): string {
@@ -61,7 +63,7 @@ export function LimitsCard({ limits }: { limits: LimitsStatus | null }) {
   );
 }
 
-export function Inventory({ items, onFailure, notify }: Props) {
+export function Inventory({ items, onFailure, notify, onExported }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const exportOne = async (item: Item) => {
     setBusy(item.sha256);
@@ -70,6 +72,7 @@ export function Inventory({ items, onFailure, notify }: Props) {
       notify(
         `Exported ${item.label} (${done.exported.split(/[\\/]/).pop() ?? ""}); the export is in the custody log.`,
       );
+      onExported?.();
     } catch (error) {
       onFailure(error);
     } finally {

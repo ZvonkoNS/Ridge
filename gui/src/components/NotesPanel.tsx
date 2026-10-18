@@ -17,6 +17,8 @@ interface Props {
   onFailure: (error: unknown) => void;
   /** h2 when the panel is a card of its own, h3 inside a report. */
   level?: 2 | 3;
+  /** Told about each added note (the jobs list keeps its counts current). */
+  onAdded?: (note: Note) => void;
 }
 
 function NoteLine({ note, showJob, onCorrect }: { note: Note; showJob: boolean; onCorrect: () => void }) {
@@ -35,7 +37,7 @@ function NoteLine({ note, showJob, onCorrect }: { note: Note; showJob: boolean; 
   );
 }
 
-export function NotesPanel({ jobId, sha256 = null, onFailure, level = 3 }: Props) {
+export function NotesPanel({ jobId, sha256 = null, onFailure, level = 3, onAdded }: Props) {
   const Heading = level === 2 ? "h2" : "h3";
   const titleId = useId();
   const [notes, setNotes] = useState<Note[] | null>(null);
@@ -53,6 +55,7 @@ export function NotesPanel({ jobId, sha256 = null, onFailure, level = 3 }: Props
     try {
       const note = await ipc.addNote(text, jobId, corrects?.seq ?? null, sha256);
       setNotes((shown) => [...(shown ?? []), note]);
+      onAdded?.(note);
       setText("");
       setCorrects(null);
     } catch (error) {

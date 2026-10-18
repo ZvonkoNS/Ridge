@@ -72,6 +72,8 @@ describe("equal-scale comparison", () => {
       right?.name.replace("resolution in the file", ""),
     );
     expect(left?.width).toBe(right?.width);
+    await userEvent.click(screen.getByRole("button", { name: "Measure" }));
+    expect(screen.getAllByText(/Click two points on the image to measure/)).toHaveLength(2);
     expect(await axeViolations(container)).toEqual([]);
   });
 

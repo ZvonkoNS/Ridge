@@ -10,6 +10,9 @@ import uuid
 from datetime import date
 
 import ridge
+from ridge.build_info import source_commit
+from ridge.case.backup import backup_store
+from ridge.case.file_check import check_exported
 from ridge.case.identity import IDENTITY_FILE, create_identity, public_identity, unlock_identity
 from ridge.case.key_card import write_card
 from ridge.case.keys import b64
@@ -26,8 +29,8 @@ PROTOCOL = "ridge.sidecar/1"
 
 
 def version(session: Session, params: dict[str, Json]) -> Json:
-    """Ridge and protocol versions."""
-    return {"ridge": ridge.__version__, "protocol": PROTOCOL}
+    """Ridge and protocol versions, and the source commit (FR-34) the GUI shows beside them."""
+    return {"ridge": ridge.__version__, "protocol": PROTOCOL, **source_commit()}
 
 
 def cases(session: Session, params: dict[str, Json]) -> Json:
@@ -91,6 +94,23 @@ def identity_create(session: Session, params: dict[str, Json]) -> Json:
     store = absolute(params["store"], "store")
     signer = create_identity(store, params["passphrase"], session.keystore_factory(), session.kdf_params)
     return {"key_id": signer.key_id, "public_key": b64(signer.public_key)}
+
+
+def backup(session: Session, params: dict[str, Json]) -> Json:
+    """Copy the encrypted store to a new native-dialog folder with a hash manifest (no passphrase)."""
+    manifest = backup_store(absolute(params["store"], "store"), absolute(params["dest"], "dest"))
+    return {
+        "exported": params["dest"],
+        "files": len(manifest["files"]),
+        "bytes": sum(f["size"] for f in manifest["files"]),
+    }
+
+
+def files_check(session: Session, params: dict[str, Json]) -> Json:
+    """Verify an exported file or package folder chosen in a native dialog (no store; nothing written)."""
+    register = params.get("register")
+    path = absolute(params["path"], "path")
+    return check_exported(path, absolute(register, "register") if register else None).to_json()
 
 
 def identity_card(session: Session, params: dict[str, Json]) -> Json:

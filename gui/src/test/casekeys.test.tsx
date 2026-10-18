@@ -18,6 +18,7 @@ function caseRoutes(retention: string, hold = false) {
   return routes({
     list_items: () => [],
     list_jobs: () => [],
+    list_notes: () => [],
     case_info: () => ({ ...SESSION, retention_until: retention, legal_hold: hold, legal_basis: "synthetic" }),
     limits_of_use: () => ({ configured: false }),
     session_status: () => ({ unlocked: true, idle_timeout_s: 900 }),

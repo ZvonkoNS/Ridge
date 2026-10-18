@@ -12,6 +12,8 @@ fingerprint examiners.
 | --- | --- |
 | [docs/prd.md](docs/prd.md) | Product requirements, milestones, risks, open questions |
 | [docs/architecture.md](docs/architecture.md) | Architecture, security design, ADRs |
+| [CHANGELOG.md](CHANGELOG.md) | What changed, its forensic impact and known issues (internal builds, not for casework) |
+| [docs/verification_guide.md](docs/verification_guide.md) | For reviewers, the DPO and the FQM: checking exported reports, records, packages and keys offline |
 | [AGENTS.md](AGENTS.md) and [Instruction_documentation/](Instruction_documentation/README.md) | Engineering rules, standards profile, quality gates, handoffs |
 
 ## Install
@@ -91,9 +93,12 @@ ridge-case import-reference D:/ridge-store/<case-id> candidate.png --source "NAF
 ridge-case compare D:/ridge-store/<case-id> <export-sha> <reference-sha> --to sheet.png   # equal scale, view only
 ridge-case export D:/ridge-store/<case-id> <sha> --to print.png   # the only way plaintext leaves the store (logged)
 ridge-case verify D:/ridge-store/<case-id>              # hashes, custody chain, report signatures
+ridge-case status D:/ridge-store/<case-id>              # one-screen summary: stored items, jobs, notes, last verify
 ridge-case verify-store --store D:/ridge-store           # every case of the store, one passphrase
 ridge-case overview --store D:/ridge-store              # references, retention dates, legal holds (reads only)
 ridge-case overview --store D:/ridge-store --due        # only cases past retention without a hold (retention review)
+ridge-case backup --store D:/ridge-store --to E:/backup-2026-10-18   # encrypted byte copy with a hash manifest
+ridge-case check-backup E:/backup-2026-10-18            # every file against the manifest
 ridge-case note D:/ridge-store/<case-id> "text" --job <job-id>   # examiner note in the custody log (--corrects SEQ)
 ridge-case notes D:/ridge-store/<case-id>               # every note, with time and examiner
 ridge-case package D:/ridge-store/<case-id> --to D:/disclosure/KT-1   # signed records + manifest, no images
@@ -103,6 +108,7 @@ ridge-case register-add --card card.json --register lab-keys.json --to lab-keys-
 ridge-case register --check lab-keys.json                # the laboratory's key register (holders, roles, validity)
 ridge-case check-report report.json --register lab-keys.json   # name the holder; refuse unregistered or revoked keys
 ridge-case check-log record.json --html record.html     # verify, then write a readable copy for the DPO
+ridge-case check <file-or-package-folder> --register lab-keys.json   # verify any exported Ridge file by its kind
 ridge-case log D:/ridge-store/<case-id>                 # decrypted custody log (processing record)
 ridge-case jobs D:/ridge-store/<case-id>                # jobs: started, result, signed report or not
 ridge-case report D:/ridge-store/<case-id> <job-id>     # verified report as text (--json for the signed JSON)

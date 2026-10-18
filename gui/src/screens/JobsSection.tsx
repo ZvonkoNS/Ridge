@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { ExhibitLabel } from "../components/ExhibitLabel";
 import { ImageViewer } from "../components/ImageViewer";
+import { type KnownScale, MeasureReadout, MeasureToggle, useMeasure } from "../components/Measure";
 import { MinutiaeNote, MinutiaeToggle, useMinutiaeOverlay } from "../components/MinutiaeToggle";
 import { NotesPanel } from "../components/NotesPanel";
 import { Button, Hash, Notice, StaggerItem, StaggerList, utc } from "../components/ui";
@@ -29,17 +30,20 @@ function ReportView({
   onFailure,
   onChanged,
   notify,
-}: { shown: VerifiedReport; jobs: JobRecord[] } & Props) {
+  onNoteAdded,
+}: { shown: VerifiedReport; jobs: JobRecord[]; onNoteAdded: () => void } & Props) {
   const report = shown.report;
   const images = report.outputs.filter((o) => o.role !== "minutiae");
   const [selected, setSelected] = useState(images[0]?.sha256 ?? null);
   const [reproduction, setReproduction] = useState<Reproduction | null>(null);
   const [busy, setBusy] = useState<"export" | "html" | "reproduce" | null>(null);
+  const measure = useMeasure();
   const current = images.find((o) => o.sha256 === selected) ?? null;
+  const item = items.find((i) => i.sha256 === current?.sha256);
+  const scale: KnownScale | null = item ? outputScale(item, report) : null; // export or print with a known scale
   const preview = usePreview(current?.sha256 ?? null, onFailure);
   const minutiaeSha = report.outputs.find((o) => o.role === "minutiae")?.sha256 ?? null;
   const overlay = useMinutiaeOverlay(minutiaeSha, current?.role ?? null, preview.source, onFailure);
-  const item = items.find((i) => i.sha256 === current?.sha256);
   const result = report;
 
   const act = async (what: "export" | "html" | "reproduce") => {
@@ -103,6 +107,9 @@ function ReportView({
         <dd>
           {report.ridge.version} · Python {report.ridge.python} · {report.ridge.platform} (
           {report.ridge.machine})
+          {report.ridge.commit
+            ? ` · commit ${report.ridge.commit.slice(0, 12)} (${report.ridge.commit_source ?? ""})`
+            : ""}
         </dd>
         <dt>Parameters</dt>
         <dd>
@@ -121,13 +128,16 @@ function ReportView({
                 className={`tab${o.sha256 === selected ? " tab-on" : ""}`}
                 onClick={() => {
                   setSelected(o.sha256);
+                  measure.reset();
                 }}
               >
                 {o.role === "debug" ? o.label : o.role}
               </button>
             ))}
             <MinutiaeToggle overlay={overlay} />
+            <MeasureToggle measuring={measure.measuring} onToggle={measure.toggle} />
           </div>
+          {measure.measuring ? <MeasureReadout points={measure.points} scale={scale} /> : null}
           <MinutiaeNote overlay={overlay} />
           <ImageViewer
             title={`${current.role} output of the job`}
@@ -135,6 +145,7 @@ function ReportView({
             bitmap={preview.bitmap}
             source={preview.source}
             marks={overlay.marks}
+            {...measure.viewer}
             label={(zoom) => (
               <ExhibitLabel
                 role={current.role}
@@ -148,7 +159,7 @@ function ReportView({
         </>
       ) : null}
       <JobCompare report={report} jobs={jobs} onFailure={onFailure} />
-      <NotesPanel jobId={report.job_id} onFailure={onFailure} />
+      <NotesPanel jobId={report.job_id} onFailure={onFailure} onAdded={onNoteAdded} />
     </article>
   );
 }
@@ -157,10 +168,24 @@ export function JobsSection(props: Props) {
   const { items, onFailure } = props;
   const [jobs, setJobs] = useState<JobRecord[] | null>(null);
   const [shown, setShown] = useState<VerifiedReport | null>(null);
+  const [noteCounts, setNoteCounts] = useState<Map<string, number>>(new Map());
   const labels = new Map(items.map((i) => [i.sha256, i.label]));
+
+  const countNotes = () => {
+    ipc.listNotes(null).then((notes) => {
+      const counts = new Map<string, number>();
+      for (const n of notes) {
+        if (n.job_id) {
+          counts.set(n.job_id, (counts.get(n.job_id) ?? 0) + 1);
+        }
+      }
+      setNoteCounts(counts);
+    }, onFailure);
+  };
 
   useEffect(() => {
     ipc.listJobs().then(setJobs, onFailure);
+    countNotes();
     // reload when the stored items change (a new job adds outputs)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length]);
@@ -199,6 +224,7 @@ export function JobsSection(props: Props) {
                   <span className="pick-meta">
                     job <Hash value={job.job_id} length={8} />
                     {job.error ? ` · ${job.error}` : ""}
+                    {noteCounts.get(job.job_id) ? ` · ${String(noteCounts.get(job.job_id))} note(s)` : ""}
                   </span>
                 </button>
               </StaggerItem>
@@ -208,7 +234,13 @@ export function JobsSection(props: Props) {
       </aside>
       <div className="section-main">
         {shown ? (
-          <ReportView key={shown.job_id} shown={shown} jobs={jobs ?? []} {...props} />
+          <ReportView
+            key={shown.job_id}
+            shown={shown}
+            jobs={jobs ?? []}
+            onNoteAdded={countNotes}
+            {...props}
+          />
         ) : (
           <p className="empty empty-main">Choose a job to see its verified report.</p>
         )}

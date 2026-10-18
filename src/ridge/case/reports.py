@@ -239,6 +239,7 @@ def render_report(report: dict[str, Any], key_id: str) -> str:
         f"Created       {report.get('created_utc')}",
         f"Ridge         {env.get('version')} on {env.get('platform')} ({env.get('machine')}), "
         f"Python {env.get('python')}",
+        f"Commit        {env.get('commit')} ({env.get('commit_source')})" if env.get("commit") else "",
         f"Input         {source.get('label')}   {source.get('format')} {size[0]}x{size[1]} px",
         f"              sha256 {source.get('sha256')}",
         f"Source        {source['source']}" if source.get("source") else "",
