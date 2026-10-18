@@ -21,6 +21,8 @@ use crate::rpc::{self, FrameError, Reply, MAX_RESPONSE_BYTES};
 
 /// Protocol the GUI speaks (`PROTOCOL` in `ridge.sidecar.store_methods`).
 pub const PROTOCOL: &str = "ridge.sidecar/1";
+/// The sidecar's idle lock (`DEFAULT_IDLE_TIMEOUT_S` in `ridge.sidecar.session`), enforced by the core.
+pub const IDLE_LOCK: Duration = Duration::from_secs(15 * 60);
 /// First start plus at most three restarts per application run.
 pub const MAX_STARTS: u32 = 4;
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(60);
@@ -169,6 +171,8 @@ pub struct Sidecar<T: Transport> {
     transport: Option<T>,
     starts: u32,
     next_id: u64,
+    last_request: Instant,
+    idle_locked: bool,
 }
 
 impl<T: Transport> Sidecar<T> {
@@ -178,6 +182,8 @@ impl<T: Transport> Sidecar<T> {
             transport: None,
             starts: 0,
             next_id: 1,
+            last_request: Instant::now(),
+            idle_locked: false,
         }
     }
 
@@ -190,11 +196,33 @@ impl<T: Transport> Sidecar<T> {
         timeout: Duration,
     ) -> Result<Value, IpcError> {
         self.ensure_started()?;
+        self.last_request = Instant::now();
+        self.idle_locked = false;
         let outcome = self.exchange(method, params, timeout);
+        self.last_request = Instant::now(); // a long job is activity until it ends
         if matches!(&outcome, Err(e) if e.kind == crate::error::ErrorKind::Unavailable) {
             self.stop();
         }
         outcome
+    }
+
+    /// Lock the case once no request has been made for `idle` (the watchdog in `lib.rs` calls this).
+    ///
+    /// The sidecar checks its own idle deadline only when a request arrives; this enforces it from
+    /// the trusted core even if the WebView is minimised, suspended or compromised. Returns true when
+    /// it sent the lock. The lock itself does not count as activity.
+    pub fn lock_if_idle(&mut self, idle: Duration) -> bool {
+        if self.transport.is_none() || self.idle_locked || self.last_request.elapsed() < idle {
+            return false;
+        }
+        self.idle_locked = true;
+        if self
+            .exchange("session.lock", &serde_json::json!({}), STARTUP_TIMEOUT)
+            .is_err()
+        {
+            self.stop(); // closing the sidecar's input locks the case as well
+        }
+        true
     }
 
     /// Close the sidecar's input so it locks the case and exits.
@@ -445,6 +473,55 @@ mod tests {
                 .is_err());
         }
         assert_eq!(*launches.lock().unwrap(), MAX_STARTS);
+    }
+
+    #[test]
+    fn the_core_locks_an_idle_case_once() {
+        let locked = r#"{"jsonrpc":"2.0","id":ID,"result":{"locked":true}}"#;
+        let items = r#"{"jsonrpc":"2.0","id":ID,"result":[]}"#;
+        let (mut sidecar, sent, _) = sidecar(vec![vec![
+            ok(VERSION),
+            ok(items),
+            ok(locked),
+            ok(items),
+            ok(locked),
+        ]]);
+        assert!(
+            !sidecar.lock_if_idle(Duration::ZERO),
+            "nothing to lock before the sidecar runs"
+        );
+        sidecar
+            .call("case.items", &serde_json::json!({}), Duration::from_secs(1))
+            .unwrap();
+        assert!(
+            !sidecar.lock_if_idle(Duration::from_secs(3600)),
+            "not idle yet"
+        );
+        assert!(sidecar.lock_if_idle(Duration::ZERO));
+        assert!(
+            !sidecar.lock_if_idle(Duration::ZERO),
+            "locked once until the next request"
+        );
+        sidecar
+            .call("case.items", &serde_json::json!({}), Duration::from_secs(1))
+            .unwrap();
+        assert!(sidecar.lock_if_idle(Duration::ZERO));
+        let methods: Vec<_> = sent
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|m| m["method"].as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(
+            methods,
+            [
+                "ridge.version",
+                "case.items",
+                "session.lock",
+                "case.items",
+                "session.lock"
+            ]
+        );
     }
 
     /// The real sidecar from the repository virtualenv, over real stdio. Skipped when it is not

@@ -74,6 +74,15 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
     }, onFailure);
   }, [refresh, onFailure]);
 
+  /** Ask the engine to keep the case open; if it already locked it, show that, never a stale case. */
+  const keepOpen = () => {
+    ipc.sessionStatus().then((status) => {
+      if (!status.unlocked) {
+        close("The case was locked: 15 minutes without activity. Unlock it again.");
+      }
+    }, onFailure);
+  };
+
   useEffect(() => {
     if (idle.expired) {
       // lock on time, as the engine does, rather than waiting for the next request to fail
@@ -153,13 +162,7 @@ export function CaseScreen({ session, storePath, versions = null, onClosed }: Pr
                 <span aria-hidden="true">{idle.secondsLeft} s</span>
                 <span className="visually-hidden">about a minute</span>.
               </div>
-              <Button
-                onClick={() => {
-                  ipc.sessionStatus().catch(onFailure);
-                }}
-              >
-                Keep the case open
-              </Button>
+              <Button onClick={keepOpen}>Keep the case open</Button>
             </div>
           ) : null}
           <AnimatePresence>

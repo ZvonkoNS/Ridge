@@ -63,4 +63,33 @@ describe("idle lock", () => {
     expect(lock).toHaveBeenCalled();
     expect(onClosed).toHaveBeenCalledWith(expect.stringContaining("2 minutes without activity"));
   });
+
+  it("believes the engine when it says the case is already locked", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let unlocked = true;
+    routes({
+      list_items: () => [],
+      case_info: () => ({ ...SESSION, legal_basis: "synthetic" }),
+      limits_of_use: () => ({ configured: false }),
+      session_status: () => ({ unlocked, idle_timeout_s: 120 }),
+    });
+    const onClosed = vi.fn();
+    render(<CaseScreen session={SESSION} storePath="C:/cases" onClosed={onClosed} />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    act(() => {
+      noteActivity(Date.now() - 70_000);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_100);
+    });
+    unlocked = false; // the engine's own deadline passed first
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    await user.click(screen.getByRole("button", { name: "Keep the case open" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    expect(onClosed).toHaveBeenCalledWith(expect.stringContaining("The case was locked"));
+  });
 });

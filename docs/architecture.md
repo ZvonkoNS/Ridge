@@ -227,6 +227,7 @@ The **Rust core** (`gui/src-tauri/src`, trusted, `#![forbid(unsafe_code)]` throu
   - removes the `PYTHON*` variables and `PYTHON_KEYRING_BACKEND` from its environment;
   - reads response lines of at most 32 MiB on a reader thread, with per-method timeouts of 30 s to 20 min;
   - on a timeout, a transport failure or a protocol violation, stops the sidecar (the case locks). The next call restarts it, at most three times per run. A failed request is never resent.
+  - enforces the idle lock itself: a watchdog thread sends `session.lock` once 15 minutes pass without a request (`Sidecar::lock_if_idle`). The sidecar checks its own deadline only when a request arrives, and the WebView's timers may not run while the window is minimised or suspended.
 - Commands (`commands/`): 27 thin commands; the list in `commands/list.rs` is shared by `build.rs` (ACL manifest) and the capability tests. Each command:
   - deserialises a `deny_unknown_fields` request;
   - validates every value: SHA-256 handles, UUIDs, free text, dates, numeric ranges;
