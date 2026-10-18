@@ -88,12 +88,10 @@ def unlock_identity(store: Path, passphrase: str, keystore: KeyStore) -> Signer:
     record = _read(store)
     key_id, public = _public(record)  # one read: the file cannot change between the checks
     try:
-        salt, sealed = unb64(record["salt"]), unb64(record["sealed_private_key"])
+        salt, sealed, kdf = unb64(record["salt"]), unb64(record["sealed_private_key"]), record["kdf"]
     except (KeyError, TypeError, ValueError, AttributeError):  # binascii.Error is a ValueError
         raise IntegrityError(_MALFORMED) from None
-    kek = derive_kek(
-        passphrase, salt, KdfParams.from_json(record["kdf"]), device_secret(keystore, create=False), _PURPOSE
-    )
+    kek = derive_kek(passphrase, salt, KdfParams.from_json(kdf), device_secret(keystore, create=False), _PURPOSE)
     try:
         raw = open_sealed(kek, sealed, _aad(public))
     except IntegrityError:

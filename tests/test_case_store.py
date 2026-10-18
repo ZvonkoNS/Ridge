@@ -98,6 +98,7 @@ def test_wrong_passphrase_or_account_is_denied(case_dir: Path, keystore: MemoryK
         lambda r: json.dumps({k: v for k, v in r.items() if k != "salt"}).encode(),
         lambda r: json.dumps({**r, "wrapped_dek": 5}).encode(),
         lambda r: json.dumps({**r, "salt": "not base64!"}).encode(),
+        lambda r: json.dumps({k: v for k, v in r.items() if k != "kdf"}).encode(),
         lambda r: json.dumps({**r, "pad": "x" * 70_000}).encode(),  # over the size bound
     ],
 )

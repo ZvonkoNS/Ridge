@@ -22,6 +22,11 @@ Completed work on this branch:
 | About Ridge | Case-screen dialog: version and commit, what Ridge is and is not, where data lives, how exported files are checked. One `Dialog` component now holds the focus, Escape and Tab handling for it and the shortcut list. Self-review after the pull request opened found that a re-render briefly moved focus to the opener; `1ac2e5e` keeps the latest `onClose` in a ref, so the focus handling runs once per opening (`dialog.test.tsx`) |
 | Code health | `src/ridge/case/case_model.py` takes the case records and rules out of `store.py` (381 → 317 lines): file names and schemas, roles, `CaseMeta`, `StoredItem`, text validation and `publish_logged`. Callers import them from there |
 
+Codex review of PR #20 (two P2 findings), fixed on this branch:
+
+- a missing `kdf` field in `identity.json` or `case.json` still raised a raw `KeyError`, which stopped `verify-store`. The field is now read inside the malformed-record boundary, an `IntegrityError` (`test_store_verify.py::test_a_case_file_missing_a_field_is_a_fault_not_a_crash`, plus a missing-`kdf` case in each malformed-file test);
+- the dialog focus finding is the one already fixed in `1ac2e5e` (above).
+
 Out of scope (unchanged):
 
 - installer build and code signing;

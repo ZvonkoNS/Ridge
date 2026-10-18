@@ -48,6 +48,21 @@ def test_every_case_is_verified_and_a_damaged_one_is_named(
         assert any(e["action"] == "case.verify" for e in case.entries)  # each verification is logged
 
 
+@pytest.mark.parametrize("field", ["kdf", "salt", "wrapped_dek"])
+def test_a_case_file_missing_a_field_is_a_fault_not_a_crash(
+    store: tuple[Path, MemoryKeyStore, list[Path]], field: str
+) -> None:
+    root, keystore, cases = store
+    record = json.loads((cases[0] / "case.json").read_text(encoding="utf-8"))
+    del record[field]
+    (cases[0] / "case.json").write_text(json.dumps(record), encoding="utf-8")
+    results = {r.case_id: r for r in verify_store(root, PASSPHRASE, keystore)}
+    broken, other = results[cases[0].name], results[cases[1].name]
+    assert (broken.checked, broken.ok) == (True, False)
+    assert "case.json is malformed" in broken.problems[0]
+    assert other.ok  # the other cases are still checked
+
+
 def test_a_wrong_passphrase_opens_nothing(store: tuple[Path, MemoryKeyStore, list[Path]]) -> None:
     root, keystore, cases = store
     with open_case(cases[0], PASSPHRASE, keystore) as case:

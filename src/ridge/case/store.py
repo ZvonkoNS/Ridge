@@ -92,11 +92,12 @@ def open_case(case_dir: Path, passphrase: str, keystore: KeyStore, actor: str | 
     record = read_case_record(case_dir)
     case_id = record["case_id"]
     try:
-        salt, wrapped = unb64(record["salt"]), unb64(record["wrapped_dek"])
+        salt, wrapped, kdf = unb64(record["salt"]), unb64(record["wrapped_dek"]), record["kdf"]
     except (KeyError, TypeError, ValueError, AttributeError):  # binascii.Error is a ValueError
         raise IntegrityError(f"{CASE_FILE} is malformed") from None
+    params = KdfParams.from_json(kdf)  # validates the fields (KeyCustodyError)
     secret = device_secret(keystore, create=False)
-    kek = derive_kek(passphrase, salt, KdfParams.from_json(record["kdf"]), secret, b"case|" + case_id.encode())
+    kek = derive_kek(passphrase, salt, params, secret, b"case|" + case_id.encode())
     try:
         dek = open_sealed(kek, wrapped, _dek_aad(case_id))
     except IntegrityError:

@@ -197,6 +197,7 @@ MALFORMED: list[Callable[[dict[str, Any]], bytes]] = [
     lambda r: json.dumps({**r, "key_id": 5}).encode(),
     lambda r: json.dumps(_without(r, "salt")).encode(),
     lambda r: json.dumps({**r, "sealed_private_key": "%%%"}).encode(),
+    lambda r: json.dumps(_without(r, "kdf")).encode(),
     lambda r: json.dumps({**r, "pad": "x" * 70_000}).encode(),  # over the size bound
 ]
 
