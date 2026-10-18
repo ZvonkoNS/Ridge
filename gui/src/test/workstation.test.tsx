@@ -24,8 +24,18 @@ describe("workstation check", () => {
       "Problem OS keystore: no Ridge device secret",
     ]);
     expect(screen.getByText(/does not validate the method/)).toBeInTheDocument();
-    expect(mocked).toHaveBeenCalledWith("workstation_check", {});
+    expect(mocked).toHaveBeenCalledWith("workstation_check", { request: { with_register: false } });
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it("asks for the key register when chosen, and a closed dialog changes nothing", async () => {
+    const mocked = routes({ workstation_check: () => ipcError("cancelled", "no file was chosen") });
+    render(<WorkstationCheck />);
+    await userEvent.click(screen.getByRole("checkbox", { name: /key register/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Check this workstation" }));
+    expect(mocked).toHaveBeenCalledWith("workstation_check", { request: { with_register: true } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("list")).toBeNull();
   });
 
   it("says when the check itself failed", async () => {
