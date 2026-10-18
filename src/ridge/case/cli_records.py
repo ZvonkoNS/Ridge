@@ -20,6 +20,7 @@ from ridge.case import cli_common as common
 from ridge.case.cli_register import add_register_argument, confirm
 from ridge.case.custody_head import check_head, export_head
 from ridge.case.identity import unlock_identity
+from ridge.case.job_compare import differences, render_differences
 from ridge.case.processing_record import check_exported_log, export_log
 from ridge.case.report_html import export_report_html
 from ridge.case.reports import check_exported_report, export_report, list_jobs, load_report, printable, render_report
@@ -56,6 +57,16 @@ def cmd_report(args: argparse.Namespace) -> None:
             return
         signed = load_report(case, args.case.parent, args.job)
     common.say(signed.canonical.decode("utf-8") if args.json else render_report(signed.report, signed.key_id))
+
+
+def cmd_compare_jobs(args: argparse.Namespace) -> None:
+    """List the settings that differ between two jobs (both reports verified; the reads are logged)."""
+    with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
+        first = load_report(case, args.case.parent, args.job)
+        second = load_report(case, args.case.parent, args.other)
+    rows, same = differences(first.report, second.report)
+    for line in render_differences(first.job_id, second.job_id, rows, same):
+        common.say(line)
 
 
 def cmd_reproduce(args: argparse.Namespace) -> int:
@@ -161,12 +172,22 @@ def add_commands(sub: Any) -> None:
     shown.add_argument("--html", type=Path, help="write a readable HTML rendering (not signed; logged)")
     p.add_argument("--overwrite", action="store_true")
     p.set_defaults(func=cmd_report)
+    p = sub.add_parser("compare-jobs", help="list the settings that differ between two jobs (no ranking)")
+    p.add_argument("case", type=Path)
+    p.add_argument("job", help="job id, or its first 8 or more characters")
+    p.add_argument("other", help="the other job id, or its first 8 or more characters")
+    p.set_defaults(func=cmd_compare_jobs)
     p = sub.add_parser("reproduce", help="re-run a signed job from its report and compare every output")
     p.add_argument("case", type=Path)
     p.add_argument("job", help="job id, or its first 8 or more characters")
     p.add_argument("--nfiq2", type=Path, help="absolute path of the NIST NFIQ 2 executable (score is not compared)")
     p.add_argument("--nfiq2-arg", action="append", default=[], help="extra argument for the NFIQ 2 command")
     p.set_defaults(func=cmd_reproduce)
+    _add_record_commands(sub)
+
+
+def _add_record_commands(sub: Any) -> None:
+    """Register the verification and processing-record commands."""
     p = sub.add_parser("check-report", help="verify an exported report without the case store")
     p.add_argument("report", type=Path)
     p.add_argument("--sig", type=Path, help="detached signature (default: REPORT.sig)")
