@@ -31,7 +31,9 @@ from ridge.case.custody import utc_now
 from ridge.case.keys import KeyStore
 from ridge.case.store import open_case
 from ridge.errors import IntegrityError, RetentionError
-from ridge.image_io import publish
+from ridge.image_io import publish, read_bounded
+
+MAX_RECORD_BYTES = 64 * 1024  # case.json and disposal records are well under 1 KiB
 
 RECORD_SCHEMA = "ridge.disposal/1"
 REASONS = ("retention-expired", "proceedings-closed", "court-order", "legal-obligation", "created-in-error")
@@ -92,8 +94,8 @@ def _finish(case_dir: Path, record: dict[str, Any]) -> Path:
 
 def _read_json(path: Path) -> dict[str, Any]:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
+        value = json.loads(read_bounded(path, MAX_RECORD_BYTES).decode("utf-8"))
+    except (OSError, ValueError) as exc:  # unreadable, oversized (InputRejectedError) or not JSON
         raise IntegrityError(f"cannot read {path.name}: {exc}") from None
     if not isinstance(value, dict):
         raise IntegrityError(f"{path.name} is not a JSON object")
