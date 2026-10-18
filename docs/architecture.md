@@ -206,6 +206,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `store.verify` | `store` (absolute), `passphrase` | Every case of the store verified as `case.verify` does (each check logged in that case's custody log); cases that cannot be checked are named, and a case open in another window counts as a problem (the check is incomplete). **Rust core only**, from the prompt window |
 | `store.overview` | `store` (absolute), `passphrase` | Every case's reference, retention date, legal hold, evidence and job counts, read from the encrypted case metadata. Nothing is written or logged (no evidence is read). **Rust core only**, from the prompt window |
 | `store.limits` | `store` (absolute) | The store's limits of use (§8.3): `configured: false`, or source, file SHA-256 and limits; a malformed file is refused |
+| `store.workstation` | `store` (absolute), `register` (optional) | The workstation check: one finding per line (`topic`, `level` ok/note/problem, `text`). Read-only; nothing decrypted or logged |
 | `session.lock` / `session.status` | – | Locks the case (also done at end of input and after 15 minutes without requests) / unlocked state and idle timeout |
 | `case.status` | – | One-screen summary of the unlocked case: stored items by role, jobs by outcome, signed reports, notes, retention and hold, last verification and custody-head export (reads only) |
 | `case.info` / `case.hold` | – / `on`, `reason` | Decrypted case metadata / places or lifts a legal hold with a reason (logged as `case.hold`) |
@@ -222,7 +223,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `report.export` | `job_id`, `dest` (absolute), `overwrite` | Logged export of the canonical report and its detached signature (`dest.sig`) |
 | `job.reproduce` | `job_id` | Re-run from the verified report; per-output comparison and environment changes (logged, signed) |
 | `report.export_html` | `job_id`, `dest` (absolute), `overwrite` | Readable HTML rendering of a verified report: escaped values, a CSP with no scripts or embedded content, no images, the SHA-256 of the signed JSON in the footer; not signed (logged as `report.export`, `format: html`) |
-| `log.entries` | `offset`, `limit` 1–500, `action` (a kind such as `job` or `examiner.note`) | A page of the custody log, newest first, and the total; read only |
+| `log.entries` | `offset`, `limit` 1–500, `action` (a kind such as `job` or `examiner.note`), `text` (1–100 characters, optional) | A page of the custody log, newest first, and the total; with `text`, only entries containing it (case-insensitive: a hash, a job id, note text); read only |
 | `log.export` | `dest` (absolute), `overwrite` | Logged, signed processing record (PRIV-3) |
 | `head.export` | `dest` (absolute), `overwrite` | Logged, signed custody head for out-of-band countersigning (§8.4) |
 | `package.export` | `dest` (absolute, a new folder named in a native dialog) | Disclosure package: processing record, signed reports, signed manifest; no images (logged) |
@@ -299,6 +300,18 @@ A development preview (`gui/src/dev/preview.ts`: mocked IPC and synthetic drawn 
 ```
 
 Writes are atomic and never replace existing blobs (`image_io.publish`). The custody log is the index of everything stored: listing, verification and export resolve items through it. Evidence and artefacts are identified by the SHA-256 of their **plaintext**, computed before encryption. On disk they are named `HMAC-SHA256(name_key, sha256)` with `name_key` derived from the case DEK, so file names do not reveal whether a known image is in a store, yet duplicates are still detected. Verification needs the case unlocked (OQ-13).
+
+Workstation check (`src/ridge/case/workstation.py`, added 2026-10-18): `ridge-case workstation --store S [--register R] [--json]` and the GUI store screen ("This workstation") report, before casework starts:
+
+- the Ridge version and source commit;
+- the platform and whether its CPU architecture has reference results;
+- library versions and HEIF support;
+- whether this account's OS keystore holds the device secret (only looked up, never shown);
+- the examiner identity and the store's cases by state;
+- the limits of use: signed or not, whether they cover this CPU architecture, and an NFIQ 2 minimum;
+- optionally, whether the store's key is in a key register.
+
+Each finding is `ok`, `note` or `problem`; the command exits 1 on a problem. Nothing is created, decrypted or logged. The check is not a validation of the method or of the installation (NFR-3, OQ-15).
 
 ### 8.2 Encryption envelope
 
