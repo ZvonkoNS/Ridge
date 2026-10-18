@@ -203,6 +203,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `store.overview` | `store` (absolute), `passphrase` | Every case's reference, retention date, legal hold, evidence and job counts, read from the encrypted case metadata. Nothing is written or logged (no evidence is read). **Rust core only**, from the prompt window |
 | `store.limits` | `store` (absolute) | The store's limits of use (§8.3): `configured: false`, or source, file SHA-256 and limits; a malformed file is refused |
 | `session.lock` / `session.status` | – | Locks the case (also done at end of input and after 15 minutes without requests) / unlocked state and idle timeout |
+| `case.status` | – | One-screen summary of the unlocked case: stored items by role, jobs by outcome, signed reports, notes, retention and hold, last verification and custody-head export (reads only) |
 | `case.info` / `case.hold` | – / `on`, `reason` | Decrypted case metadata / places or lifts a legal hold with a reason (logged as `case.hold`) |
 | `case.items` / `case.verify` | – | Stored items / verification result |
 | `note.add` / `notes.list` | `text`, `job_id`, `sha256`, `corrects` / `job_id` | Appends an examiner note (custody action `examiner.note`; FR-29) / the notes of the case or one job. A note never changes; a correction names the note it corrects |

@@ -51,6 +51,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "session.lock": (store.lock, {}),
     "session.status": (store.status, {}),
     "case.info": (case.info, {}),
+    "case.status": (case.status, {}),
     "case.hold": (case.hold, {"on": (bool_, True), "reason": (str_, True)}),
     "case.items": (case.items, {}),
     "note.add": (

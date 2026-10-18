@@ -7,6 +7,7 @@ import { NotesPanel } from "../components/NotesPanel";
 import { Button, Notice, utc } from "../components/ui";
 import { ipc } from "../ipc/commands";
 import type { CaseInfo, CustodyEntry, Item, LimitsStatus, Verification } from "../ipc/types";
+import { CaseSummary } from "./CaseSummary";
 import { CustodyLog } from "./CustodyLog";
 import { Inventory, LimitsCard } from "./Inventory";
 
@@ -83,6 +84,7 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
 
   return (
     <div className="section section-wide records">
+      <CaseSummary refresh={verification} onFailure={onFailure} />
       <section className="card" aria-labelledby="verify-title">
         <h2 id="verify-title">Verify the case</h2>
         <p>

@@ -313,6 +313,23 @@ export interface CustodyPage {
   entries: CustodyEntry[];
 }
 
+/** A one-screen summary of the open case (read from the verified custody log). */
+export interface CaseStatus {
+  case_id: string;
+  reference: string;
+  retention_until: string;
+  legal_hold: boolean;
+  retention_reached: boolean;
+  items: Record<string, number>;
+  jobs: Record<string, number>;
+  signed_reports: number;
+  notes: number;
+  entries: number;
+  last_verified: string | null;
+  last_verify_result: string | null;
+  last_head_export: string | null;
+}
+
 /** The outcome of checking an exported file or package (every line is safe to show). */
 export interface FileCheck {
   kind: "report" | "record" | "head" | "package" | "card" | "register" | "limits";

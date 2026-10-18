@@ -92,6 +92,7 @@ pub fn run() {
             commands::store::lock_case,
             commands::store::session_status,
             commands::case::case_info,
+            commands::case::case_status,
             commands::case::set_legal_hold,
             commands::case::list_items,
             commands::case::import_evidence,

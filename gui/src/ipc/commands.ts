@@ -10,6 +10,7 @@ import type {
   CaseCreated,
   CaseInfo,
   CaseOverview,
+  CaseStatus,
   CustodyPage,
   ErrorKind,
   FileCheck,
@@ -110,6 +111,7 @@ export const ipc = {
     call<{ key_id: string; holder: string; exported: string }>("export_key_card", { holder }),
   sessionStatus: () => call<{ unlocked: boolean; idle_timeout_s: number }>("session_status"),
   caseInfo: () => call<CaseInfo>("case_info"),
+  caseStatus: () => call<CaseStatus>("case_status"),
   setLegalHold: (on: boolean, reason: string) => call<CaseInfo>("set_legal_hold", { on, reason }),
   listItems: () => call<Item[]>("list_items"),
   addNote: (text: string, jobId: string | null, corrects: number | null, sha256: string | null = null) =>

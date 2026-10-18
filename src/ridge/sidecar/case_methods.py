@@ -13,6 +13,7 @@ from typing import cast
 import cv2
 
 from ridge.arrays import ImageU8
+from ridge.case.case_status import case_status
 from ridge.case.compare import PLAUSIBLE_PPI, file_ppi
 from ridge.case.export_step import MINUTIAE_LABEL
 from ridge.case.notes import add_note, list_notes
@@ -39,6 +40,12 @@ def info(session: Session, params: dict[str, Json]) -> Json:
         "retention_until": meta.retention_until.isoformat(),
         "legal_hold": meta.legal_hold,
     }
+
+
+def status(session: Session, params: dict[str, Json]) -> Json:
+    """Summarise the unlocked case: stored items, jobs, notes, retention, last verification (reads only)."""
+    case, _ = session.require()
+    return case_status(case).to_json()
 
 
 def hold(session: Session, params: dict[str, Json]) -> Json:

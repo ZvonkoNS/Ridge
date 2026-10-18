@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import getpass
+import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -15,6 +17,8 @@ from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.notes import add_note
 from ridge.case.store import open_case
 from ridge.case.verify import verify_case
+from ridge.sidecar.handlers import Session
+from ridge.sidecar.server import handle
 from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, new_case, photo_file
 
 
@@ -44,3 +48,21 @@ def test_status_counts_and_dates(
     shown = capsys.readouterr().out
     assert "1 signed report(s)" in shown
     assert "Verified" in shown
+
+
+def test_sidecar_status(tmp_path: Path) -> None:
+    keystore = MemoryKeyStore()
+    store = tmp_path / "store"
+    create_identity(store, PASSPHRASE, keystore, FAST_KDF)
+    case_dir = new_case(store, keystore)
+    session = Session(keystore_factory=lambda: keystore)
+
+    def rpc(method: str, params: dict[str, Any]) -> Any:
+        message = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+        return json.loads(handle(json.dumps(message).encode(), session))
+
+    rpc("session.unlock", {"store": str(store.resolve()), "case_id": case_dir.name, "passphrase": PASSPHRASE})
+    shown = rpc("case.status", {})["result"]
+    assert (shown["jobs"], shown["notes"], shown["last_verified"]) == ({}, 0, None)
+    session.close()
+    assert "error" in rpc("case.status", {})  # no case is unlocked

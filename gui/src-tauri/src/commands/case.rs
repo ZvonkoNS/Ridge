@@ -30,6 +30,13 @@ pub async fn case_info(app: AppHandle, window: WebviewWindow) -> Result<Value, I
     call(&app, "case.info", json!({}), QUICK).await
 }
 
+/// A one-screen summary of the unlocked case (reads only).
+#[tauri::command]
+pub async fn case_status(app: AppHandle, window: WebviewWindow) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    call(&app, "case.status", json!({}), QUICK).await
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Hold {

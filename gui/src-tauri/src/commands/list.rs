@@ -12,6 +12,7 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "lock_case",
     "session_status",
     "case_info",
+    "case_status",
     "set_legal_hold",
     "list_items",
     "import_evidence",
