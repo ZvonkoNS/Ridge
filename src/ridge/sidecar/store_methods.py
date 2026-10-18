@@ -10,6 +10,7 @@ import uuid
 from datetime import date
 
 import ridge
+from ridge.case.file_check import check_exported
 from ridge.case.identity import IDENTITY_FILE, create_identity, public_identity, unlock_identity
 from ridge.case.key_card import write_card
 from ridge.case.keys import b64
@@ -91,6 +92,13 @@ def identity_create(session: Session, params: dict[str, Json]) -> Json:
     store = absolute(params["store"], "store")
     signer = create_identity(store, params["passphrase"], session.keystore_factory(), session.kdf_params)
     return {"key_id": signer.key_id, "public_key": b64(signer.public_key)}
+
+
+def files_check(session: Session, params: dict[str, Json]) -> Json:
+    """Verify an exported file or package folder chosen in a native dialog (no store; nothing written)."""
+    register = params.get("register")
+    path = absolute(params["path"], "path")
+    return check_exported(path, absolute(register, "register") if register else None).to_json()
 
 
 def identity_card(session: Session, params: dict[str, Json]) -> Json:

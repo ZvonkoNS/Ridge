@@ -79,6 +79,40 @@ pub async fn export_report_html(
     call(&app, "report.export_html", params, RECORD_IO).await
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CheckRequest {
+    folder: bool,
+    with_register: bool,
+}
+
+const JSON_FILE: (&str, &[&str]) = ("Ridge file (JSON)", &["json"]);
+
+/// Verify an exported file, or a disclosure package folder, chosen in a native dialog; with a key
+/// register (a second dialog) the signer is named. Needs no store and writes nothing.
+#[tauri::command]
+pub async fn check_exported(
+    app: AppHandle,
+    window: WebviewWindow,
+    request: CheckRequest,
+) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    let path = if request.folder {
+        dialogs::pick_folder(&app, "Choose a disclosure package folder").await?
+    } else {
+        dialogs::pick_file(&app, "Choose an exported Ridge file", JSON_FILE).await?
+    };
+    let register = if request.with_register {
+        let chosen =
+            dialogs::pick_file(&app, "Choose the laboratory's key register", JSON_FILE).await?;
+        Some(path_text(&chosen)?)
+    } else {
+        None
+    };
+    let params = json!({"path": path_text(&path)?, "register": register});
+    call(&app, "files.check", params, RECORD_IO).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::action_kind;

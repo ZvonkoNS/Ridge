@@ -313,6 +313,15 @@ export interface CustodyPage {
   entries: CustodyEntry[];
 }
 
+/** The outcome of checking an exported file or package (every line is safe to show). */
+export interface FileCheck {
+  kind: "report" | "record" | "head" | "package" | "card" | "register" | "limits";
+  title: string;
+  details: string[];
+  key_id: string | null;
+  holder: string | null;
+}
+
 /** The outcome of importing one or more evidence photos: each import is logged on its own. */
 export interface ImportBatch {
   imported: Item[];

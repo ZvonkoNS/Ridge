@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button, Hash, Notice } from "../components/ui";
 import { IpcError, ipc } from "../ipc/commands";
 import type { CaseOverview, SessionInfo, StoreCheck, StoreView } from "../ipc/types";
+import { CheckFiles } from "./CheckFiles";
 import { CaseList, StoreChecks, findCases } from "./StoreCases";
 
 interface Props {
@@ -287,6 +288,7 @@ export function StoreScreen({
           </section>
         </>
       ) : null}
+      <CheckFiles />
       {versions ? <p className="versions">{versions}</p> : null}
     </main>
   );

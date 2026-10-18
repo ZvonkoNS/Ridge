@@ -38,6 +38,7 @@
     "allow-export-package",
     "allow-custody-log",
     "allow-export-report-html",
-    "allow-export-key-card"
+    "allow-export-key-card",
+    "allow-check-exported"
   ]
 }
