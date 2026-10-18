@@ -85,7 +85,7 @@ export function ReviewPanel({ evidence, onFailure, onJobDone }: Props) {
   };
 
   const run = async () => {
-    const options = toOptions(evidence.sha256, params);
+    const options = toOptions(evidence.sha256, params, original.source);
     if (typeof options === "string") {
       setProblem(options);
       return;

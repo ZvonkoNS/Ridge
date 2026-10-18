@@ -51,6 +51,21 @@ interface Props {
 
 const PAN_STEP = 48;
 
+/** Whether a point (image pixels) lies on the image. */
+export function insideImage(point: Point, image: Size): boolean {
+  return point.x >= 0 && point.y >= 0 && point.x <= image.width && point.y <= image.height;
+}
+
+/** Whether rectangle `outer` contains rectangle `inner`. */
+export function covers(outer: Rect, inner: Rect): boolean {
+  return (
+    outer.x <= inner.x &&
+    outer.y <= inner.y &&
+    outer.x + outer.width >= inner.x + inner.width &&
+    outer.y + outer.height >= inner.y + inner.height
+  );
+}
+
 /** One minutia: a circle (ending) or a square (bifurcation) with a tick in its direction. */
 function MarkShape({ mark, size }: { mark: Marks["items"][number]; size: number }) {
   const angle = (mark.angle * Math.PI) / 180; // counter-clockwise from +x; image y grows downwards
@@ -194,7 +209,8 @@ export function ImageViewer(props: Props) {
       const point = toSource(local(event), pan, zoom);
       if (tool === "roi" && draft) {
         props.onRoi?.(draft);
-      } else if (tool === "ruler" && !drag.moved) {
+      } else if (tool === "ruler" && !drag.moved && insideImage(point, source)) {
+        // a click on the grey margin is not a point of the photo: it would calibrate the export wrongly
         props.onRulerPoint?.({ x: Math.round(point.x * 10) / 10, y: Math.round(point.y * 10) / 10 });
       }
     }
@@ -219,8 +235,12 @@ export function ImageViewer(props: Props) {
 
   const shownWidth = (source?.width ?? 0) * zoom;
   const magnifiedPreview = bitmap !== null && interpolation(bitmap.width, shownWidth) === "nearest neighbour";
+  // The fetched rectangle is drawn wherever it is; "full resolution" is claimed only while it covers
+  // everything visible. After panning beyond it, the preview shows again and can be refetched.
   const detailOn = detail !== null && zoom >= (bitmap && source ? bitmap.width / source.width : 1);
-  const readout = detailOn
+  const visible = source ? visibleRect(source, viewer, pan, zoom, Number.MAX_SAFE_INTEGER) : null;
+  const detailCovers = detailOn && visible !== null && covers(detail.rect, visible);
+  const readout = detailCovers
     ? `full resolution here, ${zoom > 1 ? "nearest neighbour" : "smoothed"}`
     : `${bitmap && source && bitmap.width < source.width ? "preview, " : ""}${magnifiedPreview ? "nearest neighbour" : "smoothed"}`;
   const shown = roi && !draft ? roi : draft;
@@ -320,7 +340,7 @@ export function ImageViewer(props: Props) {
           >
             100 %
           </Button>
-          {props.loadDetail && magnifiedPreview && !detailOn ? (
+          {props.loadDetail && magnifiedPreview && !detailCovers ? (
             <Button
               onClick={() => void showDetail()}
               busy={detailBusy}

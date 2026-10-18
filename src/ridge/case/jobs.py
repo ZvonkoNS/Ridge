@@ -80,6 +80,17 @@ def apply_roi(image: ImageU8, roi: tuple[int, int, int, int] | None) -> ImageU8:
     return np.ascontiguousarray(image[y : y + h, x : x + w])
 
 
+def check_ruler(options: ExportOptions, photo: ImageU8) -> None:
+    """Refuse ruler points that do not lie on the decoded photo (the space of `ruler`, before any roi)."""
+    if not options.enabled or options.ruler is None:
+        return
+    height, width = photo.shape[:2]
+    x1, y1, x2, y2, _ = options.ruler
+    for x, y in ((x1, y1), (x2, y2)):
+        if not (0 <= x <= width and 0 <= y <= height):
+            raise ParameterError(f"ruler point {x:g},{y:g} lies outside the {width}x{height} photo")
+
+
 @dataclass(frozen=True)
 class JobOutcome:
     """What a successful job produced."""
@@ -171,6 +182,7 @@ def _execute(
 ) -> JobOutcome:
     data = case.read(evidence.sha256, job_id=job_id)
     photo = decode_image(data, limits)  # EXIF orientation applied: the coordinate space of roi and ruler
+    check_ruler(params.export, photo)  # a point off the photo would calibrate the export wrongly
     result = extract_fingerprint(
         apply_roi(photo, params.roi),
         period=params.period,
