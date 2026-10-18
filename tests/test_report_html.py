@@ -101,4 +101,8 @@ def test_cli_and_sidecar(
     assert {e["action"] for e in jobs["entries"]} <= {"job.start", "job.end"}
     assert jobs["total"] == 2
     assert rpc("log.entries", {"limit": 501})["error"]["code"] < 0
+    found = rpc("log.entries", {"text": job[:8]})["result"]
+    assert found["total"] >= 2  # job.start and job.end name the job
+    assert all(job in json.dumps(e) for e in found["entries"])
+    assert rpc("log.entries", {"text": ""})["error"]["code"] < 0
     session.close()

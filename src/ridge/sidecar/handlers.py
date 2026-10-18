@@ -80,7 +80,12 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "log.export": (job.log_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
     "log.entries": (
         job.log_entries,
-        {"offset": (int_, False), "limit": (int_, False), "action": ((str, type(None)), False)},
+        {
+            "offset": (int_, False),
+            "limit": (int_, False),
+            "action": ((str, type(None)), False),
+            "text": ((str, type(None)), False),
+        },
     ),
     "head.export": (job.head_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
     "package.export": (job.package_export, {"dest": (str_, True)}),

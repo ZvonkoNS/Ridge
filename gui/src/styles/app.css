@@ -545,6 +545,13 @@ kbd {
   margin-bottom: var(--space-3);
 }
 
+.custody-search {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-left: var(--space-4);
+}
+
 .custody-table {
   width: 100%;
   margin-bottom: var(--space-3);

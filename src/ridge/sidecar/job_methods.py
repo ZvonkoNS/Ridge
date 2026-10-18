@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import cast
 
 from ridge.case.compare import SHEET_PPI, export_sheet
@@ -112,7 +113,7 @@ def report_export_html(session: Session, params: dict[str, Json]) -> Json:
 
 
 def log_entries(session: Session, params: dict[str, Json]) -> Json:
-    """Return a page of the custody log, newest first, optionally one kind of action (read only).
+    """Return a page of the custody log, newest first, optionally one kind of action or matching text (read only).
 
     The hash chain was verified when the case was opened; entries hold no image data.
     """
@@ -120,8 +121,16 @@ def log_entries(session: Session, params: dict[str, Json]) -> Json:
     offset, limit = params.get("offset", 0), params.get("limit", 100)
     if not (0 <= offset <= 10_000_000 and 1 <= limit <= LOG_PAGE_MAX):
         raise ParameterError(f"offset must be 0 or more and limit 1-{LOG_PAGE_MAX}")
-    kind = params.get("action")
-    entries = [e for e in case.entries if kind is None or e["action"] == kind or e["action"].startswith(f"{kind}.")]
+    kind, text = params.get("action"), params.get("text")
+    if text is not None and not 1 <= len(text) <= 100:
+        raise ParameterError("search text must be 1-100 characters")
+    needle = text.casefold() if text else None
+    entries = [
+        e
+        for e in case.entries
+        if (kind is None or e["action"] == kind or e["action"].startswith(f"{kind}."))
+        and (needle is None or needle in json.dumps(e, ensure_ascii=False).casefold())
+    ]
     return {"total": len(entries), "entries": entries[::-1][offset : offset + limit]}
 
 
