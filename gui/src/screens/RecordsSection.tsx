@@ -19,14 +19,17 @@ interface Props {
 
 export function RecordsSection({ info, items, limits, onInfo, onFailure, notify }: Props) {
   const [verification, setVerification] = useState<Verification | null>(null);
-  const [busy, setBusy] = useState<"verify" | "log" | "hold" | null>(null);
+  const [busy, setBusy] = useState<"verify" | "log" | "hold" | "head" | null>(null);
   const [reason, setReason] = useState("");
 
-  const run = async (what: "verify" | "log" | "hold") => {
+  const run = async (what: "verify" | "log" | "hold" | "head") => {
     setBusy(what);
     try {
       if (what === "verify") {
         setVerification(await ipc.verifyCase());
+      } else if (what === "head") {
+        const done = await ipc.exportHead();
+        notify(`Custody head at entry ${done.seq} exported for countersigning (key ${done.key_id}).`);
       } else if (what === "log") {
         const done = await ipc.exportLog();
         notify(`Processing record exported: ${done.entries} signed custody entries, key ${done.key_id}.`);
@@ -82,6 +85,18 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
         </p>
         <Button onClick={() => void run("log")} busy={busy === "log"}>
           Export processing record...
+        </Button>
+      </section>
+      <section className="card" aria-labelledby="head-title">
+        <h2 id="head-title">Custody head for countersigning</h2>
+        <p>
+          Exports the current signed head of the custody log as a small file for the laboratory to countersign
+          or timestamp. A later processing record can then be checked against it (
+          <code>ridge-case check-head head.json --record record.json</code>), which shows whether entries were
+          removed or rewritten after the head.
+        </p>
+        <Button onClick={() => void run("head")} busy={busy === "head"}>
+          Export custody head...
         </Button>
       </section>
       <section className="card" aria-labelledby="hold-title">

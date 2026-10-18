@@ -29,6 +29,7 @@
     "allow-export-log",
     "allow-export-comparison",
     "allow-get-minutiae",
-    "allow-limits-of-use"
+    "allow-limits-of-use",
+    "allow-export-head"
   ]
 }

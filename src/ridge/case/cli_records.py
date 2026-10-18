@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case import cli_common as common
+from ridge.case.custody_head import check_head, export_head
 from ridge.case.identity import unlock_identity
 from ridge.case.limits import FILE as LIMITS_FILE
 from ridge.case.limits import MAX_BYTES as LIMITS_MAX_BYTES
@@ -119,6 +120,27 @@ def cmd_check_log(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_head(args: argparse.Namespace) -> None:
+    """Export the signed custody head for out-of-band countersigning by a laboratory system (OQ-8)."""
+    passphrase, keystore = common.read_passphrase(), common.KEYSTORE_FACTORY()
+    signer = unlock_identity(args.case.parent, passphrase, keystore)
+    with open_case(args.case, passphrase, keystore) as case:
+        doc = export_head(case, args.case.parent, signer, args.to, overwrite=args.overwrite)
+    common.say(f"custody head at entry {doc['seq']} ({doc['head'][:16]}...) exported to {args.to}")
+    common.say("give it to the laboratory system to countersign or timestamp; check later records against it")
+
+
+def cmd_check_head(args: argparse.Namespace) -> int:
+    """Verify a custody head and, with --record, that a later processing record still contains it."""
+    check = check_head(args.head, record=args.record, expected_key_id=args.key_id)
+    common.say(f"custody head verified: case {check.case_id}, entry {check.seq}, key {check.key_id}")
+    if check.record_entries is not None:
+        common.say(f"the processing record ({check.record_entries} entries) contains this head unchanged")
+    if not check.key_confirmed:
+        common.say(f"confirm key {check.key_id} is the examiner's key, or pass --key-id")
+    return 0
+
+
 def cmd_limits(args: argparse.Namespace) -> None:
     """Show a store's limits of use, or check a limits file before the laboratory places it in a store."""
     limits = parse_limits(read_bounded(args.check, LIMITS_MAX_BYTES)) if args.check else load_limits(args.store)
@@ -163,6 +185,16 @@ def add_commands(sub: Any) -> None:
     p.add_argument("record", type=Path)
     p.add_argument("--key-id", help="the examiner key id the record must be signed with")
     p.set_defaults(func=cmd_check_log)
+    p = sub.add_parser("head", help="export the signed custody head for out-of-band countersigning (OQ-8)")
+    p.add_argument("case", type=Path)
+    p.add_argument("--to", type=Path, required=True, help="where to write the signed head (JSON)")
+    p.add_argument("--overwrite", action="store_true")
+    p.set_defaults(func=cmd_head)
+    p = sub.add_parser("check-head", help="verify a custody head, and that a later record still contains it")
+    p.add_argument("head", type=Path)
+    p.add_argument("--record", type=Path, help="a later processing record (ridge-case log --to)")
+    p.add_argument("--key-id", help="the examiner key id the head must be signed with")
+    p.set_defaults(func=cmd_check_head)
     p = sub.add_parser("limits", help="show a store's limits of use, or check a limits file (PRD section 12)")
     where = p.add_mutually_exclusive_group(required=True)
     where.add_argument("--store", type=Path, help="the case store whose limits-of-use.json to show")

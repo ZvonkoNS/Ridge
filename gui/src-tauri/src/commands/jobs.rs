@@ -224,6 +224,23 @@ pub async fn export_comparison(
     call(&app, "compare.export", params, RECORD_IO).await
 }
 
+/// Export the signed custody head for out-of-band countersigning (OQ-8; logged).
+#[tauri::command]
+pub async fn export_head(app: AppHandle, window: WebviewWindow) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    let suggested = Some("ridge_custody_head.json".to_owned());
+    let dest = path_text(
+        &dialogs::save_file(&app, "Export the custody head", suggested, JSON_FILE).await?,
+    )?;
+    call(
+        &app,
+        "head.export",
+        json!({"dest": dest, "overwrite": false}),
+        RECORD_IO,
+    )
+    .await
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MinutiaeRef {

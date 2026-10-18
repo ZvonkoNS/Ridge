@@ -99,6 +99,8 @@ ridge-case check-report report.json --key-id <key-id>   # anyone can verify an e
 ridge-case reproduce D:/ridge-store/<case-id> <job-id>  # re-run from the report; exit 1 if any output differs
 ridge-case log D:/ridge-store/<case-id> --to record.json # signed processing record for the DPO (logged)
 ridge-case check-log record.json --key-id <key-id>      # chain, sequence and signed heads, no store needed
+ridge-case head D:/ridge-store/<case-id> --to head.json  # signed custody head for the lab to countersign (logged)
+ridge-case check-head head.json --record record.json    # a later record still contains that head (no truncation)
 ridge-case hold D:/ridge-store/<case-id> --on --reason "..."
 ridge-case limits --store D:/ridge-store                 # limits of use from the lab's validation, if configured
 ridge-case limits --check limits-of-use.json             # validate a limits file before placing it in a store

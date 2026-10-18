@@ -18,6 +18,7 @@ import type {
   JobResult,
   LimitsStatus,
   MinutiaeView,
+  HeadExported,
   LogExported,
   Preview,
   PromptContext,
@@ -112,6 +113,7 @@ export const ipc = {
   exportReport: (jobId: string) => call<ReportExported>("export_report", { job_id: jobId }),
   reproduceJob: (jobId: string) => call<Reproduction>("reproduce_job", { job_id: jobId }),
   exportLog: () => call<LogExported>("export_log"),
+  exportHead: () => call<HeadExported>("export_head"),
   minutiae: (sha256: string) => call<MinutiaeView>("get_minutiae", { sha256 }),
   limitsOfUse: () => call<LimitsStatus>("limits_of_use"),
   exportComparison: (exportSha: string, referenceSha: string, referencePpi: number | null) =>

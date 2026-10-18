@@ -254,6 +254,12 @@ export interface ReportExported extends Exported {
   key_id: string;
 }
 
+export interface HeadExported extends Exported {
+  seq: number;
+  head: string;
+  key_id: string;
+}
+
 export interface LogExported extends Exported {
   entries: number;
   key_id: string;

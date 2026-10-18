@@ -29,6 +29,7 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "export_comparison",
     "get_minutiae",
     "limits_of_use",
+    "export_head",
 ];
 
 /// Commands of the passphrase window (capability `passphrase`).
