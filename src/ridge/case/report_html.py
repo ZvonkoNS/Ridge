@@ -16,9 +16,22 @@ from typing import Any
 from ridge.case.crypto import sha256_hex
 from ridge.case.limits import render_lines as render_limits
 from ridge.case.notes import Note, list_notes
-from ridge.case.reports import SignedReport, export_line, load_report, minutiae_line, nfiq2_line, printable
+from ridge.case.reports import (
+    MAX_REPORT_BYTES,
+    MAX_SIGNATURE_BYTES,
+    ReportCheck,
+    SignedReport,
+    check_report_bytes,
+    export_line,
+    load_report,
+    minutiae_line,
+    nfiq2_line,
+    printable,
+    signature_path,
+)
 from ridge.case.store import OpenCase, publish_logged
 from ridge.errors import OutputExistsError
+from ridge.image_io import publish, read_bounded
 
 BANNER = "Image enhancement only. Ridge does not identify anyone and draws no conclusions."
 _LABEL_WIDTH = 14  # the text renderer's label column; its helper lines start with it
@@ -163,3 +176,14 @@ def export_report_html(case: OpenCase, store: Path, ref: str, dest: Path, *, ove
         overwrite=overwrite,
     )
     return signed
+
+
+def write_exported_report_html(
+    report_path: Path, dest: Path, *, sig_path: Path | None = None, expected_key_id: str | None = None
+) -> ReportCheck:
+    """Verify an exported report offline, then write its readable copy (no notes: no case store)."""
+    canonical = read_bounded(report_path, MAX_REPORT_BYTES)
+    sig_text = read_bounded(sig_path or signature_path(report_path), MAX_SIGNATURE_BYTES)
+    check, signed = check_report_bytes(canonical, sig_text, expected_key_id=expected_key_id)
+    publish(dest, render_report_html(signed).encode("utf-8"))
+    return check

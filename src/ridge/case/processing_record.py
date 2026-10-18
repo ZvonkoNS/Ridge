@@ -132,7 +132,11 @@ def _no_constant(name: str) -> None:
 
 def load_record(path: Path) -> dict[str, Any]:
     """Read and parse a processing record (bounded; duplicate keys and NaN refused)."""
-    data = read_bounded(path, MAX_RECORD_BYTES)  # size refusals stay InputRejectedError
+    return parse_record(read_bounded(path, MAX_RECORD_BYTES))  # size refusals stay InputRejectedError
+
+
+def parse_record(data: bytes) -> dict[str, Any]:
+    """Parse processing-record bytes (NaN refused); callers that also hash the file use this."""
     try:
         record = json.loads(data.decode("utf-8"), parse_constant=_no_constant)
     except (UnicodeDecodeError, ValueError):

@@ -170,6 +170,13 @@ def check_exported_report(
     """Verify an exported report and its detached signature without the case store."""
     canonical = read_bounded(report_path, MAX_REPORT_BYTES)
     sig_text = read_bounded(sig_path or signature_path(report_path), MAX_SIGNATURE_BYTES)
+    return check_report_bytes(canonical, sig_text, expected_key_id=expected_key_id)[0]
+
+
+def check_report_bytes(
+    canonical: bytes, sig_text: bytes, *, expected_key_id: str | None = None
+) -> tuple[ReportCheck, SignedReport]:
+    """Verify report bytes and signature text read once by the caller; return the check and the report."""
     try:
         signature = base64.b64decode(sig_text.strip(), validate=True)
     except (binascii.Error, ValueError):
@@ -190,13 +197,14 @@ def check_exported_report(
         raise IntegrityError(f"signed by key {signer['key_id']}, not by the expected key {expected_key_id}")
     if not verify_signature(public, signature, canonical):
         raise IntegrityError("the signature does not verify: the report was changed or the signature is wrong")
-    return ReportCheck(
+    check = ReportCheck(
         job_id=str(report.get("job_id")),
         case_id=str(report.get("case_id")),
         created_utc=str(report.get("created_utc")),
         key_id=str(signer["key_id"]),
         key_confirmed=expected_key_id is not None,
     )
+    return check, SignedReport(check.job_id, canonical, signature, check.key_id, report)
 
 
 def _parse(canonical: bytes) -> dict[str, Any]:

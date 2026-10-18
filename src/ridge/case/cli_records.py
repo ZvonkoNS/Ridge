@@ -22,7 +22,8 @@ from ridge.case.custody_head import check_head, export_head
 from ridge.case.identity import unlock_identity
 from ridge.case.job_compare import differences, render_differences
 from ridge.case.processing_record import check_exported_log, export_log
-from ridge.case.report_html import export_report_html
+from ridge.case.record_html import write_record_html
+from ridge.case.report_html import export_report_html, write_exported_report_html
 from ridge.case.reports import check_exported_report, export_report, list_jobs, load_report, printable, render_report
 from ridge.case.reproduce import reproduce_job
 from ridge.case.store import open_case
@@ -92,8 +93,12 @@ def cmd_reproduce(args: argparse.Namespace) -> int:
 
 
 def cmd_check_report(args: argparse.Namespace) -> int:
-    """Verify an exported report and its signature without opening any case."""
-    check = check_exported_report(args.report, args.sig, expected_key_id=args.key_id)
+    """Verify an exported report and its signature without opening any case (and write a readable copy)."""
+    if args.html:
+        check = write_exported_report_html(args.report, args.html, sig_path=args.sig, expected_key_id=args.key_id)
+        common.say(f"readable copy written to {args.html}")
+    else:
+        check = check_exported_report(args.report, args.sig, expected_key_id=args.key_id)
     common.say(f"signature valid: job {check.job_id}, case {check.case_id}, created {check.created_utc}")
     if confirm(args, check.key_id, "examiner", check.created_utc):
         return 0
@@ -122,8 +127,12 @@ def cmd_log(args: argparse.Namespace) -> None:
 
 
 def cmd_check_log(args: argparse.Namespace) -> int:
-    """Verify an exported processing record without opening any case."""
-    check = check_exported_log(args.record, expected_key_id=args.key_id)
+    """Verify an exported processing record without opening any case (and write a readable copy)."""
+    if args.html:
+        check = write_record_html(args.record, args.html, expected_key_id=args.key_id)
+        common.say(f"readable copy written to {args.html}")
+    else:
+        check = check_exported_log(args.record, expected_key_id=args.key_id)
     common.say(
         f"chain intact: case {check.case_id}, {check.entries} entries, {check.signed_heads} signed head(s), "
         "ending with the signed export"
@@ -192,6 +201,7 @@ def _add_record_commands(sub: Any) -> None:
     p.add_argument("report", type=Path)
     p.add_argument("--sig", type=Path, help="detached signature (default: REPORT.sig)")
     p.add_argument("--key-id", help="the examiner key id the report must be signed with")
+    p.add_argument("--html", type=Path, help="after verifying, write a readable copy here (a new file)")
     add_register_argument(p)
     p.set_defaults(func=cmd_check_report)
     p = sub.add_parser("log", help="print the custody log, or export it as a signed processing record")
@@ -202,6 +212,7 @@ def _add_record_commands(sub: Any) -> None:
     p = sub.add_parser("check-log", help="verify an exported processing record without the case store")
     p.add_argument("record", type=Path)
     p.add_argument("--key-id", help="the examiner key id the record must be signed with")
+    p.add_argument("--html", type=Path, help="after verifying, write a readable copy here (a new file)")
     add_register_argument(p)
     p.set_defaults(func=cmd_check_log)
     p = sub.add_parser("head", help="export the signed custody head for out-of-band countersigning (OQ-8)")

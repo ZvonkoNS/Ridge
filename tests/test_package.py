@@ -50,7 +50,7 @@ def test_a_package_holds_the_signed_records_and_no_images(package: tuple[Path, s
     folder, key_id, keystore, case_dir = package
     names = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file())
     assert len([n for n in names if n.startswith("reports/") and n.endswith(".json")]) == 2
-    assert len([n for n in names if n.endswith(".html")]) == 2  # readable copies, listed in the manifest
+    assert len([n for n in names if n.startswith("reports/") and n.endswith(".html")]) == 2  # readable copies
     assert RECORD in names
     assert MANIFEST in names
     assert not [n for n in names if n.endswith((".png", ".jpg", ".tif"))]

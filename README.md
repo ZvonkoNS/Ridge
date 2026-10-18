@@ -102,6 +102,7 @@ ridge-case key-card --store D:/ridge-store --holder "Name" --to card.json   # yo
 ridge-case register-add --card card.json --register lab-keys.json --to lab-keys-2.json   # lab: new register version
 ridge-case register --check lab-keys.json                # the laboratory's key register (holders, roles, validity)
 ridge-case check-report report.json --register lab-keys.json   # name the holder; refuse unregistered or revoked keys
+ridge-case check-log record.json --html record.html     # verify, then write a readable copy for the DPO
 ridge-case log D:/ridge-store/<case-id>                 # decrypted custody log (processing record)
 ridge-case jobs D:/ridge-store/<case-id>                # jobs: started, result, signed report or not
 ridge-case report D:/ridge-store/<case-id> <job-id>     # verified report as text (--json for the signed JSON)
