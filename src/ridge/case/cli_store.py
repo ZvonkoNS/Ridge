@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case import cli_common as common
+from ridge.case.backup import backup_store, check_backup
 from ridge.case.case_status import case_status, render_status
 from ridge.case.reports import printable
 from ridge.case.store import open_case
@@ -65,11 +66,33 @@ def cmd_status(args: argparse.Namespace) -> None:
         common.say(printable(line))
 
 
+def cmd_backup(args: argparse.Namespace) -> None:
+    """Copy the encrypted store to a new folder with a hash manifest (no passphrase needed)."""
+    manifest = backup_store(args.store, args.to)
+    size = sum(f["size"] for f in manifest["files"])
+    common.say(f"backup of {len(manifest['files'])} file(s), {size} bytes, written to {args.to}")
+    common.say("it holds the encrypted store only: restoring it also needs the examiner's OS-keystore secret")
+
+
+def cmd_check_backup(args: argparse.Namespace) -> int:
+    """Verify every file of a store backup against its manifest."""
+    check = check_backup(args.folder)
+    common.say(f"backup verified: {check.files} file(s), {check.bytes} bytes, made {check.created_utc}")
+    return 0
+
+
 def add_commands(sub: Any) -> None:
     """Register the store commands on the ``ridge-case`` sub-parser."""
     p = sub.add_parser("verify-store", help="verify every case of a store (hashes, custody chains, signatures)")
     p.add_argument("--store", type=Path, required=True)
     p.set_defaults(func=cmd_verify_store)
+    p = sub.add_parser("backup", help="copy the encrypted store to a new folder with a hash manifest")
+    p.add_argument("--store", type=Path, required=True)
+    p.add_argument("--to", type=Path, required=True, help="a folder that does not exist yet")
+    p.set_defaults(func=cmd_backup)
+    p = sub.add_parser("check-backup", help="verify a store backup against its manifest")
+    p.add_argument("folder", type=Path)
+    p.set_defaults(func=cmd_check_backup)
     p = sub.add_parser("status", help="a one-screen summary of a case (reads only)")
     p.add_argument("case", type=Path)
     p.add_argument("--json", action="store_true", help="print the summary as JSON (for laboratory scripts)")
