@@ -12,6 +12,7 @@ from datetime import date
 import ridge
 from ridge.case.identity import IDENTITY_FILE, create_identity, public_identity, unlock_identity
 from ridge.case.keys import b64
+from ridge.case.limits import load_limits
 from ridge.case.listing import list_cases
 from ridge.case.store import create_case, open_case
 from ridge.errors import ParameterError
@@ -42,6 +43,17 @@ def identity_status(session: Session, params: dict[str, Json]) -> Json:
         return {"exists": False}
     key_id, public = public_identity(store)  # refuses a malformed or inconsistent identity file
     return {"exists": True, "key_id": key_id, "public_key": b64(public)}
+
+
+def limits_of_use(session: Session, params: dict[str, Json]) -> Json:
+    """Return the store's limits of use (PRD §12 item 8): source, file hash, limits; nothing is decrypted.
+
+    A malformed limits file is refused here as it is by every job, so the examiner sees it at once.
+    """
+    limits = load_limits(absolute(params["store"], "store"))
+    if limits is None:
+        return {"configured": False}
+    return {"configured": True, "source": limits.source, "sha256": limits.sha256, "limits": limits.to_json()}
 
 
 def identity_create(session: Session, params: dict[str, Json]) -> Json:

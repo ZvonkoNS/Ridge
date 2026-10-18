@@ -18,10 +18,14 @@ from typing import Any
 
 from ridge.case import cli_common as common
 from ridge.case.identity import unlock_identity
+from ridge.case.limits import FILE as LIMITS_FILE
+from ridge.case.limits import MAX_BYTES as LIMITS_MAX_BYTES
+from ridge.case.limits import load_limits, parse_limits
 from ridge.case.processing_record import check_exported_log, export_log
 from ridge.case.reports import check_exported_report, export_report, list_jobs, load_report, printable, render_report
 from ridge.case.reproduce import reproduce_job
 from ridge.case.store import open_case
+from ridge.image_io import read_bounded
 
 
 def cmd_jobs(args: argparse.Namespace) -> None:
@@ -115,6 +119,17 @@ def cmd_check_log(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_limits(args: argparse.Namespace) -> None:
+    """Show a store's limits of use, or check a limits file before the laboratory places it in a store."""
+    limits = parse_limits(read_bounded(args.check, LIMITS_MAX_BYTES)) if args.check else load_limits(args.store)
+    if limits is None:
+        common.say(f"no limits of use configured ({args.store / LIMITS_FILE} does not exist)")
+        return
+    common.say(f"limits of use from {limits.source}, sha256 {limits.sha256}")
+    for key, value in limits.to_json().items():
+        common.say(f"  {key}: {value}")
+
+
 def add_commands(sub: Any) -> None:
     """Register the records commands on the ``ridge-case`` sub-parser."""
     p = sub.add_parser("jobs", help="list jobs from the custody log")
@@ -148,3 +163,8 @@ def add_commands(sub: Any) -> None:
     p.add_argument("record", type=Path)
     p.add_argument("--key-id", help="the examiner key id the record must be signed with")
     p.set_defaults(func=cmd_check_log)
+    p = sub.add_parser("limits", help="show a store's limits of use, or check a limits file (PRD section 12)")
+    where = p.add_mutually_exclusive_group(required=True)
+    where.add_argument("--store", type=Path, help="the case store whose limits-of-use.json to show")
+    where.add_argument("--check", type=Path, help="a limits file to validate before it is placed in a store")
+    p.set_defaults(func=cmd_limits)

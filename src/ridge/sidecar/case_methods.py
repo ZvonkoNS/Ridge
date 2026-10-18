@@ -7,11 +7,13 @@ is a logged read (FR-22); images never leave the sidecar except as bounded PNGs.
 from __future__ import annotations
 
 import base64
+import json
 from typing import cast
 
 import cv2
 
 from ridge.arrays import ImageU8
+from ridge.case.export_step import MINUTIAE_LABEL
 from ridge.case.store import OpenCase, StoredItem
 from ridge.case.verify import verify_case
 from ridge.errors import ParameterError
@@ -21,6 +23,7 @@ from ridge.sidecar.session import Session, absolute, item_json
 
 PREVIEW_DEFAULT, PREVIEW_MAX = 1024, 2048
 REGION_MAX_SIDE = 2048
+MAX_MARKS = 5000  # far above any print; bounds the response
 
 
 def info(session: Session, params: dict[str, Json]) -> Json:
@@ -139,4 +142,37 @@ def preview_region(session: Session, params: dict[str, Json]) -> Json:
         "source_width": w,
         "source_height": h,
         "png_base64": _png(crop),
+    }
+
+
+def _space(doc: object) -> Json:
+    """One coordinate space of a minutiae artefact (print or export), or None."""
+    if not isinstance(doc, dict) or not isinstance(doc.get("image"), dict):
+        return None
+    found = doc.get("minutiae")
+    return {
+        "width": doc["image"].get("width"),
+        "height": doc["image"].get("height"),
+        "ridge_period_px": doc.get("ridge_period_px"),
+        "minutiae": found[:MAX_MARKS] if isinstance(found, list) else [],
+    }
+
+
+def minutiae(session: Session, params: dict[str, Json]) -> Json:
+    """Return a job's minutiae in print and export space for the viewer overlay (the read is logged).
+
+    The artefact was written by Ridge and its hash is checked on read; the overlay is drawn for
+    orientation only and is labelled unvalidated (FR-40, profile exception).
+    """
+    case, _ = session.require()
+    item = case.item(params["sha256"])
+    if item.role != "minutiae":
+        raise ParameterError("not a minutiae item")
+    doc = json.loads(case.read(item.sha256).decode("utf-8"))
+    return {
+        "sha256": item.sha256,
+        "job_id": item.job_id,
+        "label": MINUTIAE_LABEL,
+        "print": _space(doc),
+        "export": _space(doc.get("export_space") if isinstance(doc, dict) else None),
     }

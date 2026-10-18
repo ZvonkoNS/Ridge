@@ -13,6 +13,8 @@ import pytest
 from PIL import Image
 
 from ridge.case.identity import create_identity
+from ridge.case.limits import FILE as LIMITS_FILE
+from ridge.case.limits import SCHEMA as LIMITS_SCHEMA
 from ridge.case.processing_record import check_exported_log
 from ridge.sidecar.handlers import METHODS, Session
 from ridge.sidecar.protocol import APPLICATION_ERROR, INVALID_PARAMS
@@ -167,3 +169,37 @@ def test_every_method_has_a_schema() -> None:
     for name, (handler, schema) in METHODS.items():
         assert callable(handler), name
         assert isinstance(schema, dict), name
+
+
+def test_store_limits_of_use(tmp_path: Path, keystore: MemoryKeyStore) -> None:
+    session = Session(keystore_factory=lambda: keystore)
+    store = (tmp_path / "store").resolve()
+    store.mkdir()
+    assert result(call(session, "store.limits", {"store": str(store)})) == {"configured": False}
+    (store / LIMITS_FILE).write_text(
+        json.dumps({"schema": LIMITS_SCHEMA, "source": "VR-2027-01", "min_nfiq2": 30}), encoding="utf-8"
+    )
+    shown = result(call(session, "store.limits", {"store": str(store)}))
+    assert (shown["configured"], shown["source"], shown["limits"]) == (True, "VR-2027-01", {"min_nfiq2": 30.0})
+    (store / LIMITS_FILE).write_text("{", encoding="utf-8")
+    assert error_code(call(session, "store.limits", {"store": str(store)})) == APPLICATION_ERROR
+
+
+def test_minutiae_for_the_overlay_and_limits_in_job_results(unlocked: tuple[Session, Path], tmp_path: Path) -> None:
+    session, case_dir = unlocked
+    (case_dir.parent / LIMITS_FILE).write_text(
+        json.dumps({"schema": LIMITS_SCHEMA, "source": "VR-2027-01", "min_ridge_period_px": 500}), encoding="utf-8"
+    )
+    evidence = result(call(session, "case.import", {"path": str(photo_file(tmp_path / "in").resolve())}))
+    job = result(call(session, "job.run", {"evidence": evidence["sha256"], "minutiae": True}))
+    assert job["limits_of_use"]["within"] is False
+    found = next(o for o in job["outputs"] if o["role"] == "minutiae")
+    shown = result(call(session, "minutiae.get", {"sha256": found["sha256"]}))
+    assert shown["label"].startswith("unvalidated")
+    assert shown["print"]["width"] > 0
+    assert shown["export"]["width"] > 0
+    assert len(shown["print"]["minutiae"]) == job["minutiae"]["count"]
+    printed = next(o for o in job["outputs"] if o["role"] == "print")
+    assert error_code(call(session, "minutiae.get", {"sha256": printed["sha256"]})) == APPLICATION_ERROR
+    reads = [e for e in (session.case.entries if session.case else []) if e["action"] == "minutiae.read"]
+    assert len(reads) == 1  # the overlay read is logged (FR-22)

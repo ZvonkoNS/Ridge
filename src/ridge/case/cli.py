@@ -126,6 +126,8 @@ def cmd_extract(args: argparse.Namespace) -> int:
                 print(f"ridge-case: {sha[:12]}: {exc}", file=sys.stderr)  # noqa: T201
                 continue
             common.say(_job_summary(sha, outcome.job_id, outcome.report, len(outcome.outputs)))
+            for warning in (outcome.report.get("limits_of_use") or {}).get("warnings", []):
+                common.say(f"  outside the limits of use: {warning}")
     if failed:
         common.say(f"{failed} of {len(targets)} job(s) failed (see the messages above and `ridge-case jobs`)")
     return 1 if failed else 0

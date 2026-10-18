@@ -54,7 +54,7 @@ def run_job(session: Session, params: dict[str, Json]) -> Json:
     )
     outcome = run_extraction_job(case, params["evidence"], signer, job)
     report = outcome.report
-    summary = {key: report.get(key) for key in ("measurements", "export", "quality", "minutiae")}
+    summary = {key: report.get(key) for key in ("measurements", "export", "quality", "minutiae", "limits_of_use")}
     return {"job_id": outcome.job_id, "outputs": [item_json(o) for o in outcome.outputs], **summary}
 
 

@@ -28,6 +28,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "ridge.version": (store.version, {}),
     "store.cases": (store.cases, {"store": (str_, True)}),
     "store.identity": (store.identity_status, {"store": (str_, True)}),
+    "store.limits": (store.limits_of_use, {"store": (str_, True)}),
     "identity.create": (store.identity_create, {"store": (str_, True), "passphrase": (str_, True)}),
     "case.create": (
         store.case_create,
@@ -66,6 +67,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
         },
     ),
     "preview.get": (case.preview, {"sha256": (str_, True), "max_side": (int_, False)}),
+    "minutiae.get": (case.minutiae, {"sha256": (str_, True)}),
     "preview.region": (
         case.preview_region,
         {"sha256": (str_, True), "x": (int_, True), "y": (int_, True), "width": (int_, True), "height": (int_, True)},
