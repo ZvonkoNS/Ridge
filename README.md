@@ -112,12 +112,41 @@ to be validated); the report records the method and uncertainty. With `--nfiq2` 
 Passphrases (at least 15 characters) are only read interactively. There is no recovery
 key yet: losing the passphrase or the OS account makes a case unreadable (PRD OQ-12).
 
-## Desktop GUI sidecar (`ridge-sidecar`)
+## Desktop GUI (`gui/`)
 
-The future Tauri desktop GUI talks to Ridge through `ridge-sidecar`. It is a child process
-that speaks JSON-RPC 2.0, one message per line, on stdin/stdout, and never opens a network
-socket. Methods and their schemas are in `docs/architecture.md` §7.3. The GUI itself is not
-built yet.
+The desktop GUI (Tauri v2, React, TypeScript) runs the same case store as `ridge-case`:
+
+- choose a store, then create your examiner identity on first run, create or unlock a case;
+- import evidence photos with a source note;
+- review the original and the outputs side by side. Every image carries an exhibit label
+  with its SHA-256. Processed images also say they are not an identification and carry a
+  millimetre scale bar drawn at the current zoom;
+- run jobs with every parameter visible, including a region of interest and two ruler points
+  that you click on the photo or type;
+- read verified reports, export them and reproduce jobs;
+- put a NAFIS/AFIS reference beside an export (view only);
+- verify the case, export the processing record, and place or lift a legal hold.
+
+The passphrase is typed in a separate prompt window that only the trusted Rust core talks
+to; the main window never sees it.
+
+It talks to Ridge through `ridge-sidecar`, a child process that speaks JSON-RPC 2.0, one
+message per line, on stdin/stdout. Neither the sidecar nor the GUI ever opens a network
+socket. Methods, schemas and the GUI's security design are in `docs/architecture.md` §7.3.
+
+Development build (Node.js 22, the Rust toolchain pinned in
+`gui/src-tauri/rust-toolchain.toml`, and the Python virtualenv above with `pip install -e .`):
+
+```bash
+python tools/gui_icons.py
+cd gui
+npm ci
+npm run tauri dev
+```
+
+`npm run dev` alone serves a **preview with synthetic data** in a normal browser, for UI
+work. It never touches a case store and is compiled out of production builds. Release
+packaging of the sidecar is not built yet (see the standards profile).
 
 ## Validation metrics (`ridge-validate`)
 
@@ -166,8 +195,11 @@ These apply when photos are taken for validation; case photos are what they are.
 ```bash
 .venv/Scripts/python -m pip install --require-hashes --no-deps -r requirements.lock -r requirements-dev.lock
 .venv/Scripts/python -m pip install --no-deps --no-build-isolation -e .
-.venv/Scripts/python tools/gate.py all     # docs lint format typecheck test sast deps secrets licenses sbom
+.venv/Scripts/python tools/gate.py all     # docs lint format typecheck test sast deps secrets licenses sbom gui
 ```
+
+The `gui` gate needs Node.js and npm, the Rust toolchain, `cargo-audit` and `cargo-deny`
+(`cargo install cargo-audit cargo-deny --locked`).
 
 The `secrets` gate needs [gitleaks](https://github.com/gitleaks/gitleaks) on PATH, and
 `deps` needs network access. Tests use synthetic images only (`tests/synthetic.py`).

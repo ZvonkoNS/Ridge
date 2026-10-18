@@ -1,0 +1,242 @@
+// DEVELOPMENT PREVIEW ONLY: lets `npm run dev` render every screen in a plain browser, with a
+// mocked IPC bridge and SYNTHETIC images drawn here (concentric sine ridges, no biometric data).
+// main.tsx installs it only when import.meta.env.DEV is true and no Tauri core is present, so
+// production builds drop this module entirely (checked by the GUI gate).
+import type { Item, JobRecord, JobReport, JobResult, Preview } from "../ipc/types";
+
+const CASE_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
+const KEY_ID = "5a1c09e3b47d2f68";
+const hex = (seed: number): string =>
+  Array.from({ length: 64 }, (_, i) => ((seed * 7 + i * 13) % 16).toString(16)).join("");
+
+const evidence: Item[] = [
+  {
+    sha256: hex(1),
+    role: "evidence",
+    size: 3_412_880,
+    label: "IMG_0042.jpg",
+    job_id: null,
+    source: "Exhibit 12, phone A",
+  },
+  {
+    sha256: hex(2),
+    role: "evidence",
+    size: 2_904_112,
+    label: "IMG_0043.jpg",
+    job_id: null,
+    source: "Exhibit 12, phone A",
+  },
+];
+const items: Item[] = [...evidence];
+const jobs: JobRecord[] = [];
+const reports = new Map<string, JobReport>();
+
+function draw(
+  width: number,
+  height: number,
+  mode: "photo" | "print" | "export",
+  maxSide: number,
+): Preview & { png: string } {
+  const scale = Math.min(1, maxSide / Math.max(width, height));
+  const w = Math.round(width * scale);
+  const h = Math.round(height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("no canvas");
+  }
+  const image = ctx.createImageData(w, h);
+  const cx = w * 0.5;
+  const cy = h * 0.55;
+  const period = 18 * scale;
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const dx = (x - cx) / (w * 0.22);
+      const dy = (y - cy) / (h * 0.36);
+      const inside = dx * dx + dy * dy < 1;
+      const r = Math.hypot(x - cx, (y - cy) * 0.8) + 6 * Math.sin(Math.atan2(y - cy, x - cx) * 2);
+      const ridge = 0.5 + 0.5 * Math.cos((2 * Math.PI * r) / period);
+      const i = (y * w + x) * 4;
+      let v: [number, number, number];
+      if (mode === "photo") {
+        v = inside ? [196 - 40 * ridge, 150 - 34 * ridge, 128 - 30 * ridge] : [70, 74, 82];
+      } else {
+        const on = inside && ridge > 0.5 ? 255 : 0;
+        const g = mode === "print" ? on : 255 - on;
+        v = [g, g, g];
+      }
+      image.data[i] = v[0];
+      image.data[i + 1] = v[1];
+      image.data[i + 2] = v[2];
+      image.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  const png = canvas.toDataURL("image/png").split(",")[1] ?? "";
+  return {
+    sha256: "",
+    width: w,
+    height: h,
+    source_width: width,
+    source_height: height,
+    png_base64: png,
+    png,
+  };
+}
+
+const SIZES: Record<string, [number, number, "photo" | "print" | "export"]> = {};
+for (const e of evidence) {
+  SIZES[e.sha256] = [3024, 4032, "photo"];
+}
+
+function runJob(request: Record<string, unknown>): JobResult {
+  const n = jobs.length + 1;
+  const jobId = `${String(n).padStart(8, "0")}-1111-4222-8333-444455556666`;
+  const outputs: Item[] = [
+    {
+      sha256: hex(10 + n),
+      role: "print",
+      size: 812_441,
+      label: "IMG_0042_fingerprint.png",
+      job_id: jobId,
+      source: null,
+    },
+    {
+      sha256: hex(20 + n),
+      role: "export",
+      size: 402_118,
+      label: "IMG_0042_comparison_500ppi.png",
+      job_id: jobId,
+      source: null,
+    },
+  ];
+  SIZES[hex(10 + n)] = [1180, 1500, "print"];
+  SIZES[hex(20 + n)] = [760, 966, "export"];
+  items.push(...outputs);
+  const ruler = request.ruler !== null;
+  const result: JobResult = {
+    job_id: jobId,
+    outputs,
+    measurements: { ridge_period_px: 17.92, found_finger: true, output_scale: 1 },
+    export: {
+      produced: true,
+      sha256: hex(20 + n),
+      ppi: 500,
+      factor: 0.98,
+      transforms: [
+        "polarity:dark-ridges",
+        "mirror:horizontal",
+        `scale:500ppi:${ruler ? "ruler" : "ridge-period"}`,
+      ],
+      scale: ruler
+        ? { method: "ruler", px_per_mm: 20.0, uncertainty_pct: 0.25 }
+        : { method: "ridge-period", px_per_mm: 38.1, uncertainty_pct: 15, assumed_ridge_period_mm: 0.47 },
+    },
+    quality: { nfiq2: { computed: false, reason: "NFIQ 2 is not configured on this workstation" } },
+    minutiae: null,
+  };
+  jobs.push({
+    job_id: jobId,
+    evidence_sha256: String(request.evidence),
+    started_utc: "2026-10-18T08:12:03Z",
+    ended_utc: "2026-10-18T08:12:09Z",
+    result: "ok",
+    error: null,
+    report_sha256: hex(30 + n),
+    key_id: KEY_ID,
+  });
+  reports.set(jobId, {
+    schema: "ridge.job-report/1",
+    job_id: jobId,
+    case_id: CASE_ID,
+    case_reference: "KT-2026-0001",
+    created_utc: "2026-10-18T08:12:09Z",
+    ridge: { version: "0.2.0", python: "3.13.5", platform: "Windows-11", machine: "AMD64", dependencies: {} },
+    input: { sha256: String(request.evidence), label: "IMG_0042.jpg", source: "Exhibit 12, phone A" },
+    parameters: { ...request },
+    measurements: result.measurements,
+    export: result.export,
+    quality: result.quality,
+    outputs: outputs.map(({ role, label, sha256, size }) => ({ role, label, sha256, size })),
+    custody_head: hex(40 + n),
+    signer: { key_id: KEY_ID, public_key: "AAAA" },
+    disclaimer: "Image enhancement only. Ridge does not identify anyone and draws no conclusions.",
+  });
+  return result;
+}
+
+type Handler = (request: Record<string, unknown>) => unknown;
+
+const store = {
+  path: "D:\\Cases\\Ridge store",
+  identity: { exists: true, key_id: KEY_ID, public_key: "AAAA" },
+  cases: [
+    { case_id: CASE_ID, state: "active", created_utc: "2026-10-16T09:30:00Z", disposed_utc: null },
+    {
+      case_id: "7d444840-9dc0-41c3-a1e2-6b4ad9f0c9e1",
+      state: "disposed",
+      created_utc: "2026-09-01T10:00:00Z",
+      disposed_utc: "2026-10-01T10:00:00Z",
+    },
+  ],
+};
+const session = {
+  case_id: CASE_ID,
+  reference: "KT-2026-0001",
+  retention_until: "2031-12-31",
+  legal_hold: false,
+};
+
+const handlers: Record<string, Handler> = {
+  app_info: () => ({ gui: "0.2.0", engine: { ridge: "0.2.0", protocol: "ridge.sidecar/1" } }),
+  refresh_store: () => store,
+  choose_store: () => store,
+  unlock_case: () => session,
+  lock_case: () => ({ locked: true }),
+  case_info: () => ({ ...session, legal_basis: "ZKP art. 149 (synthetic preview)" }),
+  set_legal_hold: (r) => ({ ...session, legal_basis: "ZKP art. 149 (synthetic preview)", legal_hold: r.on }),
+  list_items: () => [...items],
+  list_jobs: () => [...jobs],
+  get_report: (r) => ({
+    job_id: r.job_id,
+    key_id: KEY_ID,
+    verified: true,
+    report: reports.get(String(r.job_id)),
+  }),
+  run_job: (r) => runJob(r),
+  verify_case: () => ({ ok: true, problems: [], items: items.length, reports: reports.size }),
+  preview: (r) => {
+    const sha = String(r.sha256);
+    const [w, h, mode] = SIZES[sha] ?? [800, 600, "photo"];
+    const p = draw(w, h, mode, Math.min(Number(r.max_side), 900));
+    return { ...p, sha256: sha };
+  },
+  export_item: () => ({ exported: "D:\\Exports\\IMG_0042_comparison_500ppi.png" }),
+  export_log: () => ({ exported: "D:\\Exports\\record.json", entries: 42, key_id: KEY_ID }),
+};
+
+/** Install the mocked bridge (development preview only). */
+export function installPreview(): void {
+  const target = window as unknown as { __TAURI_INTERNALS__?: unknown };
+  target.__TAURI_INTERNALS__ = {
+    invoke: (command: string, args?: { request?: Record<string, unknown> }) =>
+      new Promise((resolve, reject) => {
+        const handler = handlers[command];
+        window.setTimeout(
+          () => {
+            if (handler) {
+              resolve(handler(args?.request ?? {}));
+            } else {
+              // shaped like a Rust core error so the UI shows it as a refusal
+              // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+              reject({ kind: "refused", message: `the preview does not mock ${command}` });
+            }
+          },
+          command === "run_job" ? 700 : 60,
+        );
+      }),
+    transformCallback: () => 0,
+  };
+}

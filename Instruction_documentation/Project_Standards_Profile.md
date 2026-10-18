@@ -1,6 +1,6 @@
 # Ridge Project Standards Profile
 
-Last verified: 2026-10-16
+Last verified: 2026-10-18
 Derived from `Project_Standards_Profile_Template.md`. Review triggers are in section 10. Product requirements: `docs/prd.md`. Design: `docs/architecture.md` (ADR table in section 13; `docs/adr/` when created).
 
 ## 1. Project identification
@@ -14,7 +14,7 @@ Derived from `Project_Standards_Profile_Template.md`. Review triggers are in sec
 | Quality/Release Owner | TBD - release blocker |
 | Data Protection Officer | TBD - release blocker |
 | Forensic Quality Manager (ISO/IEC 17025) | TBD - release blocker |
-| Last reviewed | 2026-10-16 |
+| Last reviewed | 2026-10-18 |
 
 No release beyond internal engineering builds is allowed while any owner is unnamed (see section 8).
 
@@ -22,7 +22,7 @@ No release beyond internal engineering builds is allowed while any owner is unna
 
 | Field | Value |
 | --- | --- |
-| Product type | Offline forensic image-enhancement tool: CLI and Python library now; desktop GUI (Tauri v2 + React + TypeScript) later. Distribution: internal, proprietary, own organisation only. |
+| Product type | Offline forensic image-enhancement tool: CLI, Python library and desktop GUI (Tauri v2 + React + TypeScript over the Python sidecar, engineering build since 2026-10-18). Distribution: internal, proprietary, own organisation only. |
 | Use | A fingerprint examiner extracts ridge images from photos supplied as case material and compares them manually against NAFIS/AFIS results (ACE-V). Ridge never identifies anyone and makes no conclusions. |
 | Users and roles | One examiner per workstation (OS account plus case-store passphrase). Developers never access case data. No multi-user or tenancy. |
 | Deployment environments | Offline examiner workstations on Windows 11, Linux and macOS; developer workstations; GitHub Actions CI (synthetic data only). |
@@ -51,11 +51,11 @@ Authoritative definition: `docs/prd.md` section 7. Summary used for the tags in 
 | --- | --- | --- |
 | Core library and CLI | Python 3.12+ (development on 3.13), numpy, opencv-python-headless (processing and encoding only, `docs/architecture.md` ADR-003), Pillow, optional pillow-heif | PEP 8/257/484, `coding_standards.md`, IEEE 754 |
 | Image decoding | Pillow as the only decoder with a `formats=` allow-list; pillow-heif (bundles libheif and codec libraries) for HEIF/HEIC | CWE-20, CWE-400, CWE-409, CWE-770, CWE-787, CWE-125; ASVS V5 |
-| Case store (planned, M1) | Per `docs/architecture.md` section 8: files plus JSONL custody log, AES-256-GCM encrypted content-addressed blobs (ADR-008 proposed; SQLite is the documented alternative) | `backend_database_rls_rpc_standards.md`, ISO/IEC 9075 only if SQLite is chosen, ASVS V11/V14 |
-| Custody log and reports (planned, M1) | SHA-256, RFC 8785 canonical JSON, Ed25519 | `forensic_evidence_and_biometric_data_standards.md` |
-| Key custody (planned, M1) | OS keystore (Windows DPAPI, macOS Keychain, Linux Secret Service) plus Argon2id passphrase wrapping | `environment_configuration_and_secrets.md`, RFC 9106 |
-| Sidecar (planned, M4) | JSON-RPC 2.0 over stdio | `edge_function_standards.md` |
-| Desktop GUI (planned, M4) | Tauri v2 (Rust), React, TypeScript, Motion | `desktop_gui_tauri_standards.md`, ECMA-262, WCAG 2.2 AA |
+| Case store (implemented, M1) | Per `docs/architecture.md` section 8: files plus JSONL custody log, AES-256-GCM encrypted content-addressed blobs (ADR-008 proposed; SQLite is the documented alternative) | `backend_database_rls_rpc_standards.md`, ISO/IEC 9075 only if SQLite is chosen, ASVS V11/V14 |
+| Custody log and reports (implemented, M1) | SHA-256, RFC 8785 canonical JSON, Ed25519 | `forensic_evidence_and_biometric_data_standards.md` |
+| Key custody (implemented, M1) | OS keystore (Windows DPAPI, macOS Keychain, Linux Secret Service) plus Argon2id passphrase wrapping | `environment_configuration_and_secrets.md`, RFC 9106 |
+| Sidecar (implemented, M4) | JSON-RPC 2.0 over stdio (`ridge-sidecar`, protocol `ridge.sidecar/1`) | `edge_function_standards.md` |
+| Desktop GUI (implemented, M4 engineering build) | Tauri 2.12.1 (Rust 1.98.0, pinned in `gui/src-tauri/rust-toolchain.toml`), tauri-plugin-dialog 2.8.1 (Rust-side only), React 19.3, TypeScript 6.0 (strict), Vite 8, Motion 14, Atkinson Hyperlegible fonts (OFL-1.1, bundled). ECMAScript target ES2022 (`chrome120`, `safari16`: WebView2 on Windows 11, WKWebView on macOS 13+, WebKitGTK 2.40+) | `desktop_gui_tauri_standards.md`, ECMA-262, WCAG 2.2 AA; ADR-010, ADR-011 |
 | Serverless functions | None | Not applicable |
 | Native components | Third-party only (OpenCV, libheif, codecs) | Supply-chain review, fuzzing at the decoding boundary |
 | Scripts and tooling | `tools/gate.py`, pytest, ruff, mypy, bandit, pip-audit, pip-tools, gitleaks, pip-licenses, CycloneDX | `testing_and_codex_quality_gates.md` |
@@ -108,8 +108,8 @@ Editions marked "verified" were checked on 2026-10-16 against the source in `ref
 | JSON | ECMA-404; RFC 8785 for signed or hashed JSON | Schema validation at trust boundaries | pytest contract tests | `python tools/gate.py test` |
 | TOML | TOML 1.0 (`tomllib`) | `pyproject.toml`, configuration | ruff, tests | `python tools/gate.py lint` |
 | SQL (only if SQLite is chosen for the case store) | ISO/IEC 9075 principles, SQLite dialect | Parameterised queries only | pytest | `python tools/gate.py test` |
-| TypeScript (planned, M4) | ECMA-262, TypeScript strict | `desktop_gui_tauri_standards.md` | ESLint, tsc, Vitest | `npm run lint`, `npm run typecheck`, `npm run test` |
-| Rust (planned, M4) | Rust stable, edition per `Cargo.toml` | Clippy, `forbid(unsafe_code)` | cargo clippy, cargo audit, cargo deny | `cargo clippy -- -D warnings`, `cargo audit`, `cargo deny check` |
+| TypeScript (M4) | ECMA-262 (ES2022 target), TypeScript 6.0 strict with `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride` | `desktop_gui_tauri_standards.md` | ESLint (typescript-eslint strict type-checked, React hooks), tsc, Prettier, Vitest with axe-core | `python tools/gate.py gui` (runs `npm ci`, `npm run lint`, `npm run typecheck`, Prettier, `npm test`, `npm run build`, `npm audit`) |
+| Rust (M4) | Rust 1.98.0 (pinned), edition 2021 | Clippy with `unwrap_used`, `expect_used` and `panic` denied, `unsafe_code` forbidden (crate lints) | cargo fmt, cargo clippy, cargo test, cargo audit, cargo deny | `python tools/gate.py gui` (runs `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`, `cargo audit`, `cargo deny check`) |
 | YAML (CI) | YAML 1.2 | Actions pinned by commit SHA, least-privilege `permissions` | actionlint (recommended), OpenSSF Scorecard | CI |
 | C / C++ / C# / other | Not used in project code | - | - | - |
 
@@ -139,9 +139,9 @@ Note for the Quality/Release Owner: on 2026-10-16 the Python devguide lists 3.13
 | Hostile input (malformed, oversized, bombs, wrong format) | Yes (M0) | part of `test` | Yes | CI log |
 | Fuzzing of decoders | Yes (M1) | hypothesis in `test`; atheris campaigns scheduled | Findings block | CI artifacts |
 | Custody/report integrity | Yes (M1) | part of `test` | Yes | CI log |
-| IPC/JSON-RPC security | Yes (M4) | part of `test` and GUI tests | Yes | CI log |
-| E2E/smoke | Yes | CLI smoke on synthetic data; GUI E2E from M4 | Yes | CI log |
-| Accessibility | Yes (M4) | `desktop_gui_tauri_standards.md` section 9 | Yes | Test report |
+| IPC/JSON-RPC security | Yes (M4) | part of `test` (sidecar schemas, fuzz) and `gui` (Rust request types, validation, capability and CSP tests, live sidecar test) | Yes | Gate log |
+| E2E/smoke | Yes | CLI smoke on synthetic data; GUI: component flows with mocked IPC (Vitest) plus a live Rust-to-sidecar test; Tauri WebDriver E2E not implemented (exception, section 8) | Yes | Gate log |
+| Accessibility | Yes (M4) | axe-core in Vitest (`python tools/gate.py gui`); manual NVDA/VoiceOver pass before each GUI release (`desktop_gui_tauri_standards.md` section 9) | Yes | Gate log, release handoff |
 | Supply chain | Yes | `deps`, `secrets`, `licenses`, `sbom` gates; Scorecard | Yes | CI artifacts |
 | Documentation integrity | Yes | `python tools/gate.py docs` | Yes | CI log |
 | Matcher benchmark and NFIQ 2 | Ops gate | Validation procedure outside CI; metrics with `ridge-validate` (tested in CI on synthetic scores) | Yes for Ops gate | Validation report (lab QMS) |
@@ -160,7 +160,13 @@ Note for the Quality/Release Owner: on 2026-10-16 the Python devguide lists 3.13
 | Unpinned dependencies (`>=` in `requirements.txt`) | Legacy setup | Irreproducible results, supply-chain exposure | Use the developer `.venv`; record `pip freeze` with any output | Quality/Release Owner (TBD) | Pending | **Closed 2026-10-16 (M0):** `requirements.txt` removed; universal hash-pinned `requirements.lock` / `requirements-dev.lock`, installs use `--require-hashes` |
 | `pillow-heif` wheels bundle libheif/libde265 (LGPL) and the x265 encoder (GPL); package metadata says BSD-3-Clause | HEIC decoding needed for iPhone photos | Licence obligations if Ridge is ever distributed outside the organisation; native decoder attack surface (libheif CVE history) | Internal use only; `licenses` gate prints the note; evaluate `pi-heif` (decoder-only, no x265) | Security Owner + legal (TBD) | Pending | Before M1 release |
 | Results differ between CPU architectures (x86-64 vs arm64; observed 2026-10-17, Handoff_2) | OpenCV/NumPy SIMD floating point | Prints from different architectures not interchangeable | Reproducibility and validation per architecture (PRD NFR-3, ADR-009); live v0 bit-identical check on every platform; per-architecture goldens; casework only on validated architectures (OQ-15); cross-architecture envelope test (`tests/test_cross_architecture.py`) | Forensic Quality Manager (TBD) | NFR-3 change directed by the product owner on 2026-10-17 (PR #1); Forensic Quality Manager confirmation pending | Decide casework architectures before M5 |
-| GUI rules (`desktop_gui_tauri_standards.md`) | GUI not built | None today | Rules apply from first GUI commit | Product Owner (TBD) | N/A | M4 |
+| GUI rules (`desktop_gui_tauri_standards.md`) | GUI not built | None today | Rules apply from first GUI commit | Product Owner (TBD) | N/A | **Closed 2026-10-18 (M4, Handoff_15):** GUI built under these rules; the deviations are the rows below |
+| Passphrase entered in a WebView window, not an OS-native dialog (architecture §7.3 "native prompt") | Tauri has no password dialog; OS-native prompts need `unsafe` FFI (Windows, macOS) or a shell helper (Linux), two of three untestable here | A compromised bundle could read the passphrase in the prompt window | Separate Rust-owned window with its own page and a capability limited to three commands; label check in each handler; same CSP (no workers), navigation lock and new-window denial; the main WebView never sees the passphrase; zeroised Rust buffers; five attempts; ADR-010 | Security Owner (TBD) | Pending (decided in the autonomous window of 2026-10-18) | Before the first GUI release |
+| GUI E2E with Tauri WebDriver (`desktop_gui_tauri_standards.md` §12, `npm run test:e2e`) | Needs msedgedriver/WebKitWebDriver per platform; not set up yet | A defect in the wiring between the WebView, Rust and the sidecar is found late | Vitest component flows with mocked IPC; Rust unit tests of every command's validation; live Rust-to-sidecar test over real stdio; manual smoke run of the built app | Quality/Release Owner (TBD) | Pending | Before the first GUI release |
+| GUI gate in CI on every pull request | Owner decision 2026-10-17 to keep GitHub Actions minimal; a Rust build costs many runner minutes | A GUI defect reaches `main` when the local gate was skipped | `python tools/gate.py all` includes `gui` and runs locally before every push; `.github/workflows/gui.yml` runs on demand and for release tags; the full matrix is required for releases | Quality/Release Owner (TBD) | Product owner, 2026-10-17 (Actions policy) | Review with the Actions exception |
+| Release packaging of the sidecar (signed PyInstaller one-folder build in the Tauri bundle, architecture §10) | Not built yet; `bundle.active` is false | No installable GUI release | Engineering builds run the sidecar from the developer virtualenv (debug builds only); release builds look for it only in the bundle's resources | Quality/Release Owner (TBD) | Pending | Before the first GUI release |
+| Rust advisories RUSTSEC-2024-0370 (`proc-macro-error` unmaintained) and RUSTSEC-2024-0429 (`glib` `VariantStrIter` unsound) | Transitive dependencies of Tauri's Linux WebKitGTK stack (gtk 0.18); no fixed version is reachable without upstream changes | A memory-safety defect in GVariant string iteration on Linux; an unmaintained compile-time macro helper | Ridge never iterates GVariant string arrays; `proc-macro-error` runs only at compile time; ignores are listed with reasons in `gui/src-tauri/.cargo/audit.toml` and `deny.toml`; re-checked by every `cargo audit` / `cargo deny` run | Security Owner (TBD) | Pending | Remove when Tauri's Linux stack moves to gtk-rs >= 0.20 |
+| Mozilla Public License 2.0 crates in the GUI's Rust dependency tree (through Tauri) | Upstream dependencies of Tauri | File-level copyleft obligations if Ridge were distributed outside the organisation | Internal distribution only; listed by `cargo deny check licenses`; the source of MPL files is unmodified upstream | Legal + Security Owner (TBD) | Pending | Before any external distribution |
 | Method validation (ISO/IEC 17025 7.2.2) | Not yet performed | Unvalidated method in casework | Casework use forbidden | Forensic Quality Manager (TBD) | Pending | Ops gate |
 | DPIA (LED Art. 27) | Not yet performed | Unlawful or disproportionate processing | Casework use forbidden; volunteer data collection waits for DPO advice | DPO (TBD) | Pending | Ops gate (volunteer collection: before collection) |
 | AFIS exchange format | Pending vendor confirmation (`docs/prd.md` OQ-4) | Wrong export format | Lossless 500 ppi PNG export only (M2); no exchange-format work beyond design | Product Owner (TBD) | Pending | M3 |

@@ -24,8 +24,8 @@ pub const PROTOCOL: &str = "ridge.sidecar/1";
 /// First start plus at most three restarts per application run.
 pub const MAX_STARTS: u32 = 4;
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(60);
-/// Variables that would let the environment change which Python code the sidecar runs.
-const SCRUBBED_ENV: [&str; 9] = [
+/// Variables that would let the environment change which Python code, or which keystore, the sidecar uses.
+const SCRUBBED_ENV: [&str; 10] = [
     "PYTHONPATH",
     "PYTHONHOME",
     "PYTHONSTARTUP",
@@ -35,6 +35,7 @@ const SCRUBBED_ENV: [&str; 9] = [
     "PYTHONWARNINGS",
     "PYTHONDEBUG",
     "PYTHONVERBOSE",
+    "PYTHON_KEYRING_BACKEND", // would let the environment replace the OS keystore
 ];
 
 /// Why receiving a line failed.
@@ -444,5 +445,58 @@ mod tests {
                 .is_err());
         }
         assert_eq!(*launches.lock().unwrap(), MAX_STARTS);
+    }
+
+    /// The real sidecar from the repository virtualenv, over real stdio. Skipped when it is not
+    /// installed, unless RIDGE_REQUIRE_SIDECAR is set (the GUI gate sets it).
+    #[test]
+    fn the_real_sidecar_answers_over_stdio() {
+        let program = locate(None).filter(|p| p.is_file());
+        let Some(program) = program else {
+            assert!(
+                std::env::var_os("RIDGE_REQUIRE_SIDECAR").is_none(),
+                "the dev sidecar is missing"
+            );
+            eprintln!("skipped: no ridge-sidecar in the virtualenv (pip install -e .)");
+            return;
+        };
+        let mut sidecar = Sidecar::new(Box::new(move || spawn(&program)));
+        let wait = Duration::from_secs(120);
+        let store = std::env::temp_dir().join(format!("ridge-live-{}", std::process::id()));
+        std::fs::create_dir_all(&store).unwrap();
+        let store_text = store.to_str().unwrap().to_owned();
+        let identity = sidecar
+            .call(
+                "store.identity",
+                &serde_json::json!({"store": store_text}),
+                wait,
+            )
+            .unwrap();
+        assert_eq!(identity, serde_json::json!({"exists": false}));
+        let cases = sidecar
+            .call(
+                "store.cases",
+                &serde_json::json!({"store": store_text}),
+                wait,
+            )
+            .unwrap();
+        assert_eq!(cases, serde_json::json!([]));
+        let refused = sidecar
+            .call("case.items", &serde_json::json!({}), wait)
+            .unwrap_err();
+        assert_eq!(
+            (refused.kind, refused.message.as_str()),
+            (crate::error::ErrorKind::Refused, "no case is unlocked")
+        );
+        let unknown = sidecar
+            .call("os.system", &serde_json::json!({}), wait)
+            .unwrap_err();
+        assert_eq!(unknown.kind, crate::error::ErrorKind::Refused);
+        let status = sidecar
+            .call("session.status", &serde_json::json!({}), wait)
+            .unwrap();
+        assert_eq!(status["unlocked"], false);
+        sidecar.stop();
+        std::fs::remove_dir_all(&store).unwrap();
     }
 }

@@ -19,7 +19,7 @@ SIZE = 1024
 
 
 def draw() -> Image.Image:
-    """The master icon at 1024 px."""
+    """Draw the master icon at 1024 px."""
     image = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     pen = ImageDraw.Draw(image)
     pen.rounded_rectangle((48, 48, SIZE - 48, SIZE - 48), radius=200, fill=GRAPHITE)

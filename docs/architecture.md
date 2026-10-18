@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/architecture.md` (IEEE 1016-style design description) |
-| Version | 0.1 (draft for owner review) |
-| Date | 2026-10-16 |
-| Status | Draft. §6, §8, §9.1 and §9.3 describe the implementation (M0, M1); §7.3 and the GUI are the target design for M2–M4. |
+| Version | 0.2 (draft for owner review) |
+| Date | 2026-10-18 |
+| Status | Draft. §6, §7, §8 and §9 describe the implementation (M0–M4 engineering builds, including the desktop GUI in `gui/`). Packaging of the sidecar for release (§10) is still planned. |
 | Requirements | [`docs/prd.md`](prd.md) (IDs FR-, SEC-, PRIV-, NFR-) |
 | Standards | [`Instruction_documentation/Project_Standards_Profile.md`](../Instruction_documentation/Project_Standards_Profile.md) |
 
@@ -67,7 +67,7 @@ Ridge has **no network interface**: no AFIS connection, no updates, no telemetry
 
 ```mermaid
 flowchart TB
-  subgraph GUI["gui/ — Tauri v2 [Planned M4]"]
+  subgraph GUI["gui/ — Tauri v2 [Implemented M4]"]
     WV["WebView: React + TypeScript<br/>(UNTRUSTED)"]
     RC["Rust core: commands,<br/>capability allow-list (trusted)"]
   end
@@ -177,7 +177,7 @@ Reproduction check (`src/ridge/case/reproduce.py`, PRD FR-34, NFR-3): `ridge-cas
 
 Processing record (`src/ridge/case/processing_record.py`, PRD PRIV-3): `ridge-case log --to` first logs `log.export` (with the case id), then signs the custody head, and then writes every decrypted entry with the case id and the examiner's public key as readable JSON (`ridge.processing-record/1`). Every entry in the file is therefore covered by a signed head. `ridge-case check-log` recomputes the sequence and the hash links from the entries and verifies every signed head. It refuses a record that does not end with that signed `log.export`, which catches appended entries and stripped signatures. It also refuses a record whose case id differs from the one in the signed entry. Truncation after a signed head cannot be detected offline (R-5); the DPO compares the last entry with what the examiner reports.
 
-### 7.3 GUI ↔ sidecar (M4) [Sidecar implemented; Rust core and WebView planned]
+### 7.3 GUI ↔ sidecar (M4) [Implemented]
 
 Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`):
 
@@ -188,11 +188,14 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `store.cases` | `store` (absolute) | Case ids, creation time and state (active, locked, erasing, disposed, invalid) from plaintext files only; nothing is decrypted |
 | `identity.create` | `store` (absolute), `passphrase` | Key id and public key of the new examiner identity (first run). **Rust core only**, from a native prompt |
 | `case.create` | `store`, `reference`, `legal_basis`, `retention_until` (YYYY-MM-DD), `passphrase` | New case id; the passphrase must unlock the identity. **Rust core only** |
+| `store.identity` | `store` (absolute) | Whether the store has an examiner identity, and its key id and public key (nothing unlocked); first-run detection |
 | `session.lock` / `session.status` | – | Locks the case (also done at end of input and after 15 minutes without requests) / unlocked state and idle timeout |
+| `case.info` / `case.hold` | – / `on`, `reason` | Decrypted case metadata / places or lifts a legal hold with a reason (logged as `case.hold`) |
 | `case.items` / `case.verify` | – | Stored items / verification result |
 | `case.import` | `path` (absolute, from a native file dialog) | Evidence item |
 | `job.run` | `evidence`, extraction options, `export`, `mirror`, `ppi`, `ruler`, `minutiae` | Outputs, measurements, export, quality, minutiae summary |
-| `preview.get` | `sha256`, `max_side` 16–2048 | Bounded PNG (base64) for display; the read is logged |
+| `preview.get` | `sha256`, `max_side` 16–2048 | Bounded PNG (base64) for display, with the full image's size after EXIF orientation (`source_width`, `source_height`: the space of `roi` and `ruler`); the read is logged |
+| `preview.region` | `sha256`, `x`, `y`, `width`, `height` (1–2048 px per side) | A full-resolution rectangle, unscaled and clipped to the image, for pixel inspection; the read is logged |
 | `case.export` | `sha256`, `dest` (absolute), `overwrite` | Logged plaintext export |
 | `case.jobs` | – | Jobs from the custody log: id, evidence, start and end time, result, whether a signed report exists |
 | `report.get` | `job_id` (UUID or a unique prefix of 8 or more characters) | The report, returned only after its hash and signature are verified; the read is logged |
@@ -208,6 +211,43 @@ Errors use JSON-RPC codes: -32700 parse, -32600 invalid request, -32601 unknown 
 - The protocol is JSON-RPC 2.0, one message per line, UTF-8, ECMA-404 JSON. Each message is at most 1 MiB. Images are passed by case-store reference, never inline; previews are bounded base64 PNGs.
 - Each method has a strict schema (unknown fields rejected), an explicit allow-list of methods, and per-method size and time limits. The sidecar exits when stdin closes.
 - The WebView can only call allow-listed Tauri commands, which forward validated requests to the sidecar. It has no `fs`, `shell` or `http` capabilities.
+
+The sidecar methods live in `store_methods.py`, `case_methods.py` and `job_methods.py`; `handlers.py` is only the allow-list and the schemas.
+
+**Desktop GUI (`gui/`).**
+
+The **Rust core** (`gui/src-tauri/src`, trusted, `#![forbid(unsafe_code)]` through the crate lints) does the following:
+
+- Process and transport (`sidecar.rs`, `rpc.rs`):
+  - spawns the sidecar. Debug builds use the repository virtualenv, a path fixed at compile time. Release builds use `resources/sidecar/` only, never `PATH`, the working directory or user input;
+  - removes the `PYTHON*` variables and `PYTHON_KEYRING_BACKEND` from its environment;
+  - reads response lines of at most 32 MiB on a reader thread, with per-method timeouts of 30 s to 20 min;
+  - on a timeout, a transport failure or a protocol violation, stops the sidecar (the case locks). The next call restarts it, at most three times per run. A failed request is never resent.
+- Commands (`commands/`): 27 thin commands; the list in `commands/list.rs` is shared by `build.rs` (ACL manifest) and the capability tests. Each command:
+  - deserialises a `deny_unknown_fields` request;
+  - validates every value: SHA-256 handles, UUIDs, free text, dates, numeric ranges;
+  - maps to one sidecar method.
+- Dialogs: native open, save and folder dialogs are opened by Rust (`dialogs.rs`, `tauri-plugin-dialog` with no WebView permission), so the WebView never sends a path. Exports never overwrite: the sidecar refuses an existing file.
+- Passphrase prompt (`prompt.rs`, ADR-010): a separate window with its own page and capability. The passphrase goes from it to Rust to the sidecar, never to the main window.
+- Settings: the last chosen store is remembered in the app config folder by Rust (`settings.rs`), never in WebView storage.
+- Window lock-down (`windows.rs`, `tauri.conf.json`):
+  - navigation is limited to the app origin and new windows are denied;
+  - the CSP refuses inline and remote code, workers, frames and objects;
+  - the asset protocol is off, `freezePrototype` is on, and `withGlobalTauri` is off;
+  - one capability file per window.
+
+The **WebView** (`gui/src`, untrusted, React and TypeScript with Motion) has these screens:
+
+- the store screen: choose a store, first-run identity, case list, new case;
+- the case screen, with these sections:
+  - **Evidence**: import with a source note, then side-by-side review. Exhibit labels show the role and SHA-256, "Processed image - not an identification" on outputs, and a millimetre scale bar drawn at the current zoom with its method and uncertainty. The viewer has keyboard zoom and pan, stated zoom and interpolation, nearest neighbour when magnified, and full-resolution detail on request. Region and ruler tools have typed alternatives. Every job parameter is visible;
+  - **Jobs**: verified reports, report export, reproduction;
+  - **References**: view-only comparison and sheet export;
+  - **Records**: verify, processing record, legal hold.
+
+Previews are in-memory `blob:` URLs and are revoked when the case closes. A refusal that says the case is no longer unlocked (idle lock, sidecar restart) returns the examiner to the store screen. The GUI never polls the sidecar, so the 15-minute idle lock still works.
+
+A development preview (`gui/src/dev/preview.ts`: mocked IPC and synthetic drawn images) runs only under `npm run dev` outside Tauri. The GUI gate checks that it is absent from production builds.
 
 ## 8. Data architecture [Implemented M1]
 
@@ -396,5 +436,7 @@ Test layers: characterization (live v0 run, bit-identical on every platform; per
 | ADR-007 | `src/` layout, pure pipeline, I/O at the edges, ≤ 300-line modules | Accepted | Testability and reviewability; pack modularity rules. |
 | ADR-008 | Case store on the filesystem (files + JSONL) rather than SQLite, with keyed (HMAC) file names and all metadata, reports and custody lines encrypted | Accepted (implemented M1; Security Owner review pending) | Fewer moving parts; no plaintext personal data or image hashes on disk. Revisit if querying needs grow. |
 | ADR-009 | Reproducibility and validation are per CPU architecture; behaviour preservation is proven against a live v0 run; goldens are stored per architecture (arm64 generated on a CI Apple silicon runner by the `golden` workflow) | Accepted | x86-64 and arm64 SIMD floating point legitimately differ (R-7, observed 2026-10-17); equality would always fail, so a measured cross-architecture envelope guards against further drift instead. |
+| ADR-010 | The passphrase is typed in a separate, Rust-owned prompt window with its own page and capability, never in the main WebView ([docs/adr/ADR-010-passphrase-prompt-window.md](adr/ADR-010-passphrase-prompt-window.md)) | Accepted for engineering builds; Security Owner review pending | Tauri has no password dialog; OS-native prompts need unsafe FFI or a shell helper per platform. |
+| ADR-011 | Hand-written IPC types checked by tests; Tauri isolation pattern not adopted for now ([docs/adr/ADR-011-gui-ipc-types-and-isolation.md](adr/ADR-011-gui-ipc-types-and-isolation.md)) | Accepted | Rust and the sidecar validate every value; 27 small types do not justify a generator yet. |
 
 ADRs move to individual files under `docs/adr/` when they need more than a table row.

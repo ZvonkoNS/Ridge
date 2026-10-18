@@ -3,7 +3,7 @@
 Last verified: 2026-10-16
 Update when: the GUI stack, Tauri version, IPC contract, capability files, CSP, packaging or update channel change.
 
-Status: the GUI is not built yet (planned milestone M4, planned folder `gui/`). These rules apply from the first GUI commit. Architecture decisions are recorded as ADRs (table in `docs/architecture.md` section 13, files in `docs/adr/` when created); `docs/architecture.md` section 7.3 already fixes the sidecar transport and packaging (signed PyInstaller one-folder build, newline-delimited JSON-RPC, no ports). Open GUI decisions: isolation pattern, IPC type generation.
+Status: the GUI is implemented in `gui/` (milestone M4, engineering build, 2026-10-18; `docs/architecture.md` §7.3). These rules apply to every GUI change. Architecture decisions are recorded as ADRs (table in `docs/architecture.md` section 13, files in `docs/adr/`). `docs/architecture.md` §7.3 fixes the sidecar transport (newline-delimited JSON-RPC, no ports) and §10 the packaging (signed PyInstaller one-folder build, not built yet). Decided: the passphrase prompt window ([ADR-010](../docs/adr/ADR-010-passphrase-prompt-window.md)), hand-written IPC types and no isolation pattern for now ([ADR-011](../docs/adr/ADR-011-gui-ipc-types-and-isolation.md)). Exceptions to this file are recorded in `Project_Standards_Profile.md` section 8.
 
 ## 1. Trust model
 
@@ -116,4 +116,4 @@ cargo deny check
 cargo test
 ```
 
-The Python gates (`python tools/gate.py all`) remain required. Wiring the GUI gates into `tools/gate.py` is proposed; until then they run as separate CI jobs.
+These run as one gate, `python tools/gate.py gui` (`tools/gate_gui.py`), which `python tools/gate.py all` includes. It also checks npm licences against an allow-list and that the development preview is absent from the production build. `npm run test:e2e` (Tauri WebDriver) is not implemented yet; this is recorded as an exception in the standards profile. In CI the GUI gate runs on demand and for release tags only (`.github/workflows/gui.yml`).

@@ -1,7 +1,8 @@
 # Quality gates, kept to a minimum of GitHub Actions minutes (owner decision 2026-10-17):
 # - pull requests: one Linux job (Python 3.12, the oldest supported) plus one supply-chain job;
-#   documentation-only pull requests do not run CI at all. The examiner workstation gate
-#   (`python tools/gate.py all` on Windows, Python 3.13) runs locally before every push.
+#   documentation-only and GUI-only pull requests do not run this workflow. The examiner
+#   workstation gate (`python tools/gate.py all` on Windows, Python 3.13, including the GUI
+#   gate) runs locally before every push.
 # - Apple silicon runs only when pixel-affecting code changes (arm64.yml, PRD NFR-3).
 # - the full matrix (Windows, Linux, macOS x Python 3.12-3.14, PRD NFR-5) runs on demand
 #   (Actions -> CI -> Run workflow, full = true) and for release tags (v*).
@@ -17,6 +18,7 @@ on:
       - "**.md"
       - "docs/**"
       - "Instruction_documentation/**"
+      - "gui/**"  # the desktop GUI has its own gate: gui.yml (on demand) and `python tools/gate.py gui` locally
   workflow_dispatch:
     inputs:
       full:

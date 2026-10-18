@@ -54,7 +54,7 @@ pub fn build_prompt(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         WebviewUrl::App("passphrase.html".into()),
     ))
     .title("Ridge - passphrase")
-    .inner_size(460.0, 360.0)
+    .inner_size(460.0, 410.0)
     .resizable(false)
     .minimizable(false)
     .maximizable(false)

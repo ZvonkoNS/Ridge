@@ -1,0 +1,37 @@
+# cargo-deny for the GUI's Rust core (desktop_gui_tauri_standards.md §8): advisories, licences,
+# bans and sources. Exceptions are recorded in Instruction_documentation/Project_Standards_Profile.md §8.
+[graph]
+targets = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu", "aarch64-apple-darwin"]
+
+[advisories]
+# cargo-audit also flags RUSTSEC-2024-0429 (glib, Linux only); cargo-deny's database does not match it here.
+ignore = [
+  { id = "RUSTSEC-2024-0370", reason = "proc-macro-error: compile-time only, via Tauri's Linux GTK stack (see .cargo/audit.toml)" },
+]
+
+[licenses]
+allow = [
+  "MIT",
+  "MIT-0",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-3-Clause",
+  "0BSD",
+  "Zlib",
+  "CC0-1.0",
+  "Unlicense",
+  "Unicode-3.0",
+  "MPL-2.0",  # file-level copyleft, through Tauri (cssparser/selectors family); internal distribution only (profile §8)
+]
+confidence-threshold = 0.93
+
+[licenses.private]
+ignore = true  # ridge-gui itself (publish = false, proprietary)
+
+[bans]
+multiple-versions = "allow"  # Tauri's tree has duplicates; versions are pinned by Cargo.lock
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

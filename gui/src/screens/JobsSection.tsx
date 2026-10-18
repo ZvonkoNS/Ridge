@@ -18,6 +18,30 @@ interface Props {
   notify: (message: string) => void;
 }
 
+/** A recorded parameter value as text: none, a scalar, or compact JSON for lists and objects. */
+export function parameterText(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "none";
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+/** Every recorded parameter, exactly as signed. */
+export function ParameterList({ parameters }: { parameters: Record<string, unknown> }) {
+  return (
+    <ul className="paramlist">
+      {Object.entries(parameters).map(([key, value]) => (
+        <li key={key}>
+          <span className="paramlist-key">{key}</span> <code>{parameterText(value)}</code>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function ReportView({ shown, items, onFailure, onChanged, notify }: { shown: VerifiedReport } & Props) {
   const report = shown.report;
   const images = report.outputs.filter((o) => o.role !== "minutiae");
@@ -85,7 +109,7 @@ function ReportView({ shown, items, onFailure, onChanged, notify }: { shown: Ver
         </dd>
         <dt>Parameters</dt>
         <dd>
-          <code className="params-code">{JSON.stringify(report.parameters)}</code>
+          <ParameterList parameters={report.parameters} />
         </dd>
       </dl>
       <p className="disclaimer">{report.disclaimer}</p>

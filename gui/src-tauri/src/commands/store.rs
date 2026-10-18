@@ -10,7 +10,7 @@ use crate::error::IpcError;
 use crate::prompt::{self, Purpose};
 use crate::state::{self, call, path_text};
 use crate::windows::{require, MAIN_LABEL};
-use crate::{dialogs, validate};
+use crate::{dialogs, settings, validate};
 
 const QUICK: Duration = Duration::from_secs(30);
 
@@ -37,6 +37,7 @@ pub async fn choose_store(app: AppHandle, window: WebviewWindow) -> Result<Value
     let folder = dialogs::pick_folder(&app, "Choose the case store folder").await?;
     path_text(&folder)?;
     let _ = call(&app, "session.lock", json!({}), QUICK).await; // a new store never keeps another case open
+    settings::remember(&app, &folder);
     state::set_store(&app, folder)?;
     store_view(&app).await
 }

@@ -26,14 +26,21 @@ const EVIDENCE = {
 
 describe("store screen", () => {
   it("leads a first run to the identity and keeps the passphrase out of this window", async () => {
+    let identity = false;
     const mocked = routes({
       choose_store: () => ({ path: "C:/cases", identity: { exists: false }, cases: [] }),
-      create_identity: () => ({ key_id: "0123456789abcdef", public_key: "AAAA" }),
-      refresh_store: () => ({
-        path: "C:/cases",
-        identity: { exists: true, key_id: "0123456789abcdef", public_key: "AAAA" },
-        cases: [],
-      }),
+      create_identity: () => {
+        identity = true;
+        return { key_id: "0123456789abcdef", public_key: "AAAA" };
+      },
+      refresh_store: () =>
+        identity
+          ? {
+              path: "C:/cases",
+              identity: { exists: true, key_id: "0123456789abcdef", public_key: "AAAA" },
+              cases: [],
+            }
+          : ipcError("no_store", "choose a case store first"),
     });
     const { container } = render(<App />);
     expect(await axeViolations(container)).toEqual([]);
@@ -43,6 +50,19 @@ describe("store screen", () => {
     expect(container.querySelector("input[type=password]")).toBeNull();
     expect(mocked).toHaveBeenCalledWith("create_identity", {});
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it("shows the store the core remembered, without a dialog", async () => {
+    routes({
+      refresh_store: () => ({
+        path: "C:/cases",
+        identity: { exists: true, key_id: "0123456789abcdef", public_key: "AAAA" },
+        cases: [],
+      }),
+    });
+    render(<App />);
+    expect(await screen.findByText("C:/cases")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose another store..." })).toBeInTheDocument();
   });
 
   it("unlocks a listed case and shows its tag", async () => {

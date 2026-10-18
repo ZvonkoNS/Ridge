@@ -10,6 +10,12 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
+import { installPreview } from "./dev/preview";
+
+// Development preview in a plain browser (synthetic data); compiled out of production builds.
+if (import.meta.env.DEV && !("__TAURI_INTERNALS__" in window)) {
+  installPreview();
+}
 
 const root = document.getElementById("root");
 if (root) {

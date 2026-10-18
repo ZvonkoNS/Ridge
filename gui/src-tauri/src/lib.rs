@@ -12,6 +12,7 @@ mod dialogs;
 mod error;
 mod prompt;
 mod rpc;
+mod settings;
 mod sidecar;
 mod state;
 mod validate;
@@ -35,6 +36,9 @@ pub fn run() {
                 )),
             };
             app.manage(AppState::new(Sidecar::new(Box::new(launch))));
+            if let Some(store) = settings::load(app.handle()) {
+                state::set_store(app.handle(), store)?;
+            }
             windows::build_main(app.handle())?;
             Ok(())
         })
