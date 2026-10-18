@@ -111,6 +111,8 @@ pub fn run() {
             commands::jobs::export_head,
             commands::store::verify_store,
             commands::store::store_overview,
+            commands::notes::add_note,
+            commands::notes::list_notes,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

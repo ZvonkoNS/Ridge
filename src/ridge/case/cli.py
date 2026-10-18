@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case import cli_common as common
-from ridge.case import cli_compare, cli_records, cli_store
+from ridge.case import cli_compare, cli_notes, cli_records, cli_store
 from ridge.case.dispose import REASONS, dispose_case
 from ridge.case.export_step import ExportOptions
 from ridge.case.identity import create_identity, public_identity, unlock_identity
@@ -218,6 +218,7 @@ def build_parser() -> argparse.ArgumentParser:
     cli_records.add_commands(sub)
     cli_compare.add_commands(sub)
     cli_store.add_commands(sub)
+    cli_notes.add_commands(sub)
     return ap
 
 

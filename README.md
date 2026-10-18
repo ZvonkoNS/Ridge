@@ -93,6 +93,8 @@ ridge-case export D:/ridge-store/<case-id> <sha> --to print.png   # the only way
 ridge-case verify D:/ridge-store/<case-id>              # hashes, custody chain, report signatures
 ridge-case verify-store --store D:/ridge-store           # every case of the store, one passphrase
 ridge-case overview --store D:/ridge-store              # references, retention dates, legal holds (reads only)
+ridge-case note D:/ridge-store/<case-id> "text" --job <job-id>   # examiner note in the custody log (--corrects SEQ)
+ridge-case notes D:/ridge-store/<case-id>               # every note, with time and examiner
 ridge-case log D:/ridge-store/<case-id>                 # decrypted custody log (processing record)
 ridge-case jobs D:/ridge-store/<case-id>                # jobs: started, result, signed report or not
 ridge-case report D:/ridge-store/<case-id> <job-id>     # verified report as text (--json for the signed JSON)

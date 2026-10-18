@@ -16,6 +16,7 @@ const INFO = {
 describe("records", () => {
   it("exports the custody head for countersigning", async () => {
     const mocked = routes({
+      list_notes: () => [],
       export_head: () => ({
         exported: "D:/out/head.json",
         seq: 41,

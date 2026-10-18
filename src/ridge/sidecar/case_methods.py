@@ -15,6 +15,7 @@ import cv2
 from ridge.arrays import ImageU8
 from ridge.case.compare import PLAUSIBLE_PPI, file_ppi
 from ridge.case.export_step import MINUTIAE_LABEL
+from ridge.case.notes import add_note, list_notes
 from ridge.case.store import OpenCase, StoredItem
 from ridge.case.verify import verify_case
 from ridge.errors import ParameterError
@@ -45,6 +46,25 @@ def hold(session: Session, params: dict[str, Json]) -> Json:
     case, _ = session.require()
     case.set_legal_hold(params["on"], params["reason"])
     return info(session, {})
+
+
+def note_add(session: Session, params: dict[str, Json]) -> Json:
+    """Append an examiner note to the case, a job or a stored item (logged as ``examiner.note``)."""
+    case, _ = session.require()
+    note = add_note(
+        case,
+        params["text"],
+        job_id=params.get("job_id"),
+        sha256=params.get("sha256"),
+        corrects=params.get("corrects"),
+    )
+    return note.to_json()
+
+
+def notes(session: Session, params: dict[str, Json]) -> Json:
+    """List the examiner notes of the case, or of one job."""
+    case, _ = session.require()
+    return [n.to_json() for n in list_notes(case.entries, job_id=params.get("job_id"))]
 
 
 def items(session: Session, params: dict[str, Json]) -> Json:

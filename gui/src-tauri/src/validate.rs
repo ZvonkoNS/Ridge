@@ -47,6 +47,25 @@ pub fn text(value: &str, what: &str, max: usize) -> Result<String, IpcError> {
     Ok(trimmed.to_owned())
 }
 
+/// An examiner note: like `text`, but line breaks and tabs are kept. Bidirectional overrides and
+/// isolates are refused so that a stored note cannot read differently from what it contains.
+pub fn note(value: &str, max: usize) -> Result<String, IpcError> {
+    let joined = value.replace("\r\n", "\n");
+    let trimmed = joined.trim();
+    let count = trimmed.chars().count();
+    let refused = |c: char| {
+        (c.is_control() && c != '\n' && c != '\t')
+            || ('\u{202a}'..='\u{202e}').contains(&c)
+            || ('\u{2066}'..='\u{2069}').contains(&c)
+    };
+    if count == 0 || count > max || trimmed.chars().any(refused) {
+        return Err(IpcError::invalid(&format!(
+            "a note must be 1 to {max} printable characters (line breaks are allowed)"
+        )));
+    }
+    Ok(trimmed.to_owned())
+}
+
 /// Optional free text: absent or blank means none.
 pub fn optional_text(
     value: Option<&str>,
@@ -141,6 +160,22 @@ mod tests {
         );
         assert_eq!(optional_text(Some("  "), "source", 10).unwrap(), None);
         assert_eq!(optional_text(None, "source", 10).unwrap(), None);
+    }
+
+    #[test]
+    fn notes_keep_line_breaks_and_refuse_disguises() {
+        assert_eq!(note(" a\r\nb\tc ", 10).unwrap(), "a\nb\tc");
+        for bad in [
+            "",
+            " \n ",
+            "a\rb",
+            "esc\u{1b}[2J",
+            "abc\u{202e}cba",
+            "x\u{2066}y",
+        ] {
+            assert!(note(bad, 10).is_err(), "{bad:?}");
+        }
+        assert!(note(&"x".repeat(11), 10).is_err());
     }
 
     #[test]

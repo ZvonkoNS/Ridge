@@ -158,6 +158,7 @@ Day 7 is reserved for the security review, release candidate and handoff.
 | FR-26 | Ridge MUST support retention dates and legal hold, and MUST perform disposal only on explicit command with confirmation, logging it. | M | M1 | Disposal of a case on hold is refused; disposal removes keys (crypto-erase) and logs the event. Store overview added 2026-10-18 (`ridge-case overview`, GUI "Show case details"): every case's reference, retention date and hold with one passphrase, cases past their retention date and not on hold marked; it never disposes. |
 | FR-27 | A legacy "no case" mode MAY remain for R&D on synthetic or consented data, clearly labelled "not for casework" in output and reports. | C | M1 | Warning printed; outputs carry no evidential report. |
 | FR-28 | Ridge MUST let the examiner list a case's jobs and show or export a job's signed report only after checking it against the custody log and the examiner identity; an exported report (canonical bytes plus detached signature) MUST be verifiable offline without the case store. | M | M1 | `ridge-case jobs`, `ridge-case report` and `ridge-case check-report`; a one-byte change, a reformatted report or another key fails; reads and exports are logged. |
+| FR-29 | Ridge SHOULD let the examiner add notes to a case, a job or a stored item. Notes MUST be kept in the custody log with the examiner and the time, MUST NOT be changed or removed, and a correction MUST be a new note naming the note it corrects. | S | M4 | Added 2026-10-18 (`ridge-case note` / `notes`, GUI notes on a job's report and in Records). Notes that name a missing job or item, control characters and bidirectional overrides are refused; the original survives a correction. |
 
 ### 8.4 Matcher-ready output and quality (M2)
 
@@ -306,7 +307,7 @@ Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 
 | --- | --- | --- | --- |
 | FR-1–FR-7 | ISO/IEC 25010 functional suitability; ISO/IEC 14764 (regression protection) | §6 module structure | `tests/test_characterization.py`, CLI tests |
 | FR-8–FR-13 | OWASP ASVS 5.0 file handling and input validation; CWE-20, CWE-22, CWE-59, CWE-367, CWE-400, CWE-409, CWE-434, CWE-789 | §9.1 input handling | `tests/test_image_io.py`, `tests/test_hardening.py`, `tests/test_offline.py` |
-| FR-20–FR-28 | ISO/IEC 27037/27042; ISO/IEC 17025 7.5/7.11; LED Art. 25 | §8 data architecture, §9.3 integrity | case-store, custody and verify tests (M1) |
+| FR-20–FR-29 | ISO/IEC 27037/27042; ISO/IEC 17025 7.5/7.11; LED Art. 25 | §8 data architecture, §9.3 integrity | case-store, custody and verify tests (M1) |
 | FR-30–FR-35 | ISO/IEC 39794-4/19794-4; ISO/IEC 29794-4; ECMA-404; ISO 8601 | §8.4 export | export and report tests (M2) |
 | SEC-1–SEC-10 | OWASP ASVS 5.0 L3 (applicable); CWE Top 25; NIST SSDF PW/PS/RV | §9 security architecture | `tools/gate.py all`, CI, tests |
 | PRIV-1–PRIV-3 | LED Art. 4, 10, 20, 25, 27; ISO/IEC 24745 | §8, §9.2 | retention/disposal tests (M1) |

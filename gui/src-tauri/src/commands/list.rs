@@ -32,6 +32,8 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "export_head",
     "verify_store",
     "store_overview",
+    "add_note",
+    "list_notes",
 ];
 
 /// Commands of the passphrase window (capability `passphrase`).

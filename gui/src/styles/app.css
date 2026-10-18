@@ -386,6 +386,68 @@ code,
   margin-bottom: var(--space-3);
 }
 
+.notes {
+  margin-top: var(--space-5);
+}
+
+.card > .notes {
+  margin-top: 0;
+}
+
+.notes-list {
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.note {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.note-meta {
+  margin: 0;
+  color: var(--ink-2);
+  font: 400 var(--step--1) var(--font-mono);
+}
+
+.note-text {
+  grid-column: 1;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.note-correct {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+}
+
+.notes-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.field textarea {
+  padding: var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--ink);
+  font: 400 var(--step-0) var(--font-ui);
+  resize: vertical;
+}
+
+.notes-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
 .newcase {
   display: grid;
   grid-template-columns: 1fr 1fr 12rem auto;

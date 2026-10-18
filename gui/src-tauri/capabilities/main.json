@@ -32,6 +32,8 @@
     "allow-limits-of-use",
     "allow-export-head",
     "allow-verify-store",
-    "allow-store-overview"
+    "allow-store-overview",
+    "allow-add-note",
+    "allow-list-notes"
   ]
 }

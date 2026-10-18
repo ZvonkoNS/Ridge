@@ -4,6 +4,7 @@
 
 pub mod case;
 pub mod jobs;
+pub mod notes;
 pub mod prompt;
 pub mod store;
 

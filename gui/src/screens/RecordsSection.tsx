@@ -1,8 +1,9 @@
 // Integrity and records: verify the case (FR-24), export the signed processing record (PRIV-3),
 // place or lift a legal hold (FR-26). Disposal stays in the CLI (`ridge-case dispose`), with its
-// typed confirmation, on purpose.
+// typed confirmation, on purpose. Examiner notes of the whole case are listed here too.
 import { useState } from "react";
 
+import { NotesPanel } from "../components/NotesPanel";
 import { Button, Notice } from "../components/ui";
 import { ipc } from "../ipc/commands";
 import type { CaseInfo, Item, LimitsStatus, Verification } from "../ipc/types";
@@ -135,6 +136,9 @@ export function RecordsSection({ info, items, limits, onInfo, onFailure, notify 
           </Button>
         </form>
       </section>
+      <div className="card">
+        <NotesPanel jobId={null} onFailure={onFailure} />
+      </div>
       <LimitsCard limits={limits} />
       <Inventory items={items} limits={limits} onFailure={onFailure} notify={notify} />
     </div>

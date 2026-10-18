@@ -21,6 +21,7 @@ import type {
   MinutiaeView,
   HeadExported,
   LogExported,
+  Note,
   Preview,
   PromptContext,
   RegionPreview,
@@ -103,6 +104,9 @@ export const ipc = {
   caseInfo: () => call<CaseInfo>("case_info"),
   setLegalHold: (on: boolean, reason: string) => call<CaseInfo>("set_legal_hold", { on, reason }),
   listItems: () => call<Item[]>("list_items"),
+  addNote: (text: string, jobId: string | null, corrects: number | null) =>
+    call<Note>("add_note", { text, job_id: jobId, sha256: null, corrects }),
+  listNotes: (jobId: string | null) => call<Note[]>("list_notes", { job_id: jobId }),
   importEvidence: (source: string | null) => call<Item>("import_evidence", { source }),
   importReference: (source: string) => call<Item>("import_reference", { source }),
   verifyCase: () => call<Verification>("verify_case"),

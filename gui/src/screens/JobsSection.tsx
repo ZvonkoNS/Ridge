@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ExhibitLabel } from "../components/ExhibitLabel";
 import { ImageViewer } from "../components/ImageViewer";
 import { MinutiaeNote, MinutiaeToggle, useMinutiaeOverlay } from "../components/MinutiaeToggle";
+import { NotesPanel } from "../components/NotesPanel";
 import { Button, Hash, Notice, StaggerItem, StaggerList, utc } from "../components/ui";
 import { ipc } from "../ipc/commands";
 import type { Item, JobRecord, Reproduction, VerifiedReport } from "../ipc/types";
@@ -153,6 +154,7 @@ function ReportView({ shown, items, onFailure, onChanged, notify }: { shown: Ver
           />
         </>
       ) : null}
+      <NotesPanel jobId={report.job_id} onFailure={onFailure} />
     </article>
   );
 }

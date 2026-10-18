@@ -284,6 +284,18 @@ export interface StoreCheck {
   problems: string[];
 }
 
+/** An examiner note from the custody log (custody action `examiner.note`). */
+export interface Note {
+  seq: number;
+  ts_utc: string;
+  actor: string;
+  text: string;
+  job_id: string | null;
+  sha256: string | null;
+  /** Sequence number of the note this one corrects. */
+  corrects: number | null;
+}
+
 /** One case of the store overview (read with the passphrase; nothing is written). */
 export interface CaseOverview {
   case_id: string;
