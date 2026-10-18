@@ -31,6 +31,7 @@ from typing import Any
 from ridge.case import cli_common as common
 from ridge.case import cli_compare, cli_limits, cli_notes, cli_package, cli_records, cli_register, cli_store
 from ridge.case.dispose import REASONS, dispose_case
+from ridge.case.export_all import INDEX, ROLES, export_role
 from ridge.case.export_step import ExportOptions
 from ridge.case.identity import create_identity, public_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
@@ -174,6 +175,15 @@ def cmd_export(args: argparse.Namespace) -> None:
         common.say(f"exported to {dest}")
 
 
+def cmd_export_all(args: argparse.Namespace) -> None:
+    """Export every stored item of one role into a new folder (each export logged)."""
+    with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
+        written = export_role(case, args.role, args.to)
+    common.say(
+        f"{len(written)} {args.role} file(s) exported to {args.to}, listed in {INDEX}; each is in the custody log"
+    )
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
     """Verify hashes, chain and signatures."""
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
@@ -250,6 +260,11 @@ def _add_case_commands(sub: Any) -> None:
     p = sub.add_parser("list", help="list stored items")
     p.add_argument("case", type=Path)
     p.set_defaults(func=cmd_list)
+    p = sub.add_parser("export-all", help="export every stored item of one role into a new folder (logged)")
+    p.add_argument("case", type=Path)
+    p.add_argument("--to", type=Path, required=True, help="a folder that does not exist yet")
+    p.add_argument("--role", choices=ROLES, default="export", help="which items (default: comparison exports)")
+    p.set_defaults(func=cmd_export_all)
     p = sub.add_parser("verify", help="verify the case")
     p.add_argument("case", type=Path)
     p.add_argument("--json", action="store_true", help="print the result as JSON (for laboratory monitoring)")
