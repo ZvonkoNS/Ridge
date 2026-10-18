@@ -93,14 +93,22 @@ ridge-case export D:/ridge-store/<case-id> <sha> --to print.png   # the only way
 ridge-case verify D:/ridge-store/<case-id>              # hashes, custody chain, report signatures
 ridge-case verify-store --store D:/ridge-store           # every case of the store, one passphrase
 ridge-case overview --store D:/ridge-store              # references, retention dates, legal holds (reads only)
+ridge-case overview --store D:/ridge-store --due        # only cases past retention without a hold (retention review)
 ridge-case note D:/ridge-store/<case-id> "text" --job <job-id>   # examiner note in the custody log (--corrects SEQ)
 ridge-case notes D:/ridge-store/<case-id>               # every note, with time and examiner
 ridge-case package D:/ridge-store/<case-id> --to D:/disclosure/KT-1   # signed records + manifest, no images
 ridge-case check-package D:/disclosure/KT-1 --key-id <key-id>          # verify the package offline
+ridge-case key-card --store D:/ridge-store --holder "Name" --to card.json   # your public key, self-signed, for the lab
+ridge-case register-add --card card.json --register lab-keys.json --to lab-keys-2.json   # lab: new register version
+ridge-case register --check lab-keys.json                # the laboratory's key register (holders, roles, validity)
+ridge-case check-report report.json --register lab-keys.json   # name the holder; refuse unregistered or revoked keys
+ridge-case check-log record.json --html record.html     # verify, then write a readable copy for the DPO
 ridge-case log D:/ridge-store/<case-id>                 # decrypted custody log (processing record)
 ridge-case jobs D:/ridge-store/<case-id>                # jobs: started, result, signed report or not
 ridge-case report D:/ridge-store/<case-id> <job-id>     # verified report as text (--json for the signed JSON)
 ridge-case report D:/ridge-store/<case-id> <job-id> --to report.json   # + report.json.sig (logged)
+ridge-case report D:/ridge-store/<case-id> <job-id> --html report.html # readable copy, not signed (logged)
+ridge-case compare-jobs D:/ridge-store/<case-id> <job-a> <job-b>      # settings that differ (no ranking)
 ridge-case check-report report.json --key-id <key-id>   # anyone can verify an exported report, no store needed
 ridge-case reproduce D:/ridge-store/<case-id> <job-id>  # re-run from the report; exit 1 if any output differs
 ridge-case log D:/ridge-store/<case-id> --to record.json # signed processing record for the DPO (logged)

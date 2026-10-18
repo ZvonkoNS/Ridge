@@ -18,6 +18,7 @@ MAX_ID_CHARS = 64
 
 PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR = -32700, -32600, -32601, -32602, -32603
 APPLICATION_ERROR = -32000  # Ridge refused or failed (RidgeError); the message is safe to show
+INPUT_REFUSED = -32001  # an input file was refused (wrong format, too large, undecodable); safe to show
 
 type Json = Any
 # field -> (expected types, required)

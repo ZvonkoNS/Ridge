@@ -7,6 +7,7 @@ pub mod jobs;
 pub mod notes;
 pub mod package;
 pub mod prompt;
+pub mod records;
 pub mod store;
 
 include!("list.rs");

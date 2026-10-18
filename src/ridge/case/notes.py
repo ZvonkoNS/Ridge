@@ -61,10 +61,10 @@ def _note(entry: Entry) -> Note:
     )
 
 
-def list_notes(entries: Iterable[Entry], *, job_id: str | None = None) -> list[Note]:
-    """Every note of the case in log order, or only those about one job."""
+def list_notes(entries: Iterable[Entry], *, job_id: str | None = None, sha256: str | None = None) -> list[Note]:
+    """Every note of the case in log order, or only those about one job or one stored item."""
     notes = [_note(e) for e in entries if e["action"] == ACTION and e["result"] == "ok"]
-    return [n for n in notes if job_id is None or n.job_id == job_id]
+    return [n for n in notes if (job_id is None or n.job_id == job_id) and (sha256 is None or n.sha256 == sha256)]
 
 
 def add_note(

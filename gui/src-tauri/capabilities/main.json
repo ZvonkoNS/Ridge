@@ -35,6 +35,9 @@
     "allow-store-overview",
     "allow-add-note",
     "allow-list-notes",
-    "allow-export-package"
+    "allow-export-package",
+    "allow-custody-log",
+    "allow-export-report-html",
+    "allow-export-key-card"
   ]
 }

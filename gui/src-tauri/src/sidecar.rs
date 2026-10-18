@@ -21,6 +21,8 @@ use crate::rpc::{self, FrameError, Reply, MAX_RESPONSE_BYTES};
 
 /// Protocol the GUI speaks (`PROTOCOL` in `ridge.sidecar.store_methods`).
 pub const PROTOCOL: &str = "ridge.sidecar/1";
+/// JSON-RPC error code the sidecar uses when it refuses one input file (`INPUT_REFUSED`).
+const INPUT_REFUSED: i64 = -32001;
 /// The sidecar's idle lock (`DEFAULT_IDLE_TIMEOUT_S` in `ridge.sidecar.session`), enforced by the core.
 pub const IDLE_LOCK: Duration = Duration::from_secs(15 * 60);
 /// First start plus at most three restarts per application run.
@@ -283,6 +285,9 @@ impl<T: Transport> Sidecar<T> {
         })?;
         match rpc::decode_response(&reply, id) {
             Ok(Reply::Result(value)) => Ok(value),
+            Ok(Reply::Error { code, message }) if code == INPUT_REFUSED => {
+                Err(IpcError::input_refused(&message))
+            }
             Ok(Reply::Error { message, .. }) => Err(IpcError::refused(&message)),
             Err(_) => Err(IpcError::unavailable(
                 "the processing engine sent an invalid answer",
@@ -418,6 +423,25 @@ mod tests {
             );
         }
         assert_eq!(*launches.lock().unwrap(), 1);
+    }
+
+    #[test]
+    fn an_input_refusal_is_marked_for_batches() {
+        let input = r#"{"jsonrpc":"2.0","id":ID,"error":{"code":-32001,"message":"not a supported image format"}}"#;
+        let other = r#"{"jsonrpc":"2.0","id":ID,"error":{"code":-32000,"message":"custody log: write failed"}}"#;
+        let (mut sidecar, _, _) = sidecar(vec![vec![ok(VERSION), ok(input), ok(other)]]);
+        let params = serde_json::json!({});
+        let first = sidecar
+            .call("case.import", &params, Duration::from_secs(1))
+            .unwrap_err();
+        let second = sidecar
+            .call("case.import", &params, Duration::from_secs(1))
+            .unwrap_err();
+        assert_eq!(
+            (first.kind, first.input_refused),
+            (crate::error::ErrorKind::Refused, true)
+        );
+        assert!(!second.input_refused);
     }
 
     #[test]

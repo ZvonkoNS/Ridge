@@ -54,6 +54,21 @@ function Details({ details }: { details: CaseOverview }) {
   );
 }
 
+/** Cases whose id starts with, or whose reference contains, the query (case-insensitive). */
+export function findCases(
+  cases: CaseSummary[],
+  details: Map<string, CaseOverview> | null,
+  query: string,
+): CaseSummary[] {
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    return cases;
+  }
+  return cases.filter(
+    (c) => c.case_id.startsWith(q) || (details?.get(c.case_id)?.reference ?? "").toLowerCase().includes(q),
+  );
+}
+
 interface ListProps {
   cases: CaseSummary[];
   details: Map<string, CaseOverview> | null;

@@ -10,8 +10,10 @@ import { Button, utc } from "./ui";
 export const MAX_NOTE_CHARS = 2000;
 
 interface Props {
-  /** A job's notes, or every note of the case when null. */
+  /** A job's notes, or every note of the case when null (and no item is given). */
   jobId: string | null;
+  /** One stored item's notes (an evidence photo). */
+  sha256?: string | null;
   onFailure: (error: unknown) => void;
   /** h2 when the panel is a card of its own, h3 inside a report. */
   level?: 2 | 3;
@@ -33,7 +35,7 @@ function NoteLine({ note, showJob, onCorrect }: { note: Note; showJob: boolean; 
   );
 }
 
-export function NotesPanel({ jobId, onFailure, level = 3 }: Props) {
+export function NotesPanel({ jobId, sha256 = null, onFailure, level = 3 }: Props) {
   const Heading = level === 2 ? "h2" : "h3";
   const titleId = useId();
   const [notes, setNotes] = useState<Note[] | null>(null);
@@ -42,14 +44,14 @@ export function NotesPanel({ jobId, onFailure, level = 3 }: Props) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    ipc.listNotes(jobId).then(setNotes, onFailure);
+    ipc.listNotes(jobId, sha256).then(setNotes, onFailure);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId]);
+  }, [jobId, sha256]);
 
   const add = async () => {
     setBusy(true);
     try {
-      const note = await ipc.addNote(text, jobId, corrects?.seq ?? null);
+      const note = await ipc.addNote(text, jobId, corrects?.seq ?? null, sha256);
       setNotes((shown) => [...(shown ?? []), note]);
       setText("");
       setCorrects(null);
@@ -62,7 +64,9 @@ export function NotesPanel({ jobId, onFailure, level = 3 }: Props) {
 
   return (
     <section className="notes" aria-labelledby={titleId}>
-      <Heading id={titleId}>{jobId ? "Examiner notes on this job" : "Examiner notes"}</Heading>
+      <Heading id={titleId}>
+        {jobId ? "Examiner notes on this job" : sha256 ? "Examiner notes on this photo" : "Examiner notes"}
+      </Heading>
       <p className="muted">
         Each note is added to the custody log with your name and the time. Notes cannot be changed or removed;
         a correction is added as a new note and the original stays.
@@ -74,7 +78,7 @@ export function NotesPanel({ jobId, onFailure, level = 3 }: Props) {
             <NoteLine
               key={n.seq}
               note={n}
-              showJob={jobId === null}
+              showJob={jobId === null && sha256 === null}
               onCorrect={() => {
                 setCorrects(n);
               }}

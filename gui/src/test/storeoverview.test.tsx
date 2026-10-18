@@ -65,4 +65,42 @@ describe("case details", () => {
     );
     expect(screen.queryByText("KT-2026-1")).toBeNull(); // details belong to the store they came from
   });
+
+  it("finds a case by reference once the details are shown", async () => {
+    routes({ store_overview: () => OVERVIEW });
+    render(<StoreScreen store={STORE} notice={null} onStore={vi.fn()} onOpened={vi.fn()} />);
+    const find = screen.getByRole("searchbox", { name: /Find a case by id/ });
+    await userEvent.type(find, "7d44");
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    await userEvent.clear(find);
+    await userEvent.click(screen.getByRole("button", { name: "Show case details..." }));
+    await screen.findByText("KT-2026-1");
+    await userEvent.type(screen.getByRole("searchbox", { name: /reference or id/ }), "kt-2026-2");
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByRole("listitem")).toHaveTextContent("KT-2026-2");
+    await userEvent.type(screen.getByRole("searchbox", { name: /reference or id/ }), "9");
+    expect(screen.getByText(/No case matches/)).toBeInTheDocument();
+  });
+
+  it("lists only the cases past their retention date when asked", async () => {
+    routes({ store_overview: () => OVERVIEW });
+    render(<StoreScreen store={STORE} notice={null} onStore={vi.fn()} onOpened={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: "Show case details..." }));
+    await screen.findByText("KT-2026-1");
+    await userEvent.click(screen.getByRole("checkbox", { name: /Only cases past their retention date/ }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByRole("listitem")).toHaveTextContent("KT-2026-2");
+  });
+
+  it("exports a key card for the laboratory's register", async () => {
+    const mocked = routes({
+      export_key_card: () => ({ key_id: "0123456789abcdef", holder: "Examiner A", exported: "D:/card.json" }),
+    });
+    render(<StoreScreen store={STORE} notice={null} onStore={vi.fn()} onOpened={vi.fn()} />);
+    await userEvent.click(screen.getByText("Register this key with the laboratory"));
+    await userEvent.type(screen.getByRole("textbox", { name: /Your name/ }), "Examiner A");
+    await userEvent.click(screen.getByRole("button", { name: "Export key card..." }));
+    expect(await screen.findByText(/Key card for key 0123456789abcdef saved/)).toBeInTheDocument();
+    expect(mocked).toHaveBeenCalledWith("export_key_card", { request: { holder: "Examiner A" } });
+  });
 });

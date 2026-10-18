@@ -9,10 +9,11 @@ from __future__ import annotations
 import sys
 from typing import BinaryIO
 
-from ridge.errors import RidgeError
+from ridge.errors import InputError, RidgeError
 from ridge.sidecar.handlers import METHODS, SCHEMAS, Session
 from ridge.sidecar.protocol import (
     APPLICATION_ERROR,
+    INPUT_REFUSED,
     INTERNAL_ERROR,
     MAX_MESSAGE_BYTES,
     RpcError,
@@ -33,6 +34,8 @@ def handle(line: bytes, session: Session) -> bytes:
         return response(request_id, handler(session, request.params))
     except RpcError as exc:
         return error_response(exc.request_id, exc.code, exc.message)
+    except InputError as exc:  # one input file was refused: a batch of files may go on
+        return error_response(request_id, INPUT_REFUSED, str(exc))
     except RidgeError as exc:
         return error_response(request_id, APPLICATION_ERROR, str(exc))
     except OSError as exc:

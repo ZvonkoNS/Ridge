@@ -65,6 +65,8 @@ def test_cli_and_sidecar(
     assert "KT-2026-1  keep until" in shown
     assert "legal hold" in shown
     assert f"{cases[1].name}  locked" in shown
+    assert main(["overview", "--store", str(root), "--due"]) == 0
+    assert "0 case(s) past their retention date" in capsys.readouterr().out
     session = Session(keystore_factory=lambda: keystore)
     params = {"store": str(root.resolve()), "passphrase": PASSPHRASE}
     message = {"jsonrpc": "2.0", "id": 1, "method": "store.overview", "params": params}

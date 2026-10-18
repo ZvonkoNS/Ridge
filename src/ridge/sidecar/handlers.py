@@ -32,6 +32,10 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "store.verify": (store.verify_all, {"store": (str_, True), "passphrase": (str_, True)}),
     "store.overview": (store.overview, {"store": (str_, True), "passphrase": (str_, True)}),
     "identity.create": (store.identity_create, {"store": (str_, True), "passphrase": (str_, True)}),
+    "identity.card": (
+        store.identity_card,
+        {"store": (str_, True), "passphrase": (str_, True), "holder": (str_, True), "dest": (str_, True)},
+    ),
     "case.create": (
         store.case_create,
         {
@@ -57,7 +61,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
             "corrects": ((int, type(None)), False),
         },
     ),
-    "notes.list": (case.notes, {"job_id": ((str, type(None)), False)}),
+    "notes.list": (case.notes, {"job_id": ((str, type(None)), False), "sha256": ((str, type(None)), False)}),
     "case.import": (case.import_evidence, {"path": (str_, True), "source": ((str, type(None)), False)}),
     "case.verify": (case.verify, {}),
     "case.export": (case.export_item, {"sha256": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
@@ -65,7 +69,15 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "report.get": (job.report, {"job_id": (str_, True)}),
     "job.reproduce": (job.reproduce, {"job_id": (str_, True)}),
     "report.export": (job.report_export, {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
+    "report.export_html": (
+        job.report_export_html,
+        {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)},
+    ),
     "log.export": (job.log_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
+    "log.entries": (
+        job.log_entries,
+        {"offset": (int_, False), "limit": (int_, False), "action": ((str, type(None)), False)},
+    ),
     "head.export": (job.head_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
     "package.export": (job.package_export, {"dest": (str_, True)}),
     "case.import_reference": (case.import_reference, {"path": (str_, True), "source": (str_, True)}),

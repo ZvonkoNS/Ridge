@@ -11,6 +11,7 @@ from datetime import date
 
 import ridge
 from ridge.case.identity import IDENTITY_FILE, create_identity, public_identity, unlock_identity
+from ridge.case.key_card import write_card
 from ridge.case.keys import b64
 from ridge.case.limits import load_limits
 from ridge.case.listing import list_cases
@@ -90,6 +91,14 @@ def identity_create(session: Session, params: dict[str, Json]) -> Json:
     store = absolute(params["store"], "store")
     signer = create_identity(store, params["passphrase"], session.keystore_factory(), session.kdf_params)
     return {"key_id": signer.key_id, "public_key": b64(signer.public_key)}
+
+
+def identity_card(session: Session, params: dict[str, Json]) -> Json:
+    """Write a self-signed key card for the laboratory's register (sent by the Rust core only)."""
+    store = absolute(params["store"], "store")
+    signer = unlock_identity(store, params["passphrase"], session.keystore_factory())
+    card = write_card(signer, "examiner", params["holder"], absolute(params["dest"], "dest"))
+    return {"key_id": card.key_id, "holder": card.holder, "exported": params["dest"]}
 
 
 def case_create(session: Session, params: dict[str, Json]) -> Json:

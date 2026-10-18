@@ -43,11 +43,15 @@ def test_notes_are_logged_and_corrections_keep_the_original(case: tuple[Path, Me
     assert first.text == "Region chosen to leave out the nail fold.\nSecond line."
     assert about_item.sha256 == sha  # a prefix is resolved to the full hash
     assert (fix.corrects, fix.job_id) == (first.seq, job_id)  # a correction stays with its job
+    with open_case(case_dir, PASSPHRASE, keystore) as opened:
+        item_fix = add_note(opened, "Blur is at the tip only.", corrects=about_item.seq)
+        assert item_fix.sha256 == sha  # and with its photo
+        assert [n.seq for n in list_notes(opened.entries, sha256=sha)] == [about_item.seq, item_fix.seq]
     with open_case(case_dir, PASSPHRASE, keystore) as opened:  # survives reopening: it is in the custody log
         everything = list_notes(opened.entries)
         for_job = list_notes(opened.entries, job_id=job_id)
     assert everything[0].text == first.text  # the original is still there
-    assert len(everything) == 4
+    assert len(everything) == 5
     assert [n.seq for n in for_job] == [first.seq, fix.seq]
 
 

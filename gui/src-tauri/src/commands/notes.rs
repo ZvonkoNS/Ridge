@@ -53,9 +53,10 @@ pub async fn add_note(
 #[serde(deny_unknown_fields)]
 pub struct NoteFilter {
     job_id: Option<String>,
+    sha256: Option<String>,
 }
 
-/// The notes of the case, or of one job.
+/// The notes of the case, of one job or of one stored item.
 #[tauri::command]
 pub async fn list_notes(
     app: AppHandle,
@@ -64,5 +65,11 @@ pub async fn list_notes(
 ) -> Result<Value, IpcError> {
     require(&window, MAIN_LABEL)?;
     let job_id = job(request.job_id.as_deref())?;
-    call(&app, "notes.list", json!({"job_id": job_id}), QUICK).await
+    let sha256 = request
+        .sha256
+        .as_deref()
+        .map(validate::sha256)
+        .transpose()?;
+    let params = json!({"job_id": job_id, "sha256": sha256});
+    call(&app, "notes.list", params, QUICK).await
 }

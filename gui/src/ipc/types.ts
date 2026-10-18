@@ -298,6 +298,27 @@ export interface StoreCheck {
   problems: string[];
 }
 
+/** One custody log entry as the sidecar returns it (fields beyond these depend on the action). */
+export interface CustodyEntry {
+  seq: number;
+  ts_utc: string;
+  actor: string;
+  action: string;
+  result: string;
+  [field: string]: unknown;
+}
+
+export interface CustodyPage {
+  total: number;
+  entries: CustodyEntry[];
+}
+
+/** The outcome of importing one or more evidence photos: each import is logged on its own. */
+export interface ImportBatch {
+  imported: Item[];
+  refused: { name: string; message: string }[];
+}
+
 /** A disclosure package written to a new folder. */
 export interface PackageExported {
   exported: string;
@@ -333,7 +354,7 @@ export interface CaseOverview {
 }
 
 export interface PromptContext {
-  purpose: "create_identity" | "create_case" | "unlock" | "verify_store" | "store_overview";
+  purpose: "create_identity" | "create_case" | "unlock" | "verify_store" | "store_overview" | "key_card";
   title: string;
   detail: string;
   confirm: boolean;

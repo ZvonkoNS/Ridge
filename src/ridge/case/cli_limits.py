@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case import cli_common as common
+from ridge.case.cli_register import add_register_argument, confirm
 from ridge.case.limits import FILE, LimitsOfUse, load_limits, read_limits
 from ridge.case.limits_signing import create_fqm_key, sign_limits
 from ridge.errors import ParameterError
@@ -20,15 +21,17 @@ from ridge.errors import ParameterError
 FQM_PROMPT = "FQM key passphrase: "
 
 
-def _show(limits: LimitsOfUse, expected_key_id: str | None) -> None:
+def _show(limits: LimitsOfUse, expected_key_id: str | None, args: argparse.Namespace) -> None:
     common.say(f"limits of use from {limits.source}, sha256 {limits.sha256}")
     signer = limits.signed_by["key_id"] if limits.signed_by else None
     if expected_key_id and signer != expected_key_id:
         raise ParameterError(
             f"the limits are {'signed with key ' + signer if signer else 'not signed'}, not {expected_key_id}"
         )
-    if signer:
-        confirmed = "" if expected_key_id else " (confirm it is the FQM's key, or pass --key-id)"
+    if signer and confirm(args, signer, "fqm"):  # the limits apply now, so the key must be valid today
+        pass
+    elif signer:
+        confirmed = "" if expected_key_id else " (confirm it is the FQM's key, or pass --key-id or --register)"
         common.say(f"signed with key {signer}{confirmed}")
     else:
         common.say("not signed")
@@ -48,7 +51,7 @@ def cmd_limits(args: argparse.Namespace) -> None:
     if limits is None:
         common.say(f"no limits of use configured ({args.store / FILE} does not exist)")
         return
-    _show(limits, args.key_id)
+    _show(limits, args.key_id, args)
 
 
 def cmd_fqm_key(args: argparse.Namespace) -> None:
@@ -68,6 +71,7 @@ def add_commands(sub: Any) -> None:
     p.add_argument("--key", type=Path, help="the FQM key file (with --sign)")
     p.add_argument("--key-id", help="the FQM key id the limits must be signed with")
     p.add_argument("--overwrite", action="store_true", help="replace an existing FILE.sig (with --sign)")
+    add_register_argument(p)
     p.set_defaults(func=cmd_limits)
     p = sub.add_parser("fqm-key", help="create the Forensic Quality Manager's key for signing limits of use")
     p.add_argument("--to", type=Path, required=True)

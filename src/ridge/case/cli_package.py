@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case import cli_common as common
+from ridge.case.cli_register import add_register_argument, confirm
 from ridge.case.identity import unlock_identity
 from ridge.case.package import check_package, export_package
 from ridge.case.store import open_case
@@ -34,8 +35,8 @@ def cmd_check_package(args: argparse.Namespace) -> int:
         f"package {check.package_id} verified: case {check.case_id}, {check.reports} report(s), "
         f"processing record with {check.record_entries} entries, key {check.key_id}"
     )
-    if not check.key_confirmed:
-        common.say(f"confirm key {check.key_id} is the examiner's key, or pass --key-id")
+    if not confirm(args, check.key_id, "examiner", check.created_utc) and not check.key_confirmed:
+        common.say(f"confirm key {check.key_id} is the examiner's key, or pass --key-id or --register")
     return 0
 
 
@@ -48,4 +49,5 @@ def add_commands(sub: Any) -> None:
     p = sub.add_parser("check-package", help="verify a disclosure package without the case store")
     p.add_argument("folder", type=Path)
     p.add_argument("--key-id", help="the examiner key id the package must be signed with")
+    add_register_argument(p)
     p.set_defaults(func=cmd_check_package)

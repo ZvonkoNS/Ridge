@@ -120,6 +120,37 @@ pub async fn store_overview(app: AppHandle, window: WebviewWindow) -> Result<Val
     prompt::ask(&app, Purpose::StoreOverview { store }).await
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KeyCardRequest {
+    holder: String,
+}
+
+/// Export a self-signed key card for the laboratory's register: the examiner chooses the file in
+/// a native dialog, then enters the passphrase in the prompt window.
+#[tauri::command]
+pub async fn export_key_card(
+    app: AppHandle,
+    window: WebviewWindow,
+    request: KeyCardRequest,
+) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    let holder = validate::holder(&request.holder)?;
+    let store = state::store(&app)?;
+    let suggested = Some("ridge_key_card.json".to_owned());
+    let dest =
+        dialogs::save_file(&app, "Save your key card", suggested, ("JSON", &["json"])).await?;
+    prompt::ask(
+        &app,
+        Purpose::KeyCard {
+            store,
+            holder,
+            dest,
+        },
+    )
+    .await
+}
+
 /// Lock the open case.
 #[tauri::command]
 pub async fn lock_case(app: AppHandle, window: WebviewWindow) -> Result<Value, IpcError> {

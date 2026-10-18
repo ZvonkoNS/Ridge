@@ -25,7 +25,7 @@ describe("examiner notes", () => {
     });
     const { container } = render(<NotesPanel jobId={JOB} onFailure={vi.fn()} />);
     expect(await screen.findByText(FIRST.text)).toBeInTheDocument();
-    expect(mocked).toHaveBeenCalledWith("list_notes", { request: { job_id: JOB } });
+    expect(mocked).toHaveBeenCalledWith("list_notes", { request: { job_id: JOB, sha256: null } });
     const box = screen.getByRole("textbox", { name: "New note" });
     expect(screen.getByRole("button", { name: "Add note" })).toBeDisabled();
     await userEvent.type(box, "Ridge flow unclear near the core.");
@@ -40,5 +40,21 @@ describe("examiner notes", () => {
     expect(await screen.findByText(/corrects #12/)).toBeInTheDocument();
     expect(screen.getByText(FIRST.text)).toBeInTheDocument(); // the original stays
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it("keeps a photo's notes with that photo", async () => {
+    const sha = "c".repeat(64);
+    const mocked = routes({
+      list_notes: () => [],
+      add_note: (request) => ({ ...FIRST, ...request, job_id: null, seq: 30 }),
+    });
+    render(<NotesPanel jobId={null} sha256={sha} onFailure={vi.fn()} />);
+    expect(await screen.findByRole("heading", { name: "Examiner notes on this photo" })).toBeInTheDocument();
+    expect(mocked).toHaveBeenCalledWith("list_notes", { request: { job_id: null, sha256: sha } });
+    await userEvent.type(screen.getByRole("textbox", { name: "New note" }), "Taken through the bag.");
+    await userEvent.click(screen.getByRole("button", { name: "Add note" }));
+    expect(mocked).toHaveBeenCalledWith("add_note", {
+      request: { text: "Taken through the bag.", job_id: null, sha256: sha, corrects: null },
+    });
   });
 });

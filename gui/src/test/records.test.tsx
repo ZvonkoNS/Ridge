@@ -17,6 +17,7 @@ describe("records", () => {
   it("exports the custody head for countersigning", async () => {
     const mocked = routes({
       list_notes: () => [],
+      custody_log: () => ({ total: 0, entries: [] }),
       export_head: () => ({
         exported: "D:/out/head.json",
         seq: 41,
@@ -46,6 +47,7 @@ describe("records", () => {
   it("exports a disclosure package to a new folder", async () => {
     const mocked = routes({
       list_notes: () => [],
+      custody_log: () => ({ total: 0, entries: [] }),
       export_package: () => ({
         exported: "D:/out/package",
         package_id: "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
@@ -69,5 +71,38 @@ describe("records", () => {
       expect(notify).toHaveBeenCalledWith(expect.stringContaining("3 signed report(s)"));
     });
     expect(mocked).toHaveBeenCalledWith("export_package", {});
+  });
+
+  it("says when the case was last verified", async () => {
+    routes({
+      list_notes: () => [],
+      custody_log: (request) =>
+        request?.action === "case.verify"
+          ? {
+              total: 1,
+              entries: [
+                {
+                  seq: 7,
+                  ts_utc: "2026-10-18T07:00:00Z",
+                  actor: "examiner",
+                  action: "case.verify",
+                  result: "failed",
+                  problems: 2,
+                },
+              ],
+            }
+          : { total: 0, entries: [] },
+    });
+    render(
+      <RecordsSection
+        info={INFO}
+        items={[]}
+        limits={{ configured: false }}
+        onInfo={vi.fn()}
+        onFailure={vi.fn()}
+        notify={vi.fn()}
+      />,
+    );
+    expect(await screen.findByText(/Last verified/)).toHaveTextContent("FAILED with 2 problem(s)");
   });
 });

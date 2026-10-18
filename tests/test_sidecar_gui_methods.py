@@ -17,7 +17,7 @@ from ridge.case.limits import FILE as LIMITS_FILE
 from ridge.case.limits import SCHEMA as LIMITS_SCHEMA
 from ridge.case.processing_record import check_exported_log
 from ridge.sidecar.handlers import METHODS, Session
-from ridge.sidecar.protocol import APPLICATION_ERROR, INVALID_PARAMS
+from ridge.sidecar.protocol import APPLICATION_ERROR, INPUT_REFUSED, INVALID_PARAMS
 from ridge.sidecar.server import handle
 from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, new_case, photo_file
 
@@ -214,3 +214,14 @@ def test_previews_report_only_plausible_declared_resolutions(unlocked: tuple[Ses
         sha = result(call(session, "case.import_reference", {"path": str(path.resolve()), "source": f"scan {dpi}"}))
         shown[dpi] = result(call(session, "preview.get", {"sha256": sha["sha256"], "max_side": 64}))["ppi"]
     assert shown == {500: 500.0, 96: None}  # a 96 ppi default is never passed on as a scale
+
+
+def test_an_input_refusal_has_its_own_code(unlocked: tuple[Session, Path], tmp_path: Path) -> None:
+    """A batch import may go on after a refused photo, never after a custody or storage failure."""
+    session, _ = unlocked
+    (tmp_path / "notes.txt").write_text("not an image", encoding="utf-8")
+    refused = call(session, "case.import", {"path": str((tmp_path / "notes.txt").resolve())})
+    assert error_code(refused) == INPUT_REFUSED
+    assert (
+        error_code(call(session, "case.export", {"sha256": "0" * 64, "dest": str(tmp_path / "x")})) == APPLICATION_ERROR
+    )

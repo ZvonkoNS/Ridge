@@ -10,9 +10,11 @@ import type {
   CaseCreated,
   CaseInfo,
   CaseOverview,
+  CustodyPage,
   ErrorKind,
   Exported,
   IdentityCreated,
+  ImportBatch,
   Item,
   JobOptions,
   JobRecord,
@@ -101,15 +103,22 @@ export const ipc = {
   lockCase: () => call<{ locked: true }>("lock_case"),
   verifyStore: () => call<StoreCheck[]>("verify_store"),
   storeOverview: () => call<CaseOverview[]>("store_overview"),
+  exportKeyCard: (holder: string) =>
+    call<{ key_id: string; holder: string; exported: string }>("export_key_card", { holder }),
   sessionStatus: () => call<{ unlocked: boolean; idle_timeout_s: number }>("session_status"),
   caseInfo: () => call<CaseInfo>("case_info"),
   setLegalHold: (on: boolean, reason: string) => call<CaseInfo>("set_legal_hold", { on, reason }),
   listItems: () => call<Item[]>("list_items"),
-  addNote: (text: string, jobId: string | null, corrects: number | null) =>
-    call<Note>("add_note", { text, job_id: jobId, sha256: null, corrects }),
-  listNotes: (jobId: string | null) => call<Note[]>("list_notes", { job_id: jobId }),
+  addNote: (text: string, jobId: string | null, corrects: number | null, sha256: string | null = null) =>
+    call<Note>("add_note", { text, job_id: jobId, sha256, corrects }),
+  listNotes: (jobId: string | null, sha256: string | null = null) =>
+    call<Note[]>("list_notes", { job_id: jobId, sha256 }),
   exportPackage: () => call<PackageExported>("export_package"),
-  importEvidence: (source: string | null) => call<Item>("import_evidence", { source }),
+  custodyLog: (offset: number, limit: number, action: string | null) =>
+    call<CustodyPage>("custody_log", { offset, limit, action }),
+  exportReportHtml: (jobId: string) =>
+    call<{ exported: string; job_id: string }>("export_report_html", { job_id: jobId }),
+  importEvidence: (source: string | null) => call<ImportBatch>("import_evidence", { source }),
   importReference: (source: string) => call<Item>("import_reference", { source }),
   verifyCase: () => call<Verification>("verify_case"),
   exportItem: (sha256: string, suggestedName: string | null) =>

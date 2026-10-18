@@ -74,6 +74,7 @@ class HeadCheck:
     key_id: str
     key_confirmed: bool
     record_entries: int | None
+    signed_utc: str = ""  # when the head was signed, from the signed file: the signer's clock
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -110,7 +111,9 @@ def check_head(path: Path, *, record: Path | None = None, expected_key_id: str |
     entries: int | None = None
     if record is not None:
         entries = _check_record(doc, record)
-    return HeadCheck(doc["case_id"], doc["seq"], doc["key_id"], expected_key_id is not None, entries)
+    return HeadCheck(
+        doc["case_id"], doc["seq"], doc["key_id"], expected_key_id is not None, entries, str(doc["ts_utc"])
+    )
 
 
 def _check_record(doc: dict[str, Any], record: Path) -> int:

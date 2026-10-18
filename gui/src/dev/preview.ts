@@ -311,7 +311,8 @@ const handlers: Record<string, Handler> = {
       problem: null,
     },
   ],
-  list_notes: (r) => notes.filter((n) => !r.job_id || n.job_id === r.job_id),
+  list_notes: (r) =>
+    notes.filter((n) => (!r.job_id || n.job_id === r.job_id) && (!r.sha256 || n.sha256 === r.sha256)),
   add_note: (r) => {
     const note: Note = {
       seq: 40 + notes.length,
@@ -319,13 +320,50 @@ const handlers: Record<string, Handler> = {
       actor: "examiner (preview)",
       text: String(r.text),
       job_id: typeof r.job_id === "string" ? r.job_id : null,
-      sha256: null,
+      sha256: typeof r.sha256 === "string" ? r.sha256 : null,
       corrects: typeof r.corrects === "number" ? r.corrects : null,
     };
     notes.push(note);
     return note;
   },
+  custody_log: (r) => {
+    const kind = typeof r.action === "string" ? r.action : null;
+    const all = previewLog().filter((e) => !kind || e.action === kind || e.action.startsWith(`${kind}.`));
+    const offset = Number(r.offset ?? 0);
+    return { total: all.length, entries: all.slice(offset, offset + Number(r.limit ?? 100)) };
+  },
+  export_report_html: (r) => ({ exported: "D:\\Exports\\ridge_job_report.html", job_id: r.job_id }),
+  import_evidence: () => ({
+    imported: [],
+    refused: [{ name: "IMG_0099.gif", message: "the preview imports nothing (synthetic data only)" }],
+  }),
 };
+
+/** A synthetic custody log, newest first, built from what the preview session did. */
+function previewLog(): { seq: number; ts_utc: string; actor: string; action: string; result: string }[] {
+  const base = [
+    { action: "case.create", label: undefined },
+    ...evidence.map((e) => ({ action: "evidence.import", label: e.label })),
+    { action: "case.verify", label: undefined },
+  ];
+  const rows = base.map((b, seq) => ({
+    seq,
+    ts_utc: `2026-10-16T09:${String(30 + seq).padStart(2, "0")}:00Z`,
+    actor: "examiner (preview)",
+    action: b.action,
+    result: "ok",
+    ...(b.label ? { label: b.label, source: "Exhibit 12, phone A" } : {}),
+  }));
+  const later = notes.map((n) => ({
+    seq: n.seq,
+    ts_utc: n.ts_utc,
+    actor: n.actor,
+    action: "examiner.note",
+    result: "ok",
+    text: n.text,
+  }));
+  return [...rows, ...later].reverse();
+}
 
 /** Install the mocked bridge (development preview only). */
 export function installPreview(): void {

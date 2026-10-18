@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button, Hash, Notice } from "../components/ui";
 import { IpcError, ipc } from "../ipc/commands";
 import type { CaseOverview, SessionInfo, StoreCheck, StoreView } from "../ipc/types";
-import { CaseList, StoreChecks } from "./StoreCases";
+import { CaseList, StoreChecks, findCases } from "./StoreCases";
 
 interface Props {
   store: StoreView | null;
@@ -37,9 +37,16 @@ export function StoreScreen({
   // Results belong to the store they were read from; choosing another store hides them.
   const [checked, setChecked] = useState<{ path: string; checks: StoreCheck[] } | null>(null);
   const checks = checked?.path === store?.path ? (checked?.checks ?? null) : null;
+  const [query, setQuery] = useState("");
+  const [holder, setHolder] = useState("");
+  const [cardNote, setCardNote] = useState<string | null>(null);
+  const [onlyDue, setOnlyDue] = useState(false);
   // Details belong to the store they were read from; choosing another store hides them.
   const [overview, setOverview] = useState<{ path: string; cases: Map<string, CaseOverview> } | null>(null);
   const details = overview?.path === store?.path ? (overview?.cases ?? null) : null;
+  const shown = store
+    ? findCases(store.cases, details, query).filter((c) => !onlyDue || details?.get(c.case_id)?.due === true)
+    : [];
 
   const attempt = async (key: string, work: () => Promise<void>) => {
     setBusy(key);
@@ -77,6 +84,13 @@ export function StoreScreen({
       const path = store?.path ?? "";
       const cases = await ipc.storeOverview();
       setOverview({ path, cases: new Map(cases.map((c) => [c.case_id, c])) });
+    });
+  const exportCard = () =>
+    attempt("card", async () => {
+      const card = await ipc.exportKeyCard(holder);
+      setCardNote(
+        `Key card for key ${card.key_id} saved. Give it to the laboratory, which confirms who you are before registering it.`,
+      );
     });
   const create = () =>
     attempt("create", async () => {
@@ -141,9 +155,69 @@ export function StoreScreen({
             <p className="muted">
               Signing key <Hash value={store.identity.key_id} length={16} />
             </p>
+            <details className="key-card">
+              <summary>Register this key with the laboratory</summary>
+              <form
+                className="import"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void exportCard();
+                }}
+              >
+                <label className="field">
+                  <span>Your name as the laboratory registers it</span>
+                  <input
+                    required
+                    maxLength={200}
+                    value={holder}
+                    onChange={(e) => {
+                      setHolder(e.target.value);
+                    }}
+                  />
+                </label>
+                <Button type="submit" busy={busy === "card"} disabled={holder.trim() === ""}>
+                  Export key card...
+                </Button>
+              </form>
+              {cardNote ? <Notice tone="ok">{cardNote}</Notice> : null}
+            </details>
             {store.cases.length === 0 ? <p className="empty">No cases in this store yet.</p> : null}
+            {store.cases.length > 1 ? (
+              <label className="field case-find">
+                <span>
+                  {details
+                    ? "Find a case by reference or id"
+                    : "Find a case by id (show details to search references)"}
+                </span>
+                <input
+                  type="search"
+                  value={query}
+                  maxLength={200}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                  }}
+                />
+              </label>
+            ) : null}
+            {details ? (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={onlyDue}
+                  onChange={(e) => {
+                    setOnlyDue(e.target.checked);
+                  }}
+                />{" "}
+                Only cases past their retention date without a legal hold
+              </label>
+            ) : null}
+            {(query || onlyDue) && shown.length === 0 ? (
+              <p className="empty">
+                {onlyDue && !query ? "No case is past its retention date." : `No case matches “${query}”.`}
+              </p>
+            ) : null}
             <CaseList
-              cases={store.cases}
+              cases={shown}
               details={details}
               busy={busy}
               onUnlock={(caseId) => void unlock(caseId)}
