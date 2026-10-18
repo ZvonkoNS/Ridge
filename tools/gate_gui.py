@@ -1,9 +1,11 @@
 """The desktop GUI gate (desktop_gui_tauri_standards.md §13), run by ``python tools/gate.py gui``.
 
 npm: clean install from the lock file (lifecycle scripts off), lint, typecheck, format, tests,
-production build, audit, licence allow-list; the build must not contain the development preview.
-cargo: fmt, clippy with warnings as errors, tests (including the live sidecar test, made mandatory
-here), cargo-audit and cargo-deny. A missing tool FAILS the gate; nothing is skipped silently.
+production build, audit, licence allow-list, CycloneDX SBOM of the runtime packages; the build must
+not contain the development preview. cargo: fmt, clippy with warnings as errors, tests (including
+the live sidecar test, made mandatory here), cargo-audit, cargo-deny and a CycloneDX SBOM
+(cargo-cyclonedx). SBOMs go to build/sbom-npm.cdx.json and build/sbom-cargo.cdx.json. A missing tool
+FAILS the gate; nothing is skipped silently.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ NPM_LICENSES = {
     "MIT OR Apache-2.0",
 }
 PREVIEW_MARKERS = ("the preview does not mock", "synthetic preview")
+BUILD = ROOT / "build"
 
 
 def _run(cwd: Path, *cmd: str, env: dict[str, str] | None = None) -> bool:
@@ -61,6 +64,16 @@ def preview_absent(dist: Path) -> bool:
     return bool(list(dist.rglob("*.js"))) and not leaks
 
 
+def cargo_sbom(cargo: str) -> bool:
+    """Write the CycloneDX SBOM of the Rust core's dependencies to build/sbom-cargo.cdx.json."""
+    BUILD.mkdir(exist_ok=True)
+    options = ("--format", "json", "--spec-version", "1.5", "--override-filename", "sbom-cargo")
+    if not _run(TAURI, cargo, "cyclonedx", *options):
+        return False
+    (TAURI / "sbom-cargo.json").replace(BUILD / "sbom-cargo.cdx.json")
+    return True
+
+
 def gate_gui() -> bool:
     """Run every GUI check; stop at the first failure."""
     tools = {name: shutil.which(name) for name in ("npm", "npx", "cargo")}
@@ -80,10 +93,23 @@ def gate_gui() -> bool:
         lambda: preview_absent(GUI / "dist"),
         lambda: _run(GUI, npm, "audit", "--audit-level=moderate"),
         lambda: npm_licences_ok(GUI / "package-lock.json"),
+        lambda: _run(
+            GUI,
+            npx,
+            "cyclonedx-npm",
+            "--omit",
+            "dev",
+            "--output-reproducible",
+            "--output-format",
+            "JSON",
+            "--output-file",
+            str(BUILD / "sbom-npm.cdx.json"),
+        ),
         lambda: _run(TAURI, cargo, "fmt", "--check"),
         lambda: _run(TAURI, cargo, "clippy", "--locked", "--all-targets", "--", "-D", "warnings"),
         lambda: _run(TAURI, cargo, "test", "--locked", env={"RIDGE_REQUIRE_SIDECAR": "1"}),
         lambda: _run(TAURI, cargo, "audit", "--deny", "warnings"),
         lambda: _run(TAURI, cargo, "deny", "--locked", "check"),
+        lambda: cargo_sbom(cargo),
     ]
     return all(step() for step in steps)

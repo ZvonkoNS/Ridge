@@ -1040,3 +1040,34 @@ code,
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* Windows high-contrast and other forced-colors modes: keep borders, focus and state visible
+   (WCAG 2.2 SC 1.4.11); the light table and the images keep their own colours. */
+@media (forced-colors: active) {
+  .btn,
+  .pick,
+  .tab,
+  .tool,
+  .rail-item,
+  .exhibit,
+  .card,
+  .notice {
+    border: 1px solid CanvasText;
+  }
+
+  .pick-on,
+  .tab-on,
+  .tool-on,
+  .rail-on {
+    outline: 2px solid Highlight;
+  }
+
+  .viewer-table,
+  .viewer-stage img {
+    forced-color-adjust: none;
+  }
+
+  :focus-visible {
+    outline: 3px solid Highlight;
+  }
+}

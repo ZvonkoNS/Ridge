@@ -211,8 +211,9 @@ These apply when photos are taken for validation; case photos are what they are.
 .venv/Scripts/python tools/gate.py all     # docs lint format typecheck test sast deps secrets licenses sbom gui
 ```
 
-The `gui` gate needs Node.js and npm, the Rust toolchain, `cargo-audit` and `cargo-deny`
-(`cargo install cargo-audit cargo-deny --locked`).
+The `gui` gate needs Node.js and npm, the Rust toolchain, `cargo-audit`, `cargo-deny` and
+`cargo-cyclonedx` (`cargo install cargo-audit cargo-deny cargo-cyclonedx --locked`). It writes
+the npm and Cargo SBOMs to `build/`.
 
 The `secrets` gate needs [gitleaks](https://github.com/gitleaks/gitleaks) on PATH, and
 `deps` needs network access. Tests use synthetic images only (`tests/synthetic.py`).

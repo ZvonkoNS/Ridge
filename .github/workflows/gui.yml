@@ -44,5 +44,13 @@ jobs:
         run: |
           cargo install cargo-audit --version 0.22.2 --locked
           cargo install cargo-deny --version 0.20.2 --locked
+          cargo install cargo-cyclonedx --version 0.5.9 --locked
       - name: GUI gate
         run: .venv/bin/python tools/gate.py gui
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gui-sbom
+          path: |
+            build/sbom-npm.cdx.json
+            build/sbom-cargo.cdx.json
+          if-no-files-found: error

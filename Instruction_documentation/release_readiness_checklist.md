@@ -61,7 +61,7 @@ In GitHub Actions the GUI gate runs for the release tag (`gui.yml`). The frozen 
 
 - Built from a clean checkout of the tagged commit with hashed lock files (`pip install --require-hashes`).
 - `SHA256SUMS` for every artifact and a detached signature by the release key (`environment_configuration_and_secrets.md`); OS code signing for installers (M4).
-- CycloneDX SBOM for Python dependencies (and npm/Cargo from M4) attached.
+- CycloneDX SBOMs attached: Python (`build/sbom.cdx.json`, `sbom` gate), npm runtime packages (`build/sbom-npm.cdx.json`) and Cargo (`build/sbom-cargo.cdx.json`), both from the `gui` gate.
 - Release notes include version, commit, forensic impact (pixels changed or not), exceptions, known issues.
 
 ## Manual delivery gates

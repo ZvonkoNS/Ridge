@@ -123,7 +123,7 @@ Note for the Quality/Release Owner: on 2026-10-16 the Python devguide lists 3.13
 - DAST required: not applicable (no network endpoint). Equivalent: fuzzing of decoders and, from M4, of IPC and JSON-RPC handlers.
 - Dependency audit required: yes (`python tools/gate.py deps` with pip-audit on `requirements.lock`; GitHub dependency review).
 - Secret scanning required: yes (`python tools/gate.py secrets`).
-- SBOM required: yes (`python tools/gate.py sbom`, CycloneDX) for every release.
+- SBOM required: yes (`python tools/gate.py sbom`, CycloneDX) for every release; the GUI's npm and Cargo SBOMs come from `python tools/gate.py gui` (`build/sbom-npm.cdx.json`, `build/sbom-cargo.cdx.json`).
 - Penetration test or independent security review: yes, before the Ops gate.
 - Independent review: yes, method validation reviewed by the Forensic Quality Manager; security review by someone other than the author of the change.
 
