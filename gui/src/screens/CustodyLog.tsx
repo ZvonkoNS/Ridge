@@ -2,6 +2,7 @@
 // whom. The sidecar verified the hash chain when the case was opened; this view only reads it.
 import { useEffect, useRef, useState } from "react";
 
+import { isTyping } from "../components/ShortcutsHelp";
 import { Button, Hash, utc } from "../components/ui";
 import { ipc } from "../ipc/commands";
 import type { CustodyEntry } from "../ipc/types";
@@ -58,6 +59,25 @@ export function CustodyLog({
   // Bumped by every new filter, search or refresh: an answer to an older request is dropped, so a
   // slow page can never replace or extend the entries of a newer query.
   const generation = useRef(0);
+  const searchBox = useRef<HTMLInputElement>(null);
+
+  // "/" moves to the search box, unless the examiner is typing or a dialog is open.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey || isTyping(event.target)) {
+        return;
+      }
+      if (document.querySelector('[aria-modal="true"]')) {
+        return;
+      }
+      event.preventDefault();
+      searchBox.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   useEffect(() => {
     const mine = ++generation.current;
@@ -125,7 +145,9 @@ export function CustodyLog({
         <label className="field field-inline">
           <span>Find</span>
           <input
+            ref={searchBox}
             type="search"
+            aria-keyshortcuts="/"
             value={draft}
             maxLength={100}
             placeholder="hash, job id, note text"

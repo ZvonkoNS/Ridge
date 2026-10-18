@@ -14,6 +14,10 @@ const GROUPS: { title: string; keys: [string[], string][] }[] = [
     ],
   },
   {
+    title: "In Records",
+    keys: [[["/"], "Search the custody log"]],
+  },
+  {
     title: "In an image viewer (click it or move to it with Tab first)",
     keys: [
       [["+"], "Zoom in"],

@@ -75,7 +75,7 @@ Decrypted files leave the case only through the export buttons, and every export
 - **Processing record → Export processing record...**: the signed custody log, for the Data Protection Officer or a reviewer.
 - **Custody head for countersigning → Export custody head...**: a signed snapshot that a laboratory system can countersign out of band.
 - **Disclosure package → Export disclosure package...**: the processing record and every signed report, with a signed manifest. It contains no images.
-- **Custody log**: every entry, newest first. Filter by kind, or search for a hash, a job id or words of a note.
+- **Custody log**: every entry, newest first. Filter by kind, or search for a hash, a job id or words of a note (<kbd>/</kbd> moves to the search box).
 
 ### Notes
 
