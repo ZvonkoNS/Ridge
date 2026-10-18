@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { ExhibitLabel } from "../components/ExhibitLabel";
 import { ImageViewer } from "../components/ImageViewer";
+import { MeasureReadout, MeasureToggle, useMeasure } from "../components/Measure";
 import type { ScaleSource } from "../components/ScaleBar";
 import { Button, Hash, Notice } from "../components/ui";
 import { ipc } from "../ipc/commands";
@@ -42,6 +43,8 @@ export function ReferencesSection({ items, onFailure, onChanged, notify }: Props
       ? scaleFrom(typedPpi, "examiner")
       : scaleFrom(right.ppi, "file");
   const [linked, setLinked] = useState(false);
+  const measureExport = useMeasure();
+  const measureReference = useMeasure();
   const [screenPxPerMm, setScreenPxPerMm] = useState(12);
   const canLink = exportScale !== null && referenceScale !== null && Boolean(exportItem && referenceItem);
   const link = linked && canLink;
@@ -173,6 +176,13 @@ export function ReferencesSection({ items, onFailure, onChanged, notify }: Props
           />
           Equal scale: link the zoom of both images
         </label>
+        <MeasureToggle
+          measuring={measureExport.measuring}
+          onToggle={() => {
+            measureExport.toggle();
+            measureReference.toggle();
+          }}
+        />
         {!canLink && exportItem && referenceItem ? (
           <span className="toolbar-note">
             Needs the reference&apos;s resolution, from its file or typed above (250-2000 ppi).
@@ -181,8 +191,12 @@ export function ReferencesSection({ items, onFailure, onChanged, notify }: Props
       </div>
       <div className="review-pair">
         <div className="review-side">
+          {exportItem && measureExport.measuring ? (
+            <MeasureReadout points={measureExport.points} scale={exportScale} />
+          ) : null}
           {exportItem ? (
             <ImageViewer
+              {...measureExport.viewer}
               title="Ridge comparison export"
               url={left.url}
               bitmap={left.bitmap}
@@ -208,8 +222,12 @@ export function ReferencesSection({ items, onFailure, onChanged, notify }: Props
           )}
         </div>
         <div className="review-side">
+          {referenceItem && measureReference.measuring ? (
+            <MeasureReadout points={measureReference.points} scale={referenceScale} />
+          ) : null}
           {referenceItem ? (
             <ImageViewer
+              {...measureReference.viewer}
               title="Reference image"
               url={right.url}
               bitmap={right.bitmap}
