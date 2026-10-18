@@ -22,7 +22,7 @@ use crate::windows;
 const MAX_ATTEMPTS: u32 = 5;
 const PROMPT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 const KDF_TIMEOUT: Duration = Duration::from_secs(180);
-/// Every case is decrypted and checked: allow for a large store.
+/// Every case is decrypted and checked (or its metadata read): allow for a large store.
 const STORE_VERIFY_TIMEOUT: Duration = Duration::from_secs(60 * 60);
 /// NIST SP 800-63B-style minimum for new passphrases (architecture §9.3; the sidecar enforces it too).
 pub const MIN_NEW_CHARS: usize = 15;
@@ -46,6 +46,10 @@ pub enum Purpose {
     },
     /// Verify every case of the store (one passphrase for all of the examiner's cases).
     VerifyStore {
+        store: PathBuf,
+    },
+    /// Read every case's reference, retention date and legal hold (nothing is written).
+    StoreOverview {
         store: PathBuf,
     },
 }
@@ -142,6 +146,12 @@ fn describe(purpose: &Purpose, attempts_left: u32) -> Context {
             "verify_store",
             "Verify all cases".to_owned(),
             "Enter your examiner passphrase to check every case of this store. Each check is recorded in that case's custody log."
+                .to_owned(),
+        ),
+        Purpose::StoreOverview { .. } => (
+            "store_overview",
+            "Show case details".to_owned(),
+            "Enter your examiner passphrase to show the reference, retention date and legal hold of every case. Nothing is changed."
                 .to_owned(),
         ),
     };
@@ -243,6 +253,15 @@ fn perform(app: &AppHandle, purpose: &Purpose, passphrase: &str) -> Result<Value
                 passphrase,
             };
             state::call_now(app, "store.verify", &params, STORE_VERIFY_TIMEOUT)
+        }
+        Purpose::StoreOverview { store } => {
+            let store = path_text(store)?;
+            let params = WithSecret {
+                store: &store,
+                case_id: None,
+                passphrase,
+            };
+            state::call_now(app, "store.overview", &params, STORE_VERIFY_TIMEOUT)
         }
         Purpose::CreateIdentity { store } => {
             let store = path_text(store)?;
@@ -365,5 +384,16 @@ mod tests {
             ("verify_store", false, 1)
         );
         assert!(check(&verify, &secret("x"), &secret("")).is_ok());
+        let overview = describe(
+            &Purpose::StoreOverview {
+                store: PathBuf::from("/s"),
+            },
+            5,
+        );
+        assert_eq!(
+            (overview.purpose, overview.confirm),
+            ("store_overview", false)
+        );
+        assert!(!overview.detail.contains("/s"));
     }
 }

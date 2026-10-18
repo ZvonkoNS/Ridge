@@ -284,8 +284,22 @@ export interface StoreCheck {
   problems: string[];
 }
 
+/** One case of the store overview (read with the passphrase; nothing is written). */
+export interface CaseOverview {
+  case_id: string;
+  state: CaseState;
+  reference: string | null;
+  retention_until: string | null;
+  legal_hold: boolean | null;
+  /** Retention date reached and no legal hold. */
+  due: boolean | null;
+  evidence: number | null;
+  jobs: number | null;
+  problem: string | null;
+}
+
 export interface PromptContext {
-  purpose: "create_identity" | "create_case" | "unlock" | "verify_store";
+  purpose: "create_identity" | "create_case" | "unlock" | "verify_store" | "store_overview";
   title: string;
   detail: string;
   confirm: boolean;

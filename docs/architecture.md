@@ -190,6 +190,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `case.create` | `store`, `reference`, `legal_basis`, `retention_until` (YYYY-MM-DD), `passphrase` | New case id; the passphrase must unlock the identity. **Rust core only** |
 | `store.identity` | `store` (absolute) | Whether the store has an examiner identity, and its key id and public key (nothing unlocked); first-run detection |
 | `store.verify` | `store` (absolute), `passphrase` | Every case of the store verified as `case.verify` does (each check logged in that case's custody log); cases that cannot be checked are named. **Rust core only**, from the prompt window |
+| `store.overview` | `store` (absolute), `passphrase` | Every case's reference, retention date, legal hold, evidence and job counts, read from the encrypted case metadata. Nothing is written or logged (no evidence is read). **Rust core only**, from the prompt window |
 | `store.limits` | `store` (absolute) | The store's limits of use (§8.3): `configured: false`, or source, file SHA-256 and limits; a malformed file is refused |
 | `session.lock` / `session.status` | – | Locks the case (also done at end of input and after 15 minutes without requests) / unlocked state and idle timeout |
 | `case.info` / `case.hold` | – / `on`, `reason` | Decrypted case metadata / places or lifts a legal hold with a reason (logged as `case.hold`) |

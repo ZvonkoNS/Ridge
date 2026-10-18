@@ -110,6 +110,7 @@ pub fn run() {
             commands::store::limits_of_use,
             commands::jobs::export_head,
             commands::store::verify_store,
+            commands::store::store_overview,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

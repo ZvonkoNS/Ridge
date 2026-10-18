@@ -282,6 +282,19 @@ code,
   color: var(--verified);
 }
 
+/* The transparent borders become visible in forced-colors mode, where backgrounds are dropped. */
+.badge-hold {
+  border: 1px solid transparent;
+  background: var(--custody-wash);
+  color: var(--ink);
+}
+
+.badge-due {
+  border: 1px solid transparent;
+  background: var(--caution-bg);
+  color: var(--caution-ink);
+}
+
 .state {
   font-size: var(--step--1);
   font-weight: 700;
@@ -344,6 +357,33 @@ code,
   align-items: center;
   padding: var(--space-2) 0;
   border-top: 1px solid var(--line);
+}
+
+.case-row-ref {
+  display: block;
+  font-weight: 700;
+}
+
+.case-row-detail {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.case-row-detail .badge {
+  padding: 0 var(--space-2);
+}
+
+.store-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .newcase {

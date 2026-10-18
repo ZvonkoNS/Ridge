@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case import cli_common as common
+from ridge.case.store_overview import store_overview
 from ridge.case.store_verify import verify_store
 
 
@@ -24,8 +25,24 @@ def cmd_verify_store(args: argparse.Namespace) -> int:
     return 1 if faults else 0
 
 
+def cmd_overview(args: argparse.Namespace) -> None:
+    """List every case with its reference, retention date and legal hold (one passphrase)."""
+    for c in store_overview(args.store, common.read_passphrase(), common.KEYSTORE_FACTORY()):
+        if c.reference is None:
+            common.say(f"{c.case_id}  {c.state}{f': {c.problem}' if c.problem else ''}")
+            continue
+        flags = "legal hold" if c.legal_hold else ("retention reached" if c.due else "")
+        common.say(
+            f"{c.case_id}  {c.reference}  keep until {c.retention_until}  "
+            f"{c.evidence} evidence, {c.jobs} job(s)  {flags}".rstrip()
+        )
+
+
 def add_commands(sub: Any) -> None:
     """Register the store commands on the ``ridge-case`` sub-parser."""
     p = sub.add_parser("verify-store", help="verify every case of a store (hashes, custody chains, signatures)")
     p.add_argument("--store", type=Path, required=True)
     p.set_defaults(func=cmd_verify_store)
+    p = sub.add_parser("overview", help="every case with its reference, retention date and legal hold")
+    p.add_argument("--store", type=Path, required=True)
+    p.set_defaults(func=cmd_overview)

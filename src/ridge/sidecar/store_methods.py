@@ -15,6 +15,7 @@ from ridge.case.keys import b64
 from ridge.case.limits import load_limits
 from ridge.case.listing import list_cases
 from ridge.case.store import create_case, open_case
+from ridge.case.store_overview import store_overview
 from ridge.case.store_verify import verify_store
 from ridge.errors import ParameterError
 from ridge.sidecar.protocol import Json
@@ -65,6 +66,16 @@ def verify_all(session: Session, params: dict[str, Json]) -> Json:
     session.close()
     store = absolute(params["store"], "store")
     return [check.to_json() for check in verify_store(store, params["passphrase"], session.keystore_factory())]
+
+
+def overview(session: Session, params: dict[str, Json]) -> Json:
+    """Every case's reference, retention and hold, read with the passphrase (sent by the Rust core only).
+
+    Nothing is written; the open case, if any, is locked first.
+    """
+    session.close()
+    store = absolute(params["store"], "store")
+    return [case.to_json() for case in store_overview(store, params["passphrase"], session.keystore_factory())]
 
 
 def identity_create(session: Session, params: dict[str, Json]) -> Json:

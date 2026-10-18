@@ -111,6 +111,15 @@ pub async fn verify_store(app: AppHandle, window: WebviewWindow) -> Result<Value
     prompt::ask(&app, Purpose::VerifyStore { store }).await
 }
 
+/// Show every case's reference, retention date and legal hold; the passphrase is entered in the
+/// prompt window.
+#[tauri::command]
+pub async fn store_overview(app: AppHandle, window: WebviewWindow) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    let store = state::store(&app)?;
+    prompt::ask(&app, Purpose::StoreOverview { store }).await
+}
+
 /// Lock the open case.
 #[tauri::command]
 pub async fn lock_case(app: AppHandle, window: WebviewWindow) -> Result<Value, IpcError> {

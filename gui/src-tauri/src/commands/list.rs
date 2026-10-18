@@ -31,6 +31,7 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "limits_of_use",
     "export_head",
     "verify_store",
+    "store_overview",
 ];
 
 /// Commands of the passphrase window (capability `passphrase`).

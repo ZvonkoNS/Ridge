@@ -31,6 +31,7 @@
     "allow-get-minutiae",
     "allow-limits-of-use",
     "allow-export-head",
-    "allow-verify-store"
+    "allow-verify-store",
+    "allow-store-overview"
   ]
 }
