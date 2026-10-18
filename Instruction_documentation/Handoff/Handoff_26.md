@@ -72,7 +72,18 @@ Not done:
 
 ## 9. Tests
 
-- No new tests. `main` at `253f4bd` passed `python tools/gate.py all` (Handoff_25, PR #24).
+- No new tests.
+- The release commit itself: `python tools/gate.py all` was run on a detached checkout of `253f4bd` (Windows 11 x86-64, Python 3.13.5) after the installers were built:
+
+  ```
+  === all 11 gate(s) passed: docs, lint, format, typecheck, test, sast, deps, secrets, licenses, sbom, gui
+  ```
+
+  - pytest: 777 passed, 3 skipped, branch coverage 97.51%.
+  - Vitest: 95 passed.
+  - Rust: 34 passed.
+
+  `253f4bd` has the same tree as `3202bfa`, the gated head of PR #24.
 
 ## 10. Release readiness
 
