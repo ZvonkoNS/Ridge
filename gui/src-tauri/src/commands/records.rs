@@ -55,7 +55,8 @@ pub async fn custody_log(
     }
     let action = request.action.as_deref().map(action_kind).transpose()?;
     let text = validate::optional_text(request.text.as_deref(), "search text", 100)?;
-    let params = json!({"offset": request.offset, "limit": request.limit, "action": action, "text": text});
+    let params =
+        json!({"offset": request.offset, "limit": request.limit, "action": action, "text": text});
     call(&app, "log.entries", params, QUICK).await
 }
 

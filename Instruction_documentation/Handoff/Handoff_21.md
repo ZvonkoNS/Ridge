@@ -81,6 +81,7 @@ See the pull request. Main areas:
 - Added:
   - Python: `test_workstation.py` (8), malformed identity (10) and case files (6), `jobs`/`notes --json`, log search;
   - Vitest: workstation card (2), About Ridge (1), log search (1).
+- Changed: the notes Vitest flow (it types two notes and runs axe) has a 15 s timeout. It took 5.27 s against the 5 s default in the first gate run, while other test runs loaded the machine.
 - Commands: `python tools/gate.py all` on this branch; the result is recorded in the pull request.
 - Not run:
   - `tauri build` installers;
