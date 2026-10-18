@@ -28,11 +28,23 @@ export function EvidenceSection({ items, onFailure, onChanged, notify }: Props) 
   const importPhoto = async () => {
     setImporting(true);
     try {
-      const item = await ipc.importEvidence(source.trim() === "" ? null : source);
-      notify(`Imported ${item.label}; SHA-256 ${item.sha256.slice(0, 12)} recorded in the custody log.`);
-      setSource("");
-      setSelected(item.sha256);
-      onChanged();
+      const batch = await ipc.importEvidence(source.trim() === "" ? null : source);
+      const last = batch.imported.at(-1);
+      if (last) {
+        setSource("");
+        setSelected(last.sha256);
+        onChanged();
+      }
+      const done =
+        batch.imported.length === 1 && last
+          ? `Imported ${last.label}; SHA-256 ${last.sha256.slice(0, 12)} recorded in the custody log.`
+          : `Imported ${batch.imported.length} photos; each SHA-256 is recorded in the custody log.`;
+      if (batch.refused.length > 0) {
+        const refused = batch.refused.map((r) => `${r.name}: ${r.message}`).join("; ");
+        onFailure(new Error(`${batch.imported.length > 0 ? `${done} ` : ""}Not imported: ${refused}.`));
+      } else {
+        notify(done);
+      }
     } catch (error) {
       onFailure(error);
     } finally {
@@ -63,7 +75,7 @@ export function EvidenceSection({ items, onFailure, onChanged, notify }: Props) 
             />
           </label>
           <Button variant="primary" type="submit" busy={importing}>
-            Import photo...
+            Import photos...
           </Button>
         </form>
         {evidence.length === 0 ? (

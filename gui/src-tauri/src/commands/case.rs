@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use tauri::{AppHandle, WebviewWindow};
 
-use crate::error::IpcError;
+use crate::error::{ErrorKind, IpcError};
 use crate::state::{call, path_text};
 use crate::windows::{require, MAIN_LABEL};
 use crate::{dialogs, validate};
@@ -68,7 +68,12 @@ pub struct Import {
     source: Option<String>,
 }
 
-/// Import an evidence photo chosen in a native dialog, with an optional source note (FR-21).
+/// At most this many photos per import, so one dialog cannot start an unbounded batch.
+const MAX_BATCH: usize = 50;
+
+/// Import evidence photos chosen in a native dialog (one or more), with an optional source note
+/// for all of them (FR-21). Each import is its own logged step; a photo the sidecar refuses is
+/// reported and the others are still imported. A locked case or a stopped engine ends the batch.
 #[tauri::command]
 pub async fn import_evidence(
     app: AppHandle,
@@ -77,14 +82,32 @@ pub async fn import_evidence(
 ) -> Result<Value, IpcError> {
     require(&window, MAIN_LABEL)?;
     let source = validate::optional_text(request.source.as_deref(), "source note", 200)?;
-    let path = path_text(&dialogs::pick_image(&app, "Import an evidence photo").await?)?;
-    call(
-        &app,
-        "case.import",
-        json!({"path": path, "source": source}),
-        IMAGE_IO,
-    )
-    .await
+    let paths = dialogs::pick_images(&app, "Import evidence photos", MAX_BATCH).await?;
+    let (mut imported, mut refused) = (Vec::new(), Vec::new());
+    for path in paths {
+        let name = path_name(&path);
+        let params = json!({"path": path_text(&path)?, "source": source});
+        match call(&app, "case.import", params, IMAGE_IO).await {
+            Ok(item) => imported.push(item),
+            Err(error) if continues(&error) => {
+                refused.push(json!({"name": name, "message": error.message}));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(json!({"imported": imported, "refused": refused}))
+}
+
+/// A refusal of one photo (wrong format, too large) lets the batch go on; a locked case does not.
+fn continues(error: &IpcError) -> bool {
+    error.kind == ErrorKind::Refused && !error.message.contains("no case is unlocked")
+}
+
+/// The file name only, for the examiner's summary (no folders reach the WebView).
+fn path_name(path: &std::path::Path) -> String {
+    path.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }
 
 /// Import a NAFIS/AFIS candidate image for viewing beside an export (FR-52; never processed).
@@ -208,4 +231,23 @@ pub async fn preview_region(
         "sha256": sha256, "x": request.x, "y": request.y, "width": request.width, "height": request.height
     });
     call(&app, "preview.region", params, IMAGE_IO).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{continues, path_name};
+    use crate::error::IpcError;
+
+    #[test]
+    fn a_refused_photo_does_not_stop_the_batch_but_a_locked_case_does() {
+        assert!(continues(&IpcError::refused(
+            "not a supported image format"
+        )));
+        assert!(!continues(&IpcError::refused("no case is unlocked")));
+        assert!(!continues(&IpcError::unavailable("the engine stopped")));
+        assert_eq!(
+            path_name(std::path::Path::new("/photos/IMG_0042.jpg")),
+            "IMG_0042.jpg"
+        );
+    }
 }

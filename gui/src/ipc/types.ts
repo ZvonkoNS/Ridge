@@ -313,6 +313,12 @@ export interface CustodyPage {
   entries: CustodyEntry[];
 }
 
+/** The outcome of importing one or more evidence photos: each import is logged on its own. */
+export interface ImportBatch {
+  imported: Item[];
+  refused: { name: string; message: string }[];
+}
+
 /** A disclosure package written to a new folder. */
 export interface PackageExported {
   exported: string;

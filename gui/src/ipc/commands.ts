@@ -14,6 +14,7 @@ import type {
   ErrorKind,
   Exported,
   IdentityCreated,
+  ImportBatch,
   Item,
   JobOptions,
   JobRecord,
@@ -115,7 +116,7 @@ export const ipc = {
     call<CustodyPage>("custody_log", { offset, limit, action }),
   exportReportHtml: (jobId: string) =>
     call<{ exported: string; job_id: string }>("export_report_html", { job_id: jobId }),
-  importEvidence: (source: string | null) => call<Item>("import_evidence", { source }),
+  importEvidence: (source: string | null) => call<ImportBatch>("import_evidence", { source }),
   importReference: (source: string) => call<Item>("import_reference", { source }),
   verifyCase: () => call<Verification>("verify_case"),
   exportItem: (sha256: string, suggestedName: string | null) =>

@@ -56,6 +56,28 @@ pub async fn pick_image(app: &AppHandle, title: &'static str) -> Result<PathBuf,
     .await
 }
 
+/// Choose one or more images to import, at most `max`.
+pub async fn pick_images(
+    app: &AppHandle,
+    title: &'static str,
+    max: usize,
+) -> Result<Vec<PathBuf>, IpcError> {
+    let app = app.clone();
+    blocking(move || {
+        let picked = builder(&app, title)
+            .add_filter("Images", &IMAGE_EXTENSIONS)
+            .blocking_pick_files()
+            .ok_or_else(IpcError::cancelled)?;
+        if picked.len() > max {
+            return Err(IpcError::invalid(&format!(
+                "choose at most {max} photos at a time"
+            )));
+        }
+        picked.into_iter().map(|p| chosen(Some(p))).collect()
+    })
+    .await
+}
+
 /// Choose where to save an export. `suggested` is reduced to a bare file name.
 pub async fn save_file(
     app: &AppHandle,
