@@ -18,16 +18,14 @@ from ridge.case.case_model import publish_logged
 from ridge.case.crypto import sha256_hex
 from ridge.case.limits import render_lines as render_limits
 from ridge.case.notes import Note, list_notes
+from ridge.case.report_lines import export_line, minutiae_line, nfiq2_line, print_area_line
 from ridge.case.reports import (
     MAX_REPORT_BYTES,
     MAX_SIGNATURE_BYTES,
     ReportCheck,
     SignedReport,
     check_report_bytes,
-    export_line,
     load_report,
-    minutiae_line,
-    nfiq2_line,
     printable,
     signature_path,
 )
@@ -131,6 +129,7 @@ def render_report_html(signed: SignedReport, notes: list[Note] | None = None) ->
     results = [
         ("Ridge spacing", _text(f"{meas.get('ridge_period_px', 0):.2f} px") if meas else ""),
         ("Finger located", _text("yes" if meas.get("found_finger") else "no") if meas else ""),
+        ("Print area", _text(_value(print_area_line(meas.get("print_area"))))),
         ("Export", _text(_value(export_line(report.get("export"))).replace("+-", "±"))),
         ("NFIQ 2", _text(_value(nfiq2_line((report.get("quality") or {}).get("nfiq2"))))),
         ("Minutiae", _text(_value(minutiae_line(report.get("minutiae"))))),

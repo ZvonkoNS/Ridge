@@ -44,6 +44,7 @@ Tick the key-register box to also check that your signing key is registered. The
 
 1. Choose a photo and its settings. Use **Region** to process one finger of several. Use **Ruler** (two points on a scale in the photo, with the distance in mm) for a calibrated 500 ppi comparison export. Without a ruler, the scale is estimated from the ridge spacing, and the report says so together with its uncertainty.
 2. **Run job.** The original, the region and the result are shown side by side. Zoom with <kbd>+</kbd> and <kbd>-</kbd>; <kbd>0</kbd> fits the image, and the arrow keys move it.
+   After the job, the original shows where the print was extracted. A solid line surrounds the area kept as the print, a dashed box marks the frame of the print image, and the rest of the photo is dimmed on screen only. The comparison export is usually mirrored, so it shows this area the other way round. **Show where the print was extracted** hides or shows the outline. The job summary and the report give the same area in photo pixels ("Print area").
 3. **Measure** shows the distance between two points in pixels and, on a scaled export, in millimetres with its uncertainty. It is for orientation and is not recorded.
 4. The minutiae overlay is off by default. It is unvalidated, for orientation only, and never used for matching.
 

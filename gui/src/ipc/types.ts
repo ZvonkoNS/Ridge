@@ -73,10 +73,23 @@ export interface RegionPreview extends Preview {
   y: number;
 }
 
+/**
+ * Where the print came from, in the photo's pixels after EXIF orientation (the space of roi and
+ * ruler): the frame the print image shows, and the outer edge of each kept area (pixel centres,
+ * largest area first).
+ */
+export interface PrintArea {
+  box_px: [number, number, number, number];
+  outline_px: [number, number][][];
+  parts: number;
+}
+
 export interface Measurements {
   ridge_period_px: number;
   found_finger: boolean;
   output_scale: number;
+  /** Absent in reports made before Ridge recorded it. */
+  print_area?: PrintArea | null;
 }
 
 export type ScaleMethod = "ruler" | "ridge-period" | "manual";

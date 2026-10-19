@@ -28,6 +28,7 @@ from ridge.case.custody import Entry
 from ridge.case.identity import key_id_for, public_identity, verify_signature
 from ridge.case.jobs import REPORT_SCHEMA
 from ridge.case.limits import render_lines as render_limits
+from ridge.case.report_lines import export_line, minutiae_line, nfiq2_line, print_area_line
 from ridge.case.store import OpenCase
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
 from ridge.image_io import read_bounded
@@ -259,6 +260,7 @@ def render_report(report: dict[str, Any], key_id: str) -> str:
         f"minutiae {_yes(params.get('minutiae'))}",
         f"Measured      ridge spacing {meas.get('ridge_period_px', 0):.2f} px, "
         f"finger found {_yes(meas.get('found_finger'))}, output scale {meas.get('output_scale')}",
+        print_area_line(meas.get("print_area")),
         export_line(report.get("export")),
         nfiq2_line((report.get("quality") or {}).get("nfiq2")),
         minutiae_line(report.get("minutiae")),
@@ -272,38 +274,3 @@ def render_report(report: dict[str, Any], key_id: str) -> str:
         str(report.get("disclaimer", "")),
     ]
     return "\n".join(printable(line) for line in lines if line)
-
-
-def export_line(export: dict[str, Any] | None) -> str:
-    """Describe a report's export section as one labelled text line."""
-    if export is None:
-        return "Export        not requested"
-    if not export.get("produced"):
-        return f"Export        not produced: {export.get('reason')}"
-    scale = export.get("scale") or {}
-    transforms = ", ".join(export.get("transforms") or []) or "none"
-    return (
-        f"Export        {export.get('ppi'):g} ppi, scale from {scale.get('method')} "
-        f"(+-{scale.get('uncertainty_pct', 0):.1f} %), transforms: {transforms}"
-    )
-
-
-def nfiq2_line(nfiq2: dict[str, Any] | None) -> str:
-    """Describe a report's NFIQ 2 score as one labelled text line (empty when absent)."""
-    if nfiq2 is None:
-        return ""
-    if not nfiq2.get("computed"):
-        return f"NFIQ 2        not computed: {nfiq2.get('reason')}"
-    return f"NFIQ 2        {nfiq2.get('score')} ({nfiq2.get('label')}; {nfiq2.get('version')})"
-
-
-def minutiae_line(minutiae: dict[str, Any] | None) -> str:
-    """Describe a report's minutiae summary as one labelled text line (empty when absent)."""
-    if minutiae is None:
-        return ""
-    if not minutiae.get("produced"):
-        return f"Minutiae      not produced: {minutiae.get('reason')}"
-    return (
-        f"Minutiae      {minutiae.get('count')} ({minutiae.get('endings')} endings, "
-        f"{minutiae.get('bifurcations')} bifurcations), {minutiae.get('label')}"
-    )

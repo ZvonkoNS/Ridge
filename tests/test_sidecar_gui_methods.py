@@ -205,6 +205,20 @@ def test_minutiae_for_the_overlay_and_limits_in_job_results(unlocked: tuple[Sess
     assert len(reads) == 1  # the overlay read is logged (FR-22)
 
 
+def test_job_results_say_where_the_print_came_from(unlocked: tuple[Session, Path], tmp_path: Path) -> None:
+    session, _ = unlocked
+    evidence = result(call(session, "case.import", {"path": str(photo_file(tmp_path / "in").resolve())}))
+    job = result(call(session, "job.run", {"evidence": evidence["sha256"], "roi": [10, 20, 340, 450]}))
+    area = job["measurements"]["print_area"]  # what the review panel outlines on the original
+    x, y, w, h = area["box_px"]
+    assert x >= 10
+    assert y >= 20
+    assert x + w <= 350
+    assert y + h <= 470
+    assert area["parts"] == len(area["outline_px"]) == 1
+    assert all(len(point) == 2 for point in area["outline_px"][0])
+
+
 def test_previews_report_only_plausible_declared_resolutions(unlocked: tuple[Session, Path], tmp_path: Path) -> None:
     session, _ = unlocked
     shown = {}
