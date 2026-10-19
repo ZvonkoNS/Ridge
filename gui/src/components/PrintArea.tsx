@@ -17,15 +17,20 @@ export interface AreaOverlay {
 }
 
 export function usePrintArea(result: JobResult | null): AreaOverlay {
-  const [on, setOn] = useState(true);
+  const jobId = result?.job_id ?? null;
+  // The switch belongs to one job: a new job shows its own area again, even if the last was hidden.
+  const [choice, setChoice] = useState<{ jobId: string | null; on: boolean }>({ jobId, on: true });
+  const on = choice.jobId === jobId ? choice.on : true;
   const exp = result?.export;
   const mirrored = exp?.produced === true && exp.transforms.some((t) => t.startsWith("mirror:"));
   return {
     area: result?.measurements?.print_area ?? null,
-    jobId: result?.job_id ?? null,
+    jobId,
     mirrored,
     on,
-    setOn,
+    setOn: (next) => {
+      setChoice({ jobId, on: next });
+    },
   };
 }
 

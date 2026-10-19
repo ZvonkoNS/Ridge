@@ -20,6 +20,7 @@ Completed work:
 - Job summary (review panel and Jobs section): a "Print area" row in words, which is also what a screen reader gets, since the drawing is `aria-hidden`. Reports signed before this change say "not recorded".
 - Readable reports (text and HTML) add a "Print area" line. The one-line helpers (`export_line`, `nfiq2_line`, `minutiae_line`, new `print_area_line`) moved to `src/ridge/case/report_lines.py`, so `reports.py` stays under 300 lines (309 → 276).
 - Docs: architecture §8.3 (schema outline and a paragraph on `print_area`), PRD FR-50 note, examiner guide (Jobs and review, step 2), CHANGELOG.
+- PR #27 review (Codex, P2): hiding the outline and then running another job kept the new job's area hidden. The switch now belongs to one job, so each new job shows its own area again (`usePrintArea`; test `shows the next job's area again after the last one was hidden`, which fails without the fix).
 
 Out of scope:
 

@@ -30,9 +30,9 @@ const AREA: PrintArea = {
   parts: 1,
 };
 
-function job(area: PrintArea | undefined): JobResult {
+function job(area: PrintArea | undefined, jobId = "1a2b3c4d-0000-4000-8000-000000000000"): JobResult {
   return {
-    job_id: "1a2b3c4d-0000-4000-8000-000000000000",
+    job_id: jobId,
     outputs: [
       {
         sha256: "p".repeat(64),
@@ -63,8 +63,10 @@ function job(area: PrintArea | undefined): JobResult {
   };
 }
 
-async function runJob(result: JobResult) {
-  routes({ preview: () => PREVIEW, run_job: () => result });
+/** Render the panel and run one job; later runs return `more` in turn. */
+async function runJob(result: JobResult, ...more: JobResult[]) {
+  const queue = [result, ...more];
+  routes({ preview: () => PREVIEW, run_job: () => queue.shift() ?? result });
   const view = render(<ReviewPanel evidence={PHOTO} onFailure={vi.fn()} onJobDone={vi.fn()} />);
   await userEvent.click(screen.getByRole("button", { name: "Run job" }));
   await screen.findByText("Job");
@@ -100,6 +102,15 @@ describe("where the print was extracted", () => {
     expect(original.querySelector(".ov-area")).toBeNull();
     expect(screen.queryByText(/Solid line: the area kept as the print/)).toBeNull();
     expect(within(original).getByRole("img", { name: "Original photo" })).toBeInTheDocument();
+  });
+
+  it("shows the next job's area again after the last one was hidden", async () => {
+    const { original } = await runJob(job(AREA), job(AREA, "5e6f7a8b-0000-4000-8000-000000000000"));
+    await userEvent.click(screen.getByRole("checkbox", { name: /\(job 1a2b3c4d\)/ }));
+    expect(original.querySelector(".ov-area")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Run job" }));
+    expect(await screen.findByRole("checkbox", { name: /\(job 5e6f7a8b\)/ })).toBeChecked();
+    expect(original.querySelector(".ov-area-edge")).not.toBeNull();
   });
 
   it("says nothing is recorded for a report made before Ridge recorded the area", async () => {
