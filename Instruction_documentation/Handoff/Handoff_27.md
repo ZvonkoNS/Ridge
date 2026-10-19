@@ -15,7 +15,8 @@ What happened: the GUI was started from `gui/src-tauri/target/release/deps/ridge
 
 Completed work:
 
-- `Sidecar::ensure_started` maps launch errors through `launch_failed`: `io::ErrorKind::NotFound` becomes `Unavailable` "the processing engine is missing from this installation; reinstall Ridge"; every other launch error keeps "the processing engine could not be started". The path is not included: IPC errors carry no internal paths (`desktop_gui_tauri_standards.md` §8, `error.rs`).
+- `Sidecar::ensure_started`: a launch that fails with `io::ErrorKind::NotFound` gives `Unavailable` "the processing engine is missing from this installation; reinstall Ridge" (`MISSING`); every other launch error keeps "the processing engine could not be started". The path is not included: IPC errors carry no internal paths (`desktop_gui_tauri_standards.md` §8, `error.rs`).
+- The sidecar remembers whether its last launch found no file (`missing`). Once the starts are used up (`MAX_STARTS`), it still reports the missing engine instead of "stopped too often; restart Ridge and report the problem". A successful launch clears it. This was the Codex finding on PR #26 (P2): with startup and store calls, four failed launches are quickly reached, and the next call gave restart advice for the same missing file. Fixed in the second commit of the pull request.
 - New `sidecar::launch(program: Option<&Path>)`, moved out of the closure in `lib.rs::run()`. It returns `NotFound` when `locate` gave no path (release build without a resource dir) or when nothing is a file at that path (missing file, or a directory). Before, the no-path case was `io::Error::other`, and was reported as a failed start.
 - Start screen (`StoreScreen.tsx`): the sentence after the core's message is chosen by `engineAdvice`. When the core asks for a reinstall, the notice ends "If this persists after reinstalling, report it." instead of "Restart Ridge; …". All other engine problems keep "Restart Ridge; if this persists, report it." This follows the existing practice of reading a core message by a fixed phrase (`ipc/commands.ts`, "no case is unlocked").
 
@@ -30,7 +31,7 @@ Out of scope:
 
 ## 2. Current repository state
 
-- `main` at `3c765dd`. This branch adds the four source changes below and this handoff, in one commit, as a pull request against `main` (product owner, 2026-10-19). Not merged.
+- `main` at `3c765dd`. This branch adds the four source changes below and this handoff as PR #26 against `main` (product owner, 2026-10-19): `9a347c0`, then the review fix. Not merged.
 - A `.venv/` (git-ignored) was created in the worktree from `requirements.lock` and `requirements-dev.lock` (hash-checked) plus `pip install -e .`, so that the gate's mandatory live sidecar test can find `.venv/Scripts/ridge-sidecar.exe`.
 
 ## 3. Standards applicability and evidence
@@ -42,7 +43,7 @@ Project standards profile updated: not needed.
 | `desktop_gui_tauri_standards.md` §2 (engine located from the bundle only) | Yes | `locate` unchanged; `launch` only checks that the located path is a file before spawning it | None |
 | `desktop_gui_tauri_standards.md` §8 (typed IPC errors, no internal paths) | Yes | The new message has no path; the `io::Error` text is dropped as before | None |
 | `desktop_gui_tauri_standards.md` §9, WCAG 2.2 "clear error messages" | Yes | The notice names the actual next step (reinstall), with no contradicting advice | None |
-| `coding_standards.md` (entrypoints small, files around 300 lines) | Yes | The `run()` closure shrank to one line | `sidecar.rs` is 668 lines (603 before; about 345 of code, the rest tests) and `StoreScreen.tsx` 304 lines (297 before). Pre-existing; a split of `sidecar.rs` is recommended in §12 |
+| `coding_standards.md` (entrypoints small, files around 300 lines) | Yes | The `run()` closure shrank to one line | `sidecar.rs` is 692 lines (603 before; about 345 of code, the rest tests) and `StoreScreen.tsx` 304 lines (297 before). Pre-existing; a split of `sidecar.rs` is recommended in §12 |
 | `testing_and_codex_quality_gates.md` | Yes | Tests in §9, full gate run | See §9 |
 
 Exceptions, deviations or evidence gaps:
@@ -67,7 +68,7 @@ Data classes touched: none. No images, case data or examiner data were opened or
 
 | File | Purpose of change |
 | --- | --- |
-| `gui/src-tauri/src/sidecar.rs` | `launch_failed` (classify launch errors), `launch` (no path or no file is `NotFound`), two unit tests |
+| `gui/src-tauri/src/sidecar.rs` | `MISSING` and the `missing` flag (classify launch errors, also after the starts are used up), `launch` (no path or no file is `NotFound`), two unit tests |
 | `gui/src-tauri/src/lib.rs` | The launch closure calls `sidecar::launch` |
 | `gui/src/screens/StoreScreen.tsx` | `engineAdvice`: no "Restart Ridge" next to "reinstall Ridge" |
 | `gui/src/test/screens.test.tsx` | Full notice text for the failed start; new test for the missing engine |
@@ -95,7 +96,7 @@ Open security risks: none added.
 
 Tests added or updated:
 
-- Rust `a_missing_engine_asks_for_a_reinstall`: a launch closure returning `NotFound` gives the reinstall message; one returning `PermissionDenied` keeps "could not be started".
+- Rust `a_missing_engine_asks_for_a_reinstall_every_time`: `MAX_STARTS + 1` calls with a launch closure returning `NotFound` all give the reinstall message, including the call after the starts are used up. With `PermissionDenied`, the first `MAX_STARTS` give "could not be started" and the last "stopped too often". Both make exactly `MAX_STARTS` launches.
 - Rust `no_engine_file_is_not_found`: `launch(None)`, a path that does not exist and a directory all return `NotFound` without spawning anything.
 - Vitest "asks for a reinstall, not a restart, when the engine is missing" (full notice text, no "Restart Ridge"); the failed-start test now checks the full "Restart Ridge; if this persists, report it." sentence.
 
@@ -113,6 +114,14 @@ Commands run:
 - `cargo fmt --check` and `cargo clippy --all-targets -D warnings` clean.
 
 That run started before this handoff was written. After writing it, `python tools/gate.py docs` was run again and passed (`=== all 1 gate(s) passed: docs`).
+
+After the review fix, `python tools/gate.py all` was run again in the same worktree:
+
+```
+=== all 11 gate(s) passed: docs, lint, format, typecheck, test, sast, deps, secrets, licenses, sbom, gui
+```
+
+pytest 777 passed, 3 skipped, coverage 97.51%; Vitest 96 passed; Rust 36 passed, including `a_missing_engine_asks_for_a_reinstall_every_time` and the live sidecar test. Only this paragraph was added afterwards; the docs gate was re-run on it.
 
 Determinism and golden results: not affected; `tests/golden/` untouched.
 
