@@ -116,11 +116,22 @@ describe("store screen", () => {
   it("reports an engine that cannot start before any work, with the versions otherwise", async () => {
     routes({ app_info: () => ipcError("unavailable", "the processing engine could not be started") });
     const { unmount } = render(<App />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("could not be started");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "could not be started. Restart Ridge; if this persists, report it.",
+    );
     unmount();
     routes({ app_info: APP_INFO });
     render(<App />);
     expect(await screen.findByText("Ridge 0.2.0 (GUI 0.2.0, ridge.sidecar/1)")).toBeInTheDocument();
+  });
+
+  it("asks for a reinstall, not a restart, when the engine is missing", async () => {
+    const missing = "the processing engine is missing from this installation; reinstall Ridge";
+    routes({ app_info: () => ipcError("unavailable", missing) });
+    render(<App />);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(`${missing}. If this persists after reinstalling, report it.`);
+    expect(alert).not.toHaveTextContent("Restart Ridge");
   });
 
   it("shows the engine's source commit when it is known", () => {

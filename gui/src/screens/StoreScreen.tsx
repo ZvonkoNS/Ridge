@@ -29,6 +29,13 @@ function message(error: unknown): string | null {
   return error instanceof Error ? error.message : "Something went wrong.";
 }
 
+// The Rust core asks for a reinstall when the engine file is missing: restarting would not help.
+function engineAdvice(problem: string): string {
+  return problem.includes("reinstall Ridge")
+    ? "If this persists after reinstalling, report it."
+    : "Restart Ridge; if this persists, report it.";
+}
+
 export function StoreScreen({
   store,
   notice,
@@ -126,7 +133,7 @@ export function StoreScreen({
       </header>
       {engineProblem ? (
         <Notice tone="error">
-          The processing engine is not available: {engineProblem}. Restart Ridge; if this persists, report it.
+          The processing engine is not available: {engineProblem}. {engineAdvice(engineProblem)}
         </Notice>
       ) : null}
       {notice ? <Notice tone="info">{notice}</Notice> : null}

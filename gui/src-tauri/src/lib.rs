@@ -56,12 +56,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let program = sidecar::locate(app.path().resource_dir().ok());
-            let launch = move || match &program {
-                Some(path) => sidecar::spawn(path),
-                None => Err(std::io::Error::other(
-                    "the processing engine is not bundled",
-                )),
-            };
+            let launch = move || sidecar::launch(program.as_deref());
             app.manage(AppState::new(Sidecar::new(Box::new(launch))));
             state::start_idle_watchdog(app.handle().clone());
             if let Some(store) = settings::load(app.handle()) {

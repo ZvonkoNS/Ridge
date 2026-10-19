@@ -244,8 +244,7 @@ impl<T: Transport> Sidecar<T> {
             ));
         }
         self.starts += 1;
-        let transport = (self.launch)()
-            .map_err(|_| IpcError::unavailable("the processing engine could not be started"))?;
+        let transport = (self.launch)().map_err(|e| launch_failed(&e))?;
         self.transport = Some(transport);
         let version = self.exchange("ridge.version", &serde_json::json!({}), STARTUP_TIMEOUT);
         match version {
@@ -298,6 +297,29 @@ impl<T: Transport> Sidecar<T> {
 
 fn stopped() -> IpcError {
     IpcError::unavailable("the processing engine stopped; any open case was locked")
+}
+
+/// A missing engine file is a broken installation, which restarting Ridge does not fix. The path
+/// is not shown: IPC errors carry no internal paths (desktop_gui_tauri_standards.md §8).
+fn launch_failed(error: &io::Error) -> IpcError {
+    if error.kind() == io::ErrorKind::NotFound {
+        IpcError::unavailable(
+            "the processing engine is missing from this installation; reinstall Ridge",
+        )
+    } else {
+        IpcError::unavailable("the processing engine could not be started")
+    }
+}
+
+/// Start the sidecar found by `locate`; no location, or nothing there, is `NotFound`.
+pub fn launch(program: Option<&Path>) -> io::Result<ChildTransport> {
+    match program {
+        Some(path) if path.is_file() => spawn(path),
+        _ => Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "the processing engine is not bundled",
+        )),
+    }
 }
 
 /// Where the sidecar binary is: inside the bundle's resources (release), or the repository
@@ -482,6 +504,49 @@ mod tests {
             .filter(|m| m["method"] == "job.run")
             .count();
         assert_eq!(jobs, 2, "a failed request is never resent");
+    }
+
+    fn failing_launch(kind: io::ErrorKind) -> IpcError {
+        let mut sidecar = Sidecar::<Fake>::new(Box::new(move || Err(io::Error::from(kind))));
+        sidecar
+            .call(
+                "ridge.version",
+                &serde_json::json!({}),
+                Duration::from_secs(1),
+            )
+            .unwrap_err()
+    }
+
+    #[test]
+    fn a_missing_engine_asks_for_a_reinstall() {
+        let err = failing_launch(io::ErrorKind::NotFound);
+        assert_eq!(
+            (err.kind, err.message.as_str()),
+            (
+                crate::error::ErrorKind::Unavailable,
+                "the processing engine is missing from this installation; reinstall Ridge"
+            )
+        );
+        let err = failing_launch(io::ErrorKind::PermissionDenied);
+        assert_eq!(
+            (err.kind, err.message.as_str()),
+            (
+                crate::error::ErrorKind::Unavailable,
+                "the processing engine could not be started"
+            )
+        );
+    }
+
+    #[test]
+    fn no_engine_file_is_not_found() {
+        let absent = std::env::temp_dir().join(format!("ridge-absent-{}", std::process::id()));
+        let not_a_file = std::env::temp_dir();
+        for program in [None, Some(absent.as_path()), Some(not_a_file.as_path())] {
+            assert_eq!(
+                launch(program).err().map(|e| e.kind()),
+                Some(io::ErrorKind::NotFound)
+            );
+        }
     }
 
     #[test]
