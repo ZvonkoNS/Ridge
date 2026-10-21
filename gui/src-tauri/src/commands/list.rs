@@ -21,6 +21,7 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "export_item",
     "preview",
     "preview_region",
+    "photo_metadata",
     "run_job",
     "list_jobs",
     "get_report",

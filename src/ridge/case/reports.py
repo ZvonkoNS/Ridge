@@ -28,6 +28,7 @@ from ridge.case.custody import Entry
 from ridge.case.identity import key_id_for, public_identity, verify_signature
 from ridge.case.jobs import REPORT_SCHEMA
 from ridge.case.limits import render_lines as render_limits
+from ridge.case.metadata_render import metadata_text
 from ridge.case.report_lines import export_line, minutiae_line, nfiq2_line, print_area_line
 from ridge.case.store import OpenCase
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
@@ -271,6 +272,7 @@ def render_report(report: dict[str, Any], key_id: str) -> str:
             for o in report.get("outputs") or []
         ),
         f"Custody head  {report.get('custody_head')}",
+        *metadata_text(source.get("metadata")),
         str(report.get("disclaimer", "")),
     ]
     return "\n".join(printable(line) for line in lines if line)

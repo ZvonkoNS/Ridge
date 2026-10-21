@@ -22,6 +22,7 @@
     "allow-export-item",
     "allow-preview",
     "allow-preview-region",
+    "allow-photo-metadata",
     "allow-run-job",
     "allow-list-jobs",
     "allow-get-report",
