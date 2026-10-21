@@ -11,7 +11,8 @@
 
 Extraction (``ridge-case extract``) lives in ``ridge.case.cli_extract``; records commands (jobs,
 report, reproduce, check-report, log, check-log) in
-``ridge.case.cli_records``; comparison commands (import-reference, compare) in ``ridge.case.cli_compare``.
+``ridge.case.cli_records``; comparison commands (import-reference, compare) in ``ridge.case.cli_compare``;
+a photo's metadata (``ridge-case metadata``) in ``ridge.case.cli_metadata``.
 Passphrases are only read interactively (never from arguments or the environment).
 Exit codes: 0 ok, 1 refused or failed (message on stderr), 2 usage error, 3 internal error.
 """
@@ -33,6 +34,7 @@ from ridge.case import (
     cli_compare,
     cli_extract,
     cli_limits,
+    cli_metadata,
     cli_notes,
     cli_package,
     cli_records,
@@ -174,6 +176,7 @@ def build_parser() -> argparse.ArgumentParser:
     cli_compare.add_commands(sub)
     cli_store.add_commands(sub)
     cli_notes.add_commands(sub)
+    cli_metadata.add_commands(sub)
     cli_limits.add_commands(sub)
     cli_package.add_commands(sub)
     cli_register.add_commands(sub)

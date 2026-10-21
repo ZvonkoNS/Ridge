@@ -53,6 +53,8 @@ Metadata is shown exactly as the file records it. Anyone can edit or remove it, 
 
 Every job report records the photo's metadata, and **Jobs** shows it under the report. The readable copy lists every entry, with the Google Maps link as an ordinary link and the same warning that opening it sends the position to Google. Reports made before Ridge recorded metadata say so. The output images never carry any metadata.
 
+From the command line, `ridge-case metadata <case> <sha>` prints the same for one evidence photo or reference image without running a job, and `--json` prints the record a job report holds. As with the panel, the read is written to the custody log.
+
 ## Jobs and review
 
 1. Choose a photo and its settings. Use **Region** to process one finger of several. Use **Ruler** (two points on a scale in the photo, with the distance in mm) for a calibrated 500 ppi comparison export. Without a ruler, the scale is estimated from the ridge spacing, and the report says so together with its uncertainty.
