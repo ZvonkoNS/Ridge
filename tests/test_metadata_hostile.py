@@ -153,3 +153,15 @@ def test_mutated_metadata_never_escapes_typed_errors_or_bounds(changes: list[tup
     shown = json.dumps(meta, ensure_ascii=False)
     assert len(shown) < BOUND
     assert not any(h in shown for h in HIDDEN[:2])
+
+
+def test_an_xmp_coordinate_with_thousands_of_digits_is_malformed_not_fatal() -> None:
+    # Python refuses integer strings over 4300 digits; such a coordinate must never reach Fraction()
+    digits = "1" * 5000
+    attrs = f'exif:GPSLatitude="46,3.{digits}N" exif:GPSLongitude="14,30.5E"'
+    meta = read_metadata(samples.jpeg(xmp_packet=samples.xmp(attrs=attrs), icc=False))
+    assert meta["location"] is None
+    assert any("XMP GPS position" in w and "malformed" in w for w in meta["warnings"])
+    long_but_fine = 'exif:GPSLatitude="46,3.074074074074N" exif:GPSLongitude="14,30.340666666666E"'
+    fine = read_metadata(samples.jpeg(xmp_packet=samples.xmp(attrs=long_but_fine), icc=False))
+    assert fine["location"]["latitude"] == pytest.approx(46.0512346, abs=1e-7)

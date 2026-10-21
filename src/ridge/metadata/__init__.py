@@ -53,6 +53,18 @@ def _safely(title: str, read: Callable[[], Entries], warnings_out: list[str]) ->
         return []
 
 
+def _locate(gps: dict[int, Any], xmp: XmpRead, out: list[str]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Return the EXIF and XMP positions; a position that cannot be converted is a warning, never fatal."""
+    try:
+        found = exif_location(gps, out)
+        from_xmp = xmp_location(xmp.gps_latitude, xmp.gps_longitude, out)
+    except READ_FAILURES as exc:
+        out.append(f"The GPS position could not be read ({type(exc).__name__}); the raw tags are listed.")
+        return None, None
+    compare(found, from_xmp, out)
+    return found, from_xmp
+
+
 def _group(ident: str, title: str, entries: Entries) -> dict[str, Any]:
     return {"id": ident, "title": title, "entries": entries}
 
@@ -83,9 +95,7 @@ def _read(im: ImageFile.ImageFile, data: bytes, budget: Budget, fixed: Budget, o
         out.append(
             "The camera maker's MakerNote is vendor-specific and was not decoded; its size and SHA-256 are listed."
         )
-    found = exif_location(exif.gps, out)
-    from_xmp = xmp_location(xmp.gps_latitude, xmp.gps_longitude, out)
-    compare(found, from_xmp, out)
+    found, from_xmp = _locate(exif.gps, xmp, out)
     return {
         "schema": SCHEMA,
         "notice": NOTICE,

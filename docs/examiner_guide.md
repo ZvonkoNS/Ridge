@@ -51,7 +51,7 @@ Under the photos, **Photo metadata** shows what the photo's file records about i
 
 Metadata is shown exactly as the file records it. Anyone can edit or remove it, so it does not by itself show where, when or with what a photo was taken: Ridge never checks it. Characters that could hide or reorder text are shown as `<U+XXXX>`. Reference images get the same panel in **References**.
 
-Every job report records the photo's metadata, and **Jobs** shows it under the report. The readable copy lists every entry, with the Google Maps link as an ordinary link. Reports made before Ridge recorded metadata say so. The output images never carry any metadata.
+Every job report records the photo's metadata, and **Jobs** shows it under the report. The readable copy lists every entry, with the Google Maps link as an ordinary link and the same warning that opening it sends the position to Google. Reports made before Ridge recorded metadata say so. The output images never carry any metadata.
 
 ## Jobs and review
 

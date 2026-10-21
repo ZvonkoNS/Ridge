@@ -8,6 +8,7 @@ lists what was recorded. Ridge never opens the link; it is shown so the examiner
 
 from __future__ import annotations
 
+import datetime
 import re
 from collections.abc import Mapping, Sequence
 from fractions import Fraction
@@ -18,7 +19,9 @@ from ridge.metadata.values import number, text
 DECIMALS = 7
 MAP_URL = "https://www.google.com/maps/search/?api=1&query={lat}%2C{lon}"  # Google Maps URLs API
 _WGS84 = re.compile(r"^\s*WGS[\s-]*(19)?84\s*$", re.IGNORECASE)
-_XMP_COORD = re.compile(r"^\s*(\d{1,3}),(\d{1,2}(?:\.\d+)?)(?:,(\d{1,2}(?:\.\d+)?))?\s*([NSEWnsew])\s*$")
+# At most 12 decimals (about 1 nm): longer digit strings are malformed, and Python refuses to convert
+# integer strings over 4300 digits (ValueError), which must never reach Fraction().
+_XMP_COORD = re.compile(r"^\s*(\d{1,3}),(\d{1,2}(?:\.\d{1,12})?)(?:,(\d{1,2}(?:\.\d{1,12})?))?\s*([NSEWnsew])\s*$")
 
 
 def _fraction(value: Any) -> Fraction | None:
@@ -80,6 +83,15 @@ def position(lat: Fraction, lon: Fraction, source: str, recorded: str) -> dict[s
     }
 
 
+def _real_date(match: re.Match[str]) -> bool:
+    """Whether YYYY:MM:DD names a real calendar day (2024:13:40 and 2023:02:29 do not)."""
+    try:
+        datetime.date(int(match[1]), int(match[2]), int(match[3]))
+    except ValueError:
+        return False
+    return True
+
+
 def _time(gps: Mapping[int, Any]) -> str | None:
     """GPS date and time (UTC by definition) as ISO 8601, when both are recorded and valid."""
     date, clock = gps.get(29), gps.get(7)
@@ -87,7 +99,7 @@ def _time(gps: Mapping[int, Any]) -> str | None:
         return None
     match = re.fullmatch(r"(\d{4}):(\d{2}):(\d{2})", date.strip("\x00 "))
     hms = [_fraction(v) for v in clock]
-    if match is None or any(v is None or v < 0 for v in hms):
+    if match is None or not _real_date(match) or any(v is None or v < 0 for v in hms):
         return None
     h, m, s = (v for v in hms if v is not None)
     if h.denominator != 1 or m.denominator != 1 or h >= 24 or m >= 60 or s >= 61:

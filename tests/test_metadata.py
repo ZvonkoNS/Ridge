@@ -254,3 +254,11 @@ def test_fixed_rounds_half_even_to_seven_places() -> None:
     assert fixed(Fraction(5, 10**8)) == "0.0000000"  # half to even
     assert fixed(Fraction(15, 10**8)) == "0.0000002"
     assert fixed(Fraction(-1, 3)) == "-0.3333333"
+
+
+@pytest.mark.parametrize(("day", "shown"), [("2024:13:40", False), ("2023:02:29", False), ("2024:02:29", True)])
+def test_gps_time_needs_a_real_calendar_day(day: str, shown: bool) -> None:
+    location = read_metadata(samples.jpeg(samples.camera_exif(t29=day)))["location"]
+    assert ("time_utc" in location) is shown
+    raw = group(read_metadata(samples.jpeg(samples.camera_exif(t29=day))), "exif-gps")
+    assert raw["GPSDateStamp"] == day  # the raw tag stays listed either way

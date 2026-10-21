@@ -11,7 +11,7 @@ from PIL import Image
 
 from ridge.case.identity import create_identity, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
-from ridge.case.metadata_render import NOT_RECORDED, map_url, metadata_html, metadata_text
+from ridge.case.metadata_render import DISCLOSURE, NOT_RECORDED, map_url, metadata_html, metadata_text
 from ridge.case.report_html import render_report_html
 from ridge.case.reports import load_report, render_report
 from ridge.case.store import open_case
@@ -84,6 +84,7 @@ def test_the_text_report_appends_every_entry_and_the_map_link(job: dict[str, Any
     text = render_report(job["signed"].report, job["key_id"])
     assert "Photo metadata" in text
     assert f"Map link      {MAP_URL}" in text
+    assert f"              {DISCLOSURE}" in text
     assert "Location      46.0512333, 14.5056778 (EXIF GPS; recorded 46" in text
     assert "[EXIF: GPS]" in text
     assert "  Make (0x010F): Synthetic Camera Co" in text
@@ -98,6 +99,7 @@ def test_the_html_copy_links_to_the_map_and_escapes_every_value(job: dict[str, A
     assert "<h3>EXIF: GPS</h3>" in page
     assert "Synthetic Camera Co" in page
     assert "<script" not in page.lower()
+    assert f"<br>{DISCLOSURE}" in page  # the copy-only warning travels with the link
 
 
 def test_hostile_values_and_forged_locations_render_harmlessly() -> None:

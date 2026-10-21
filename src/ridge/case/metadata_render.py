@@ -13,6 +13,7 @@ from typing import Any
 from ridge.metadata.gps import MAP_URL
 
 NOT_RECORDED = "not recorded in this report"
+DISCLOSURE = "Ridge never opens this link. Opening it sends the recorded position to Google."
 
 
 def _coordinate(value: object, limit: int) -> float | None:
@@ -60,7 +61,10 @@ def metadata_text(meta: dict[str, Any] | None) -> list[str]:
     location = meta.get("location")
     if isinstance(location, dict):
         lines.append(f"Location      {location_text(location)}")
-        lines.append(f"Map link      {map_url(location) or 'not available'}")
+        url = map_url(location)
+        lines.append(f"Map link      {url or 'not available'}")
+        if url:
+            lines.append(f"              {DISCLOSURE}")
     else:
         lines.append("Location      none recorded")
     lines.extend(f"  {e.get('name')}: {e.get('value')}" for e in meta.get("summary") or [])
@@ -110,7 +114,7 @@ def metadata_html(meta: dict[str, Any] | None) -> str:
         url = map_url(location)
         link = (
             f'<a href="{escape(url, quote=True)}" rel="noopener noreferrer" referrerpolicy="no-referrer">'
-            f"Google Maps</a> <code>{escape(url)}</code>"
+            f"Google Maps</a> <code>{escape(url)}</code><br>{escape(DISCLOSURE)}"
             if url
             else "not available"
         )
