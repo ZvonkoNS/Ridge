@@ -5,7 +5,7 @@ Author/agent: Claude Code (claude-opus-5-5)
 Project: Ridge
 Branch: `m5-photo-metadata-14`, stacked on `m5-print-area-13` (PR #27)
 Base commit: `a784d37` (tip of `m5-print-area-13`)
-Latest commit: none yet; the work is uncommitted in the working tree (the owner has not asked for a commit)
+Latest commit: see the pull request (feature commit `75ce609`, committed on 2026-10-21 at the owner's request)
 
 ## 1. Scope
 
@@ -52,7 +52,7 @@ Out of scope:
 
 ## 2. Current repository state
 
-- Uncommitted on `m5-photo-metadata-14`. New files: `src/ridge/metadata/` (10 modules), `src/ridge/case/metadata_render.py`, `gui/src-tauri/src/commands/metadata.rs`, `gui/src/components/PhotoMetadata.tsx`, `gui/src/lib/usePhotoMetadata.ts`, `gui/src/dev/previewMetadata.ts`, four test files and this handoff.
+- Committed on `m5-photo-metadata-14` (`75ce609`) and opened as a pull request stacked on PR #27 (base `m5-print-area-13`). New files: `src/ridge/metadata/` (10 modules), `src/ridge/case/metadata_render.py`, `gui/src-tauri/src/commands/metadata.rs`, `gui/src/components/PhotoMetadata.tsx`, `gui/src/lib/usePhotoMetadata.ts`, `gui/src/dev/previewMetadata.ts`, four test files and this handoff.
 - PR #27 (`m5-print-area-13`) is below this branch; this work should become a stacked PR after it.
 
 ## 3. Standards applicability and evidence
@@ -153,7 +153,7 @@ Tests not run and why:
 
 ## 10. Release readiness
 
-Release type: internal build. Ready: after review, commit and merge, stacked after PR #27. Needs a rebuild of the sidecar and installers for the installed application to show it.
+Release type: internal build. Ready: after review and merge, stacked after PR #27. Needs a rebuild of the sidecar and installers for the installed application to show it.
 
 Rollback: revert the change. Reports made in between keep `input.metadata` and still verify and render.
 
@@ -166,7 +166,7 @@ Rollback: revert the change. Reports made in between keep `input.metadata` and s
 
 ## 12. Recommended next work
 
-1. Product owner: review, then commit and open the stacked PR after PR #27.
+1. Product owner: review the stacked pull request; merge it after PR #27, then retarget it to `main` if needed.
 2. Product owner: confirm the PSF-2.0 allow-list entry; DPO: answer OQ-16.
 3. Optionally a `ridge-case metadata CASE SHA [--json]` command for reviewers who work from the CLI.
 
