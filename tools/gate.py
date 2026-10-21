@@ -38,6 +38,10 @@ ALLOWED_LICENSES = {
     "CC0-1.0",
     "Apache-2.0",
     "Apache Software License",
+    # Permissive, OSI-approved; the licence of the Python runtime Ridge already ships. Added for
+    # defusedxml (safe XMP parsing), see Project_Standards_Profile.md, 2026-10-20.
+    "PSF-2.0",
+    "Python Software Foundation License",
 }
 REQUIRED_DOCS = (
     "AGENTS.md",

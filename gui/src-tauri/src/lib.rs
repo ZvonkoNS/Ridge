@@ -96,6 +96,7 @@ pub fn run() {
             commands::case::export_item,
             commands::case::preview,
             commands::case::preview_region,
+            commands::metadata::photo_metadata,
             commands::jobs::run_job,
             commands::jobs::list_jobs,
             commands::jobs::get_report,

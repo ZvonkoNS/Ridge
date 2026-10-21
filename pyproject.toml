@@ -24,6 +24,7 @@ dependencies = [
   "argon2-cffi>=25.1",  # Argon2id passphrase key derivation
   "keyring>=25.6",  # OS keystore: Windows Credential Locker, macOS Keychain, Secret Service
   "rfc8785>=0.1.4",  # RFC 8785 canonical JSON for signed reports and the custody chain
+  "defusedxml>=0.7.1",  # XMP metadata parsed without DTDs, entities or external references (CWE-611/776)
 ]
 
 [project.optional-dependencies]

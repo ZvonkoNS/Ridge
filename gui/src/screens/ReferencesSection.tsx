@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ExhibitLabel } from "../components/ExhibitLabel";
 import { ImageViewer } from "../components/ImageViewer";
 import { MeasureReadout, MeasureToggle, useMeasure } from "../components/Measure";
+import { StoredPhotoMetadata } from "../components/PhotoMetadata";
 import type { ScaleSource } from "../components/ScaleBar";
 import { Button, Hash, Notice } from "../components/ui";
 import { ipc } from "../ipc/commands";
@@ -253,6 +254,7 @@ export function ReferencesSection({ items, onFailure, onChanged, notify }: Props
           )}
         </div>
       </div>
+      {referenceItem ? <StoredPhotoMetadata sha256={referenceItem.sha256} onFailure={onFailure} /> : null}
       {references.length > 0 ? (
         <p className="review-foot">
           {references.length} reference{references.length === 1 ? "" : "s"} in this case:{" "}

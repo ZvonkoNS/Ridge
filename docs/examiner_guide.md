@@ -40,6 +40,21 @@ Tick the key-register box to also check that your signing key is registered. The
 - An optional source note (exhibit number, device) is kept with the photo and repeated in every report on it.
 - Notes on a photo stay with that photo (see [Notes](#notes)).
 
+## Photo metadata
+
+Under the photos, **Photo metadata** shows what the photo's file records about itself, read from the copy in the case store:
+
+- **Location**: the GPS position, if the file has one, in decimal degrees and as recorded, with the altitude and GPS time when present. **Copy** puts the coordinates or a Google Maps link on the clipboard. Ridge does not open the link. Paste it into a browser on a computer with internet access; opening it sends the position to Google, so follow the laboratory's rules on that.
+- **Summary**: camera, lens, software, the camera clock's times, serial numbers and exposure, each with the tags it comes from.
+- **Every group** (File, EXIF, GPS, XMP, IPTC, ICC profile, PNG text, JPEG structure, HEIF), opened one by one, and **Find in metadata** to search all of them.
+- Embedded images such as the EXIF thumbnail are listed by size and SHA-256 only, and blocks Ridge cannot decode (the camera maker's MakerNote) by size and hash. **Notes on reading** says what could not be read or was left out.
+
+Metadata is shown exactly as the file records it. Anyone can edit or remove it, so it does not by itself show where, when or with what a photo was taken: Ridge never checks it. Characters that could hide or reorder text are shown as `<U+XXXX>`. Reference images get the same panel in **References**.
+
+Every job report records the photo's metadata, and **Jobs** shows it under the report. The readable copy lists every entry, with the Google Maps link as an ordinary link and the same warning that opening it sends the position to Google. Reports made before Ridge recorded metadata say so. The output images never carry any metadata.
+
+From the command line, `ridge-case metadata <case> <sha>` prints the same for one evidence photo or reference image without running a job, and `--json` prints the record a job report holds. As with the panel, the read is written to the custody log.
+
 ## Jobs and review
 
 1. Choose a photo and its settings. Use **Region** to process one finger of several. Use **Ruler** (two points on a scale in the photo, with the distance in mm) for a calibrated 500 ppi comparison export. Without a ruler, the scale is estimated from the ridge spacing, and the report says so together with its uncertainty.
@@ -102,5 +117,5 @@ Each export and restore is recorded in the store audit file (`store-audit.jsonl`
 
 - It never identifies anyone, matches prints or draws a conclusion.
 - It never changes an original photo.
-- It never sends data anywhere: it works offline.
+- It never sends data anywhere: it works offline. It shows a map link to copy, but never opens it.
 - Its NFIQ 2 scores, where configured, are indicative only, because photos are outside the scope of NFIQ 2.

@@ -1,6 +1,6 @@
 # Forensic Evidence And Biometric Data Standards
 
-Last verified: 2026-10-16
+Last verified: 2026-10-20
 Update when: evidence handling, hashing, custody, reporting, validation, retention, data classes, or the legal assessment change.
 
 This is the canonical rule set for how Ridge treats case material, biometric data and forensic records. Where another file in this pack is less strict, this file wins. Product scope and milestones are defined in `docs/prd.md`; component design in `docs/architecture.md` and `docs/adr/` (both maintained outside this pack).
@@ -27,7 +27,7 @@ Code, CLI output, GUI text, reports, docs, commit messages and release notes mus
 | Class | Examples | Handling |
 | --- | --- | --- |
 | E - Evidence and biometric (special category, LED Art. 10) | Original case photos, extracted prints, debug images (contain a crop of the original photo), quality maps, minutiae, exports, volunteer validation images | Never in git, CI, issues, pull requests, screenshots, handoffs, logs, telemetry or AI tools. Encrypted at rest in the case store (M1). Outside the case store only on an OS-encrypted volume (interim control). |
-| C - Case-confidential | Case IDs, custody log, job reports, examiner identity, input file names and paths (names can contain personal data) | Stored with the case. Logged only as case-relative IDs and hashes at default log level. |
+| C - Case-confidential | Case IDs, custody log, job reports, examiner identity, input file names and paths (names can contain personal data), the originals' metadata as text (camera, times, GPS position, serial numbers, owner names: personal data, FR-36) | Stored with the case. Logged only as case-relative IDs and hashes at default log level. |
 | I - Internal | Source code, docs, synthetic test data, configuration without secrets | Repository. |
 | S - Secrets | Case-store passphrases, data keys, signing private keys, CI tokens | See `environment_configuration_and_secrets.md`. Never logged, never in argv, never in files in the repo. |
 
@@ -91,6 +91,8 @@ Requirement: the same input bytes, same Ridge version, same parameters and same 
 
 - Process only what the examiner selects. Output is cropped to the ridge region by default.
 - Outputs carry no EXIF, GPS or other metadata from the original. A test must prove this for every output encoder.
+- Job reports may record the original's metadata as bounded, display-safe text (FR-36, owner request 2026-10-20). They never hold embedded images: an EXIF thumbnail or other embedded picture is recorded by size and SHA-256 only, and binary blocks such as MakerNotes likewise. Metadata is read from the verified stored copy, never from the source file.
+- Ridge never sends metadata anywhere. A map link to a recorded position is shown for the examiner to copy; Ridge does not open it, and the GUI says that opening it discloses the position to the map provider.
 - Debug images (`--debug`) contain a crop of the original photo and are class E. They are off by default, written only inside the case or output area, and never part of exports.
 - No telemetry, crash reporting, analytics or update checks. Logs are local and minimal.
 - No temporary files outside the case store or the chosen output directory; processing is in memory.
@@ -137,7 +139,7 @@ Revalidation is required when pipeline numerics, default parameters, decoders, n
 
 - Mirror orientation: a photo shows the finger as seen; contact impressions are mirror images. Matcher-ready exports (planned `src/ridge/export/`) must apply and record the horizontal flip and polarity (dark ridges on light background for most matchers).
 - Physical scale: photos have no calibrated resolution. A 500 ppi export from the measured ridge period is an assumption, not a measurement. Use a scale reference in the photo where available, record the method, and cover scale error in validation.
-- Image authenticity: Ridge does not assess whether a photo is manipulated or synthetic. Provenance is assessed by the laboratory under ISO/IEC 27037/27042. Ridge records input hashes and leaves metadata untouched.
+- Image authenticity: Ridge does not assess whether a photo is manipulated or synthetic. Provenance is assessed by the laboratory under ISO/IEC 27037/27042. Ridge records input hashes and leaves metadata untouched. It shows and records the metadata as stored, with a notice that it is not verified and does not by itself establish where, when or with what a photo was taken; it never interprets or scores it.
 
 ## 15. Evidence of conformance with this file
 
@@ -147,6 +149,6 @@ Revalidation is required when pipeline numerics, default parameters, decoders, n
 | Custody log | Tests: chain verifies; tampered, reordered, truncated and re-signed logs fail verification. |
 | Reproducibility | Determinism test (same process, separate processes); golden characterization tests. |
 | Reports | Signature verification tests, including wrong key and modified field. |
-| Minimisation | Tests: outputs carry no metadata; no temp files created outside the target directory. |
+| Minimisation | Tests: outputs carry no metadata (`tests/test_metadata_reports.py` checks a GPS-tagged input); no temp files created outside the target directory; embedded thumbnails recorded by hash only. |
 | Repository hygiene | `python tools/gate.py secrets` and review checklist. |
 | Validation | Approved validation report referenced in `Project_Standards_Profile.md`. |

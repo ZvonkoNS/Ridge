@@ -3,6 +3,7 @@
 // main.tsx installs it only when import.meta.env.DEV is true and no Tauri core is present, so
 // production builds drop this module entirely (checked by the GUI gate).
 import type { Item, JobRecord, JobReport, JobResult, MinutiaeSpace, Note, Preview } from "../ipc/types";
+import { previewMetadata } from "./previewMetadata";
 
 const CASE_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 const KEY_ID = "5a1c09e3b47d2f68";
@@ -188,7 +189,12 @@ function runJob(request: Record<string, unknown>): JobResult {
     case_reference: "KT-2026-0001",
     created_utc: "2026-10-18T08:12:09Z",
     ridge: { version: "0.2.0", python: "3.13.5", platform: "Windows-11", machine: "AMD64", dependencies: {} },
-    input: { sha256: String(request.evidence), label: "IMG_0042.jpg", source: "Exhibit 12, phone A" },
+    input: {
+      sha256: String(request.evidence),
+      label: "IMG_0042.jpg",
+      source: "Exhibit 12, phone A",
+      metadata: previewMetadata(String(request.evidence) === hex(1)),
+    },
     parameters: { ...request },
     measurements: result.measurements,
     export: result.export,
@@ -303,6 +309,11 @@ const handlers: Record<string, Handler> = {
     return { ...p, sha256: sha };
   },
   export_item: () => ({ exported: "D:\\Exports\\IMG_0042_comparison_500ppi.png" }),
+  photo_metadata: (r) => ({
+    sha256: r.sha256,
+    role: "evidence",
+    metadata: previewMetadata(String(r.sha256) === hex(1)),
+  }),
   get_minutiae: (r) => ({
     sha256: r.sha256,
     job_id: null,

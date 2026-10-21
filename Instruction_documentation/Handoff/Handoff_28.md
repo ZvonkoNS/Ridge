@@ -1,180 +1,181 @@
 # Handoff_28.md
 
-Date/time (ISO 8601 with offset): 2026-10-19T14:00+02:00 (renumbered 2026-10-22)
+Date/time (ISO 8601 with offset): 2026-10-20T01:25+02:00
 Author/agent: Claude Code (claude-opus-5-5)
 Project: Ridge
-Branch: `m5-missing-engine-13` → `main`
-Base commit: `3c765dd` (Merge pull request #25, Handoff_26); `main` merged in at `6b79307` (Merge pull request #27, Handoff_27)
-Latest commit: see the pull request
-
-This handoff was written as Handoff_27 on this branch. PR #27 (print area) merged its own Handoff_27 into `main` first, so this one became Handoff_28 when `main` was merged in; Handoff_27 is unchanged.
+Branch: `m5-photo-metadata-14`, stacked on `m5-print-area-13` (PR #27)
+Base commit: `a784d37` (tip of `m5-print-area-13`)
+Latest commit: see the pull request (feature commit `75ce609`, committed on 2026-10-21 at the owner's request)
 
 ## 1. Scope
 
-Requested change: report a missing processing engine accurately instead of telling the examiner to "Restart Ridge" (product owner, 2026-10-19).
+Requested change: "I want all the available and possible meta data to be extracted from the images I upload. The meta data should be shown next to the image. If there is any geo location data it should be show and next to it should be a link to google maps at that exact location. The meta data should also be appended to the final report and data." (product owner, 2026-10-20)
 
-What happened: the GUI was started from `gui/src-tauri/target/release/deps/ridge_gui.exe`, a cargo hard-link copy of `target/release/ridge-gui.exe`. A release build looks for the engine only at `<resource dir>/sidecar/ridge-sidecar.exe`; next to `deps/` there is none, so the start failed with `NotFound`. The start screen then showed "The processing engine is not available: the processing engine could not be started. Restart Ridge; if this persists, report it." Restarting cannot fix a missing file. The engine itself was fine: `target/release/sidecar/ridge-sidecar.exe` answered `ridge.version` (0.2.0, `ridge.sidecar/1`, commit `253f4bd`).
+Decisions taken with the owner before design (AskUserQuestion, 2026-10-20):
+
+- Map link: **copy only**. Ridge shows the link with a Copy button and never opens it, so no opener, shell or network capability is added (ADR-001 and the WebView lock-down unchanged). The readable HTML report has it as an ordinary link.
+- Depth: **built-in readers** (Pillow plus defusedxml). Optional ExifTool, which would decode MakerNotes, was offered and declined.
+- Layout: **a panel under the photos** (not a side column).
+- Images: **evidence and references**. Job reports cover evidence (jobs run on evidence only).
 
 Completed work:
 
-- `Sidecar::ensure_started`: a launch that fails with `io::ErrorKind::NotFound` gives `Unavailable` "the processing engine is missing from this installation; reinstall Ridge" (`MISSING`); every other launch error keeps "the processing engine could not be started". The path is not included: IPC errors carry no internal paths (`desktop_gui_tauri_standards.md` §8, `error.rs`).
-- The sidecar remembers whether its last launch found no file (`missing`). Once the starts are used up (`MAX_STARTS`), it still reports the missing engine instead of "stopped too often; restart Ridge and report the problem". A successful launch clears it. This was the Codex finding on PR #26 (P2): with startup and store calls, four failed launches are quickly reached, and the next call gave restart advice for the same missing file. Fixed in the second commit of the pull request.
-- New `sidecar::launch(program: Option<&Path>)`, moved out of the closure in `lib.rs::run()`. It returns `NotFound` when `locate` gave no path (release build without a resource dir) or when nothing is a file at that path (missing file, or a directory). Before, the no-path case was `io::Error::other`, and was reported as a failed start.
-- Start screen (`StoreScreen.tsx`): the sentence after the core's message is chosen by `engineAdvice`. When the core asks for a reinstall, the notice ends "If this persists after reinstalling, report it." instead of "Restart Ridge; …". All other engine problems keep "Restart Ridge; if this persists, report it." This follows the existing practice of reading a core message by a fixed phrase (`ipc/commands.ts`, "no case is unlocked").
+- `src/ridge/metadata/` (new, pure: bytes in, a bounded dict out, schema `ridge.photo-metadata/1`). It contains:
+  - file facts;
+  - every EXIF group (IFD0, Exif, GPS, interoperability, thumbnail IFD; tags in file order with their numbers, codes in words);
+  - XMP via defusedxml, with lists, structures and the `xmpMM:History` edit history;
+  - IPTC-IIM (records 1 and 2, UTF-8 aware);
+  - the ICC header and description (hand-parsed with bounds checks);
+  - PNG text, JPEG APPn/COM segments and the MPF index, and HEIF items;
+  - a summary of camera, lens, software, camera-clock times, serial numbers and exposure, each line naming its tags;
+  - the location: EXIF GPS, or XMP when EXIF has none, as exact rationals rounded half-even to 7 places, with altitude, GPS time, datum and horizontal error, plus a Google Maps URLs API link.
+- Warnings explain what was not used: a position without its N/S or E/W reference or out of range, a 0,0 position, a non-WGS 84 datum, EXIF and XMP positions that differ, and blocks that could not be read. The embedded EXIF thumbnail and MakerNotes are recorded by size and SHA-256 only.
+- Every value is made display-safe: control, bidirectional and zero-width characters are written as `<U+XXXX>`, and line breaks become spaces. The record is bounded at 2000 entries, 2000 bytes per value and 200 kB of text, with `truncated` set and a warning when anything is left out.
+- Signed job reports record it as `input.metadata` (`src/ridge/case/jobs.py`), read from the same verified bytes as the pixels. Same report schema id; older reports have no `input.metadata`.
+- Text and HTML reports append a "Photo metadata" section with every entry (`src/ridge/case/metadata_render.py`). The HTML rebuilds the map link from the two numbers and escapes every value. Disclosure packages get it through their HTML copies.
+- Sidecar `metadata.get` (evidence or reference; outputs and minutiae refused; a logged read). Tauri command `photo_metadata` in a new `commands/metadata.rs`, with its capability.
+- GUI `components/PhotoMetadata.tsx`, shown under the original and output in the review and under the images in References. It has:
+  - the location with Copy buttons for the coordinates and the link, and a note that opening the link sends the position to Google;
+  - the summary;
+  - expandable group tables with a search;
+  - embedded images and the notes on reading.
 
-The examiner now sees, for a missing engine: "The processing engine is not available: the processing engine is missing from this installation; reinstall Ridge. If this persists after reinstalling, report it."
-
-Unchanged: how the engine is located (`sidecar::locate`): the bundle's resource dir in release builds, the compile-time development virtualenv in debug builds; never `PATH`, the working directory, configuration or user input. Spawning, the scrubbed environment, the bounded restarts (`MAX_STARTS`; a failed launch still counts as a start), the version check and all other messages.
+  The Jobs section shows the metadata recorded in the signed report, or says an older report has none. The dev preview has synthetic metadata.
+- Dependency: `defusedxml` 0.7.1 moved from the dev lock to `requirements.lock` (same hashes; `uv pip compile` changed only that entry). The `licenses` gate allow-list gains PSF-2.0.
+- Documents: PRD 0.13 (FR-36; notes on FR-12, FR-50 and FR-52; data inventory; R-13; OQ-16; traceability), architecture (modules, `metadata.get`, command count, §8.3 schema and paragraph, §9.1 control, §9.2 threats, §9.4 dependencies, ADR-013), examiner guide ("Photo metadata"), CHANGELOG, the standards profile, the forensic evidence standard (§2, §9, §14, §15) and the standards matrix (ASVS V1, V5).
 
 Out of scope:
 
-- Making a copy in `target/release/deps/` work. It is a build intermediate, not an installation; examiners run the installed application.
-- The duplicated advice in two other start-screen cases ("…stopped too often; restart Ridge and report the problem. Restart Ridge; …" and "internal state error; restart Ridge. Restart Ridge; …"). The first cannot occur at the start screen (it needs four failed starts); the second is pre-existing. Not changed.
+- Decoding vendor MakerNotes (declined), and an ExifTool adapter.
+- A CLI command that shows an item's metadata without a job (`ridge-case report` already prints it for every job).
+- New installers: the 0.2.0 installers do not contain this change.
 
 ## 2. Current repository state
 
-- This branch adds the four source changes below and this handoff as PR #26 against `main` (product owner, 2026-10-19): `9a347c0`, the review fix `00a28ba`, then a merge of `main` at `6b79307` (PR #27). Not merged into `main`.
-- The merge of `main` conflicted only on `Instruction_documentation/Handoff/Handoff_27.md` (both branches added one). Resolved by keeping `main`'s Handoff_27 and renaming this one; no source file conflicted. PR #27 changed none of this branch's files.
-- A `.venv/` (git-ignored) was created in the worktree from `requirements.lock` and `requirements-dev.lock` (hash-checked) plus `pip install -e .`, so that the gate's mandatory live sidecar test can find `.venv/Scripts/ridge-sidecar.exe`.
+- Committed on `m5-photo-metadata-14` (`75ce609`) and opened as a pull request stacked on PR #27 (base `m5-print-area-13`). New files: `src/ridge/metadata/` (10 modules), `src/ridge/case/metadata_render.py`, `gui/src-tauri/src/commands/metadata.rs`, `gui/src/components/PhotoMetadata.tsx`, `gui/src/lib/usePhotoMetadata.ts`, `gui/src/dev/previewMetadata.ts`, four test files and this handoff.
+- PR #27 (`m5-print-area-13`) is below this branch; this work should become a stacked PR after it.
 
 ## 3. Standards applicability and evidence
 
-Project standards profile updated: not needed.
+Project standards profile updated: yes. It gains a technology row, the hostile-input evidence, and two section 8 rows: metadata in reports (DPO review pending, OQ-16), and the PSF-2.0 allow-list entry (owner confirmation pending).
 
 | Standard/control/rule | Applies? | Evidence produced | Exception/deviation |
 | --- | --- | --- | --- |
-| `desktop_gui_tauri_standards.md` §2 (engine located from the bundle only) | Yes | `locate` unchanged; `launch` only checks that the located path is a file before spawning it | None |
-| `desktop_gui_tauri_standards.md` §8 (typed IPC errors, no internal paths) | Yes | The new message has no path; the `io::Error` text is dropped as before | None |
-| `desktop_gui_tauri_standards.md` §9, WCAG 2.2 "clear error messages" | Yes | The notice names the actual next step (reinstall), with no contradicting advice | None |
-| `coding_standards.md` (entrypoints small, files around 300 lines) | Yes | The `run()` closure shrank to one line | `sidecar.rs` is 692 lines (603 before; about 345 of code, the rest tests) and `StoreScreen.tsx` 304 lines (297 before). Pre-existing; a split of `sidecar.rs` is recommended in §12 |
-| `testing_and_codex_quality_gates.md` | Yes | Tests in §9, full gate run | See §9 |
-
-Exceptions, deviations or evidence gaps:
-
-- File sizes as above.
-
-Steps outside coding work: none.
+| Forensic: originals read-only, output pixels unchanged, goldens unchanged | Yes | Metadata read from the verified stored copy; pipeline untouched; `tests/golden/` untouched; golden comparison in the gate | None |
+| FR-12: outputs carry no source metadata | Yes | `test_output_images_carry_none_of_the_metadata` (GPS-tagged input; no EXIF, no marker strings in print or export) | None |
+| Reports hold no image data | Yes | Thumbnail by size and SHA-256 only; `test_the_exif_thumbnail_is_recorded_by_hash_and_size_never_its_pixels` | None |
+| XML security (CWE-611, CWE-776; OWASP XXE) | Yes | defusedxml with `forbid_dtd`; entity bomb and external-entity tests (a marker file is never read) | None |
+| Display safety (CWE-150, Trojan Source) | Yes | `<U+XXXX>` for hidden characters; parametrised test over seven characters; HTML escaping test | None |
+| Bounded output (CWE-400, CWE-770) | Yes | Entry and byte budgets; long-value, entry-flood and byte-budget tests; byte-level fuzzing (300 examples) | None |
+| Determinism (NFR-3) | Yes | Exact rationals, half-even rounding; same bytes give the same RFC 8785 bytes (test) | None |
+| Offline (SEC-1, ADR-001), WebView lock-down (SEC-8) | Yes | No opener or network code; the GUI panel has no `a[href]` (test); copy-only link | None |
+| Data minimisation (LED Art. 4(1)(c)) | Yes | GPS position, serials and owner names in reports at the owner's request | Profile section 8 row; DPO review pending (PRD OQ-16) |
+| Licence policy | Yes | defusedxml PSF-2.0; allow-list extended | Profile section 8 row; owner confirmation pending |
+| Accessibility (WCAG 2.2 AA) | Yes | Table captions and headers, `details`/`summary`, labelled search, copy status announced; axe check in `metadata.test.tsx` | Contrast by design tokens only (jsdom has no layout) |
+| Wording: no identification, verification or authenticity claims | Yes | Notice "Ridge does not verify metadata ... does not by itself establish where, when or with what the photo was taken" in every record | None |
 
 ## 4. Forensic impact
 
-Output pixels changed: no.
+Output pixels changed: no. Defaults or recorded parameters changed: no; reports gain `input.metadata`.
 
-Defaults or recorded parameters changed: no.
+Revalidation decision required: none for the outputs. The metadata is a record of what the file states, not part of the method.
 
-Revalidation decision required / recorded: not required: no processing, report or custody change.
+Examiner-facing wording changed: the new panel, report sections and notes. Checked: no identification, match, validation or authenticity claim, and every view says metadata is unverified.
 
-Examiner-facing wording changed (checked against forbidden claims): yes, one engine-problem message and the start-screen advice that follows it. No identification, match, validation or certification wording.
-
-Data classes touched: none. No images, case data or examiner data were opened or created; tests use fake transports and temporary paths only.
+Data classes touched: synthetic images only, made in memory by `tests/metadata_samples.py` and the dev preview. No real photo was opened.
 
 ## 5. Files changed
 
 | File | Purpose of change |
 | --- | --- |
-| `gui/src-tauri/src/sidecar.rs` | `MISSING` and the `missing` flag (classify launch errors, also after the starts are used up), `launch` (no path or no file is `NotFound`), two unit tests |
-| `gui/src-tauri/src/lib.rs` | The launch closure calls `sidecar::launch` |
-| `gui/src/screens/StoreScreen.tsx` | `engineAdvice`: no "Restart Ridge" next to "reinstall Ridge" |
-| `gui/src/test/screens.test.tsx` | Full notice text for the failed start; new test for the missing engine |
-| `Instruction_documentation/Handoff/Handoff_28.md` | This handoff |
+| `src/ridge/metadata/__init__.py`, `values.py`, `exif.py`, `exif_names.py`, `gps.py`, `xmp.py`, `iptc.py`, `icc.py`, `containers.py`, `summary.py` (new) | Metadata readers, budgets, display safety, location and map link |
+| `src/ridge/case/jobs.py` | `input.metadata` in the signed report |
+| `src/ridge/case/metadata_render.py` (new), `reports.py`, `report_html.py` | "Photo metadata" in text and HTML reports |
+| `src/ridge/sidecar/case_methods.py`, `handlers.py` | `metadata.get` |
+| `pyproject.toml`, `requirements.lock`, `requirements-dev.lock`, `tools/gate.py` | defusedxml runtime dependency; PSF-2.0 allowed |
+| `gui/src-tauri/src/commands/metadata.rs` (new), `commands/mod.rs`, `commands/list.rs`, `lib.rs`, `capabilities/main.json` | `photo_metadata` command and permission |
+| `gui/src/components/PhotoMetadata.tsx` (new), `lib/usePhotoMetadata.ts` (new), `ipc/types.ts`, `ipc/commands.ts` | Panel, loader, types |
+| `gui/src/screens/ReviewPanel.tsx`, `ReferencesSection.tsx`, `JobsSection.tsx`, `styles/app.css` | Panel under the photos; report view |
+| `gui/src/dev/preview.ts`, `gui/src/dev/previewMetadata.ts` (new) | Synthetic metadata in the dev preview |
+| `tests/metadata_samples.py`, `tests/test_metadata.py`, `tests/test_metadata_hostile.py`, `tests/test_metadata_reports.py`, `gui/src/test/metadata.test.tsx` (new) | Tests |
+| `docs/prd.md`, `docs/architecture.md`, `docs/examiner_guide.md`, `CHANGELOG.md`, `Instruction_documentation/Project_Standards_Profile.md`, `forensic_evidence_and_biometric_data_standards.md`, `standards_applicability_and_compliance_matrix.md` | Documentation |
 
 ## 6. Data store, records and formats
 
-- No case-store, custody-log, report or export format changes. No write paths added or changed.
+- Job report: additive `input.metadata` (`ridge.photo-metadata/1`). Same report schema id; readers that ignore unknown fields are unaffected; reports stay well under the 1 MiB report limit (the metadata is bounded to about 200 kB of text). Reproduction compares outputs only.
+- No custody-log, case-store or write-path change. `metadata.get` reads are logged as `evidence.read` or `reference.read`, like previews.
 
 ## 7. Configuration, keys and CI
 
-- No configuration keys, `RIDGE_*` variables, key custody, signing or CI changes.
+- New runtime dependency `defusedxml==0.7.1` (hash-pinned, pure Python). The frozen sidecar picks it up by import; rebuild it (`python tools/build_sidecar.py`) before new installers.
 
 ## 8. Security
 
-Decoder, limit or allow-list changes: none.
-
-Trust-boundary changes: none. The WebView still learns only the error kind and a fixed message. The added `is_file` check reads only the path `locate` produced.
-
-Threat-model notes: `NotFound` from `spawn` itself (after the `is_file` check) can also mean a missing interpreter for a script entry point (the development virtualenv on Linux and macOS); it is reported as a missing engine too, which is accurate for that installation.
-
-Open security risks: none added.
+- New IPC command `photo_metadata`: validates a SHA-256 handle and maps to one sidecar method; the sidecar refuses unknown fields and roles other than evidence and reference.
+- No new capability beyond that command; no opener, shell, fs or http permission; the navigation lock is unchanged.
 
 ## 9. Tests
 
-Tests added or updated:
+Tests added:
 
-- Rust `a_missing_engine_asks_for_a_reinstall_every_time`: `MAX_STARTS + 1` calls with a launch closure returning `NotFound` all give the reinstall message, including the call after the starts are used up. With `PermissionDenied`, the first `MAX_STARTS` give "could not be started" and the last "stopped too often". Both make exactly `MAX_STARTS` launches.
-- Rust `no_engine_file_is_not_found`: `launch(None)`, a path that does not exist and a directory all return `NotFound` without spawning anything.
-- Vitest "asks for a reinstall, not a restart, when the engine is missing" (full notice text, no "Restart Ridge"); the failed-start test now checks the full "Restart Ridge; if this persists, report it." sentence.
+- `tests/test_metadata.py` (25): every block of a camera JPEG, the exact location and link, words for EXIF codes, MakerNote by hash, XMP flattening, ICC/JPEG structure, determinism, hemispheres and below sea level, seven unusable positions, 0,0 and datum warnings, optional GPS fields, XMP fallback and mismatch, thumbnail by hash (and an out-of-range offset), IPTC, PNG, WebP, TIFF, HEIF, a file without metadata, rounding.
+- `tests/test_metadata_hostile.py` (21): entity bomb, external entity, malformed XMP, seven hidden characters, text rules, long values, entry flood, byte budget, a huge packet, corrupt EXIF, the entry limit, non-images, byte-level fuzzing (hypothesis, 300 examples).
+- `tests/test_metadata_reports.py` (9): signed report content, outputs metadata-free, text and HTML sections, hostile and forged values in HTML, older reports, sidecar `metadata.get` (evidence, reference by prefix, refusals, logged read).
+- `gui/src/test/metadata.test.tsx` (7): copy-only link and coordinates with axe, groups and search, embedded images and notes, no position, report view and older reports, one logged read and a failure, placement under the photos.
 
 Commands run:
 
-`python tools/gate.py all` in this worktree (Windows 11 x86-64, Python 3.13.5, worktree `.venv`), on the four source changes:
+```bash
+python tools/gate.py all   # Windows 11 x86-64, Python 3.13.5, on the final working tree
+```
 
 ```
 === all 11 gate(s) passed: docs, lint, format, typecheck, test, sast, deps, secrets, licenses, sbom, gui
 ```
 
-- pytest: 777 passed, 3 skipped, branch coverage 97.51%.
-- Vitest: 26 files, 96 tests passed (95 before).
-- Rust: 36 passed (34 before), including `the_real_sidecar_answers_over_stdio` (made mandatory by the gate) and the two new tests.
-- `cargo fmt --check` and `cargo clippy --all-targets -D warnings` clean.
+- pytest: 856 passed, 3 skipped (POSIX permission bits on Windows), branch coverage 96.79 %, including the stored-golden comparison.
+- Vitest: 107 passed (28 files). Rust: 34 passed; clippy, `cargo audit` and `cargo deny` clean. pip-audit: no known vulnerabilities in either lock; npm audit: 0 vulnerabilities.
+- `licenses`: `defusedxml 0.7.1: Python Software Foundation License` accepted by the new allow-list entry.
+- This handoff was written while that run was going; `python tools/gate.py docs` was run again afterwards with it in place and passed.
 
-That run started before this handoff was written. After writing it, `python tools/gate.py docs` was run again and passed (`=== all 1 gate(s) passed: docs`).
+Found and fixed during the work:
 
-After the review fix, `python tools/gate.py all` was run again in the same worktree:
+- A GPS position without its N/S reference was mapped south of the equator: an empty string counted as a substring of "NS". It is now refused with a warning (the test failed before the fix).
+- A metadata failure after the image opened could have been reported as a corrupt image and failed a job. The typed error now covers opening only, and every block is guarded.
+- The editing tool turned escapes of bidirectional and zero-width characters into literal invisible characters in the source. Bandit B613 and ruff caught it; the characters are now built with `chr()`.
+- A first gate run stopped at `lint` (one line over 120 characters in a new test); fixed before the run above.
+- PR #28 review (Codex), fixed in a follow-up commit, each with a test that fails without the fix:
+  - P1: an XMP coordinate with more than 4300 digits made `Fraction()` raise `ValueError` outside any guard, which would fail `metadata.get` and the job. XMP decimals are now limited to 12, and the location step is guarded like every block.
+  - P2: a GPS date such as `2024:13:40` gave a `time_utc`; only real calendar days do now, and the raw tags stay listed.
+  - P2: the HTML copy's map link is clickable. It stays clickable, because the owner chose that on 2026-10-20 (FR-36, ADR-013). The text and HTML reports now print next to it that Ridge never opens it and that opening it sends the position to Google.
+- PR #28 CI: the `deps` job failed because eight CVEs against Pillow 12.3.0 (fixed in 13.0.0) were published after the local gate run; it is not caused by this PR, and `main` and PR #27 are exposed too. A Pillow 12 to 13 upgrade changes the only image decoder, so it is a revalidation decision (forensic standard section 13) and belongs in its own pull request from `main` with the golden and arm64 pixel checks; it was not folded into this one.
+- Gates on the review-fix commit (2026-10-21, same workstation): `docs lint format typecheck test sast` passed (pytest 860 passed, 3 skipped, coverage 96.63 %). `deps` failed on the Pillow 12.3.0 advisories above. In `gui`, Vitest passed 107 and the build succeeded, but `npm audit` failed: `vite` 8.3.2 has a new high advisory through `launch-editor` (dev server only, fixed in 8.3.5), also published after the first run and also not caused by this PR. The gate stopped there, so its Rust steps were run by hand and passed: `cargo fmt --check`, clippy, 34 tests, `cargo audit`, `cargo deny check`. `secrets`, `licenses` and `sbom` passed. Both advisories need a separate dependency-update pull request before any branch can merge on green CI.
 
-```
-=== all 11 gate(s) passed: docs, lint, format, typecheck, test, sast, deps, secrets, licenses, sbom, gui
-```
+Visual check: in the dev preview (`npm --prefix gui run dev`, mocked IPC, synthetic data), the panel sat under the photo pair. It showed the position, both Copy buttons, the note and the groups, with no link element, no horizontal overflow, theme colours in dark mode, 24 px targets and no console errors. The Jobs report view showed the recorded metadata. Screenshots could not be taken (the app window was hidden), so the checks were made through the DOM.
 
-pytest 777 passed, 3 skipped, coverage 97.51%; Vitest 96 passed; Rust 36 passed, including `a_missing_engine_asks_for_a_reinstall_every_time` and the live sidecar test. Only this paragraph was added afterwards; the docs gate was re-run on it.
+Tests not run and why:
 
-After merging `main` at `6b79307` (2026-10-22), `python tools/gate.py all` **failed** at `deps`, because of vulnerability advisories published since 2026-10-19, not because of this change. `main` pins the same versions, so it fails the same check:
-
-```
-=== gate: deps
-Found 24 known vulnerabilities in 1 package
-pillow 12.3.0  CVE-2026-112390 … CVE-2026-112901 (24 IDs)  Fix Versions 13.0.0
-=== FAILED: deps
-```
-
-The gate stops at the first failure, so the rest was run separately on the merged tree:
-
-| Check | Result |
-| --- | --- |
-| docs, lint, format, typecheck, test (gate) | Passed; pytest 790 passed, 3 skipped, coverage 97.51% |
-| sast (gate) | Passed |
-| `pip_audit` of `requirements-dev.lock` (second half of `deps`) | **Failed**: `certifi 2026.7.22` PYSEC-2026-4320 (fix 2026.10.19), `uv 0.13.1` PYSEC-2026-4321 (fix 0.13.4) |
-| `gate.py secrets licenses sbom gui` | secrets, licenses and sbom passed. gui: lint, typecheck, format, Vitest (101 passed) and build passed; it **failed** at `npm audit --audit-level=moderate`: `vite 8.3.0–8.3.2`, high (GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-587h-7wmj-h5pm, GHSA-9jrq-w75r-8gcw, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg), fix `vite@8.3.5`, outside the declared range |
-| cargo steps of the gui gate, run directly in `gui/src-tauri` | `fmt --check`, `clippy --all-targets -D warnings`, `test` with `RIDGE_REQUIRE_SIDECAR=1` (36 passed), `cargo audit --deny warnings` and `cargo deny check` all passed. Not run: the npm licence check, the npm CycloneDX SBOM and `cargo cyclonedx` (they come after `npm audit` in the gate) |
-
-The dependency upgrades are not part of this change; see §11 and §12.
-
-Determinism and golden results: not affected; `tests/golden/` untouched.
-
-Tests not run and why: the change was not exercised in a built release bundle (an installed build with its engine removed); the unit tests cover the classification and the notice.
-
-Required tests still missing: none for this change.
+- The installed Tauri application with a real photo: agents do not use real photos. The product owner can check it on a rebuilt build with a test photo from their own phone (location services on).
 
 ## 10. Release readiness
 
-Release type: internal build.
+Release type: internal build. Ready: after review and merge, stacked after PR #27. Needs a rebuild of the sidecar and installers for the installed application to show it.
 
-Ready: in review as a pull request. Not ready to merge while the `deps` and `gui` gates fail (§9).
-
-Blockers: the new dependency advisories (§11), which also block `main`. Code signing and the other items in Handoff_26 §10 remain.
-
-Rollback or mitigation: revert the four source files; no data or format depends on them.
+Rollback: revert the change. Reports made in between keep `input.metadata` and still verify and render.
 
 ## 11. Open risks and known issues
 
-- `sidecar.rs` exceeds the file-size guideline (pre-existing).
-- Since 2026-10-22 the `deps` and `gui` gates fail on `main` and on every branch, because of new advisories: Pillow 12.3.0 (24 CVEs, fix 13.0.0), certifi and uv (dev lock), and Vite 8.3.0–8.3.2 (npm audit). Pillow is the image decoder. A major upgrade can change decoded pixels and so the per-architecture goldens, which needs an ADR and human approval, and the advisories have to be reviewed against Ridge's allow-listed, bounded decoding. No merge should happen on a failing gate until this is settled.
+- DPO review of GPS positions, serial numbers and owner names in reports and disclosure packages, and of guidance on opening map links (PRD OQ-16, R-13).
+- The owner should confirm the PSF-2.0 licence allow-list entry.
+- MakerNotes are not decoded, so camera-specific facts in them (for example some phones' capture details) are not shown.
+- `gui/src/screens/ReviewPanel.tsx` is 302 lines; moving `photoScale`/`outputScale` to `lib/` would bring it back under 300.
 
 ## 12. Recommended next work
 
-1. A separate dependency-security change, before any merge: review the Pillow 13.0.0 advisories and upgrade it with a golden-impact check (ADR if goldens change), and bump certifi, uv and Vite to fixed versions. Then re-run `python tools/gate.py all`.
-2. Answer and resolve the review threads on the pull request; merge on green CI and a green local gate.
-3. Split `sidecar.rs`: the process transport (`spawn`, `ChildTransport`, `launch`, `locate`) apart from the `Sidecar` restart and protocol logic, and move the tests with them.
-4. Optionally: let the core's start messages carry their own next step everywhere, so the start screen stops appending advice (removes the two duplicated cases in §1).
+1. Product owner: review the stacked pull request; merge it after PR #27, then retarget it to `main` if needed.
+2. Product owner: confirm the PSF-2.0 allow-list entry; DPO: answer OQ-16.
+3. Optionally a `ridge-case metadata CASE SHA [--json]` command for reviewers who work from the CLI.
 
 ## 13. First thing the next agent/developer should read or do
 
-Read this handoff and the pull request. Launch the GUI only from an installed build or `npx tauri dev`, not from `target/release/deps/`.
+Read this handoff, then `src/ridge/metadata/__init__.py`, the `input.metadata` paragraph in `docs/architecture.md` §8.3 and ADR-013.

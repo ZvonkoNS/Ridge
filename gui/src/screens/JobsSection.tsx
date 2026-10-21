@@ -8,6 +8,7 @@ import { ImageViewer } from "../components/ImageViewer";
 import { type KnownScale, MeasureReadout, MeasureToggle, useMeasure } from "../components/Measure";
 import { MinutiaeNote, MinutiaeToggle, useMinutiaeOverlay } from "../components/MinutiaeToggle";
 import { NotesPanel } from "../components/NotesPanel";
+import { PhotoMetadataPanel } from "../components/PhotoMetadata";
 import { Button, Hash, Notice, StaggerItem, StaggerList, utc } from "../components/ui";
 import { ipc } from "../ipc/commands";
 import type { Item, JobRecord, Reproduction, VerifiedReport } from "../ipc/types";
@@ -160,6 +161,7 @@ function ReportView({
           />
         </>
       ) : null}
+      <PhotoMetadataPanel metadata={report.input.metadata} from="report" />
       <JobCompare report={report} jobs={jobs} onFailure={onFailure} />
       <NotesPanel jobId={report.job_id} onFailure={onFailure} onAdded={onNoteAdded} />
     </article>
