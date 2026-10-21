@@ -126,6 +126,27 @@ After the review fix, `python tools/gate.py all` was run again in the same workt
 
 pytest 777 passed, 3 skipped, coverage 97.51%; Vitest 96 passed; Rust 36 passed, including `a_missing_engine_asks_for_a_reinstall_every_time` and the live sidecar test. Only this paragraph was added afterwards; the docs gate was re-run on it.
 
+After merging `main` at `6b79307` (2026-10-22), `python tools/gate.py all` **failed** at `deps`, because of vulnerability advisories published since 2026-10-19, not because of this change. `main` pins the same versions, so it fails the same check:
+
+```
+=== gate: deps
+Found 24 known vulnerabilities in 1 package
+pillow 12.3.0  CVE-2026-112390 … CVE-2026-112901 (24 IDs)  Fix Versions 13.0.0
+=== FAILED: deps
+```
+
+The gate stops at the first failure, so the rest was run separately on the merged tree:
+
+| Check | Result |
+| --- | --- |
+| docs, lint, format, typecheck, test (gate) | Passed; pytest 790 passed, 3 skipped, coverage 97.51% |
+| sast (gate) | Passed |
+| `pip_audit` of `requirements-dev.lock` (second half of `deps`) | **Failed**: `certifi 2026.7.22` PYSEC-2026-4320 (fix 2026.10.19), `uv 0.13.1` PYSEC-2026-4321 (fix 0.13.4) |
+| `gate.py secrets licenses sbom gui` | secrets, licenses and sbom passed. gui: lint, typecheck, format, Vitest (101 passed) and build passed; it **failed** at `npm audit --audit-level=moderate`: `vite 8.3.0–8.3.2`, high (GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-587h-7wmj-h5pm, GHSA-9jrq-w75r-8gcw, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg), fix `vite@8.3.5`, outside the declared range |
+| cargo steps of the gui gate, run directly in `gui/src-tauri` | `fmt --check`, `clippy --all-targets -D warnings`, `test` with `RIDGE_REQUIRE_SIDECAR=1` (36 passed), `cargo audit --deny warnings` and `cargo deny check` all passed. Not run: the npm licence check, the npm CycloneDX SBOM and `cargo cyclonedx` (they come after `npm audit` in the gate) |
+
+The dependency upgrades are not part of this change; see §11 and §12.
+
 Determinism and golden results: not affected; `tests/golden/` untouched.
 
 Tests not run and why: the change was not exercised in a built release bundle (an installed build with its engine removed); the unit tests cover the classification and the notice.
@@ -136,21 +157,23 @@ Required tests still missing: none for this change.
 
 Release type: internal build.
 
-Ready: in review as a pull request; merge only on green CI.
+Ready: in review as a pull request. Not ready to merge while the `deps` and `gui` gates fail (§9).
 
-Blockers: none for this change. Code signing and the other items in Handoff_26 §10 remain.
+Blockers: the new dependency advisories (§11), which also block `main`. Code signing and the other items in Handoff_26 §10 remain.
 
 Rollback or mitigation: revert the four source files; no data or format depends on them.
 
 ## 11. Open risks and known issues
 
 - `sidecar.rs` exceeds the file-size guideline (pre-existing).
+- Since 2026-10-22 the `deps` and `gui` gates fail on `main` and on every branch, because of new advisories: Pillow 12.3.0 (24 CVEs, fix 13.0.0), certifi and uv (dev lock), and Vite 8.3.0–8.3.2 (npm audit). Pillow is the image decoder. A major upgrade can change decoded pixels and so the per-architecture goldens, which needs an ADR and human approval, and the advisories have to be reviewed against Ridge's allow-listed, bounded decoding. No merge should happen on a failing gate until this is settled.
 
 ## 12. Recommended next work
 
-1. Answer and resolve the review threads on the pull request; merge on green CI.
-2. Split `sidecar.rs`: the process transport (`spawn`, `ChildTransport`, `launch`, `locate`) apart from the `Sidecar` restart and protocol logic, and move the tests with them.
-3. Optionally: let the core's start messages carry their own next step everywhere, so the start screen stops appending advice (removes the two duplicated cases in §1).
+1. A separate dependency-security change, before any merge: review the Pillow 13.0.0 advisories and upgrade it with a golden-impact check (ADR if goldens change), and bump certifi, uv and Vite to fixed versions. Then re-run `python tools/gate.py all`.
+2. Answer and resolve the review threads on the pull request; merge on green CI and a green local gate.
+3. Split `sidecar.rs`: the process transport (`spawn`, `ChildTransport`, `launch`, `locate`) apart from the `Sidecar` restart and protocol logic, and move the tests with them.
+4. Optionally: let the core's start messages carry their own next step everywhere, so the start screen stops appending advice (removes the two duplicated cases in §1).
 
 ## 13. First thing the next agent/developer should read or do
 
