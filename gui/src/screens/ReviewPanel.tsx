@@ -1,11 +1,13 @@
-// Side-by-side review (FR-50): the original photo with region and ruler tools on the left, the
-// job's outputs on the right, the parameters below. Both images carry exhibit labels with their
-// SHA-256; processed images say they are not an identification.
+// Side-by-side review (FR-50): the original photo with region and ruler tools on the left (after a
+// job also where its print was extracted), the job's outputs on the right, the parameters below.
+// Both images carry exhibit labels with their SHA-256; processed images say they are not an
+// identification.
 import { useState } from "react";
 
 import { ExhibitLabel } from "../components/ExhibitLabel";
 import { MeasureReadout, MeasureToggle, useMeasure } from "../components/Measure";
 import { MinutiaeNote, MinutiaeToggle, useMinutiaeOverlay } from "../components/MinutiaeToggle";
+import { PrintAreaNote, PrintAreaShape, usePrintArea } from "../components/PrintArea";
 import { ImageViewer, type Detail, type Tool } from "../components/ImageViewer";
 import type { ScaleSource } from "../components/ScaleBar";
 import { Button, Hash } from "../components/ui";
@@ -80,6 +82,7 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
   const output = usePreview(current?.sha256 ?? null, onFailure);
   const minutiaeSha = result?.outputs.find((o) => o.role === "minutiae")?.sha256 ?? null;
   const overlay = useMinutiaeOverlay(minutiaeSha, current?.role ?? null, output.source, onFailure);
+  const printArea = usePrintArea(result);
 
   const loadDetail = async (rect: Rect): Promise<Detail> => {
     const region = await ipc.previewRegion(evidence.sha256, rect.x, rect.y, rect.width, rect.height);
@@ -178,6 +181,7 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
               </label>
             ))}
           </div>
+          <PrintAreaNote overlay={printArea} />
           <ImageViewer
             title="Original photo"
             url={original.url}
@@ -186,6 +190,11 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
             tool={tool}
             roi={params.roi}
             ruler={params.ruler}
+            overlay={
+              printArea.on && printArea.area ? (
+                <PrintAreaShape area={printArea.area} size={original.source} />
+              ) : null
+            }
             onRoi={(roi) => {
               setParams((p) => ({ ...p, roi }));
             }}

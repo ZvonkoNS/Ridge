@@ -92,6 +92,18 @@ for (const e of evidence) {
   SIZES[e.sha256] = [3024, 4032, "photo"];
 }
 
+/** The synthetic finger's print area in the 3024 x 4032 photo: an ellipse inside the finger. */
+const PRINT_AREA = {
+  box_px: [912, 960, 1201, 2516] as [number, number, number, number],
+  outline_px: [
+    Array.from({ length: 32 }, (_, i): [number, number] => {
+      const a = (i / 32) * 2 * Math.PI;
+      return [Math.round(1512 + 565 * Math.cos(a)), Math.round(2218 + 1225 * Math.sin(a))];
+    }),
+  ],
+  parts: 1,
+};
+
 function runJob(request: Record<string, unknown>): JobResult {
   const n = jobs.length + 1;
   const jobId = `${String(n).padStart(8, "0")}-1111-4222-8333-444455556666`;
@@ -130,7 +142,7 @@ function runJob(request: Record<string, unknown>): JobResult {
   const result: JobResult = {
     job_id: jobId,
     outputs,
-    measurements: { ridge_period_px: 17.92, found_finger: true, output_scale: 1 },
+    measurements: { ridge_period_px: 17.92, found_finger: true, output_scale: 1, print_area: PRINT_AREA },
     export: {
       produced: true,
       sha256: hex(20 + n),

@@ -2,6 +2,12 @@
 
 Ridge is an image-enhancement aid for fingerprint examiners. Every build listed here is an **internal engineering build, not for casework** (`docs/prd.md` milestone M5). Release notes for a release add the commit, the platforms tested and the exceptions (`Instruction_documentation/release_readiness_checklist.md`).
 
+## Unreleased (after the 0.2.0 installers of 2026-10-18)
+
+Forensic impact: **output pixels unchanged.** No default or recorded parameter changed. Job reports gain `measurements.print_area`; older reports verify and render as before.
+
+- The original photo in the review shows where the print was extracted: a solid outline around the area kept as the print, the print image's frame dashed, the rest dimmed on screen. It can be hidden. The area is recorded in the signed job report (`measurements.print_area`, photo pixels after EXIF orientation), and the job summary and readable reports state it as a "Print area" line.
+
 ## Unreleased (0.2.0 line, 2026-10-18)
 
 Forensic impact: **output pixels unchanged.** No default or recorded parameter changed. Reports gained fields (below), and the custody log gained actions. Older reports and logs verify and render as before.

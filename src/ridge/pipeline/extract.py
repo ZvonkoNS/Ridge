@@ -12,6 +12,7 @@ from ridge.arrays import FloatImage, ImageU8, Mask
 from ridge.errors import NoRidgePatternError, ParameterError, ResolutionTooLowError, WorkAreaTooLargeError
 from ridge.pipeline.gabor import gabor_bank, oriented_filter, ridge_orientation
 from ridge.pipeline.imgutil import masked_blur, remove_specks
+from ridge.pipeline.location import PrintLocation, locate
 from ridge.pipeline.mask import finger_mask
 from ridge.pipeline.period import estimate_period
 from ridge.pipeline.quality import NO_RIDGES, print_region, ridge_quality
@@ -43,6 +44,8 @@ class ExtractionResult:
     # crop=False. Nominal: rounding the output size to whole pixels changes the achieved
     # scale by less than one pixel over the image. Export scaling (500 ppi) depends on it.
     output_scale: float = 1.0
+    # Where the print came from, in the pixels of the photo passed in (None only when built by hand).
+    location: PrintLocation | None = None
 
 
 def _check_arguments(bgr: object, period: float | None, min_quality: float) -> None:
@@ -149,6 +152,8 @@ def extract_fingerprint(
         full = np.zeros((h, w), np.uint8)
         full[y0:y1, x0:x1] = result
         result = full
+    window = (wx0, wy0, wx1, wy1) if crop else None
+    location = locate(region, window=window, scale=scale, bounds=(x0, y0, x1, y1), size=(w, h), period=p)
 
     debug_images = None
     if debug:
@@ -164,5 +169,10 @@ def extract_fingerprint(
         )
 
     return ExtractionResult(
-        image=result, period=period, found_finger=found_finger, debug=debug_images, output_scale=float(out_scale)
+        image=result,
+        period=period,
+        found_finger=found_finger,
+        debug=debug_images,
+        output_scale=float(out_scale),
+        location=location,
     )

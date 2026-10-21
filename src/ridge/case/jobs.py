@@ -35,7 +35,7 @@ from ridge.case.limits import LimitsOfUse, load_limits, report_section
 from ridge.case.store import OpenCase
 from ridge.errors import ExtractionError, ParameterError, RidgeError
 from ridge.image_io import ALLOWED_FORMATS, ReadLimits, decode_image, encode_image
-from ridge.pipeline import extract_fingerprint
+from ridge.pipeline import ExtractionResult, extract_fingerprint
 
 REPORT_SCHEMA = "ridge.job-report/1"
 MIN_ROI_SIDE = 32  # the smallest photo Ridge accepts (FR-9)
@@ -80,6 +80,13 @@ def apply_roi(image: ImageU8, roi: tuple[int, int, int, int] | None) -> ImageU8:
     if x + w > width or y + h > height:
         raise ParameterError(f"roi {x},{y} {w}x{h} lies outside the {width}x{height} photo")
     return np.ascontiguousarray(image[y : y + h, x : x + w])
+
+
+def print_area(result: ExtractionResult, roi: tuple[int, int, int, int] | None) -> dict[str, Any] | None:
+    """Where the print came from, in the photo's pixels after EXIF orientation (the space of roi and ruler)."""
+    if result.location is None:
+        return None
+    return (result.location if roi is None else result.location.shifted(roi[0], roi[1])).to_json()
 
 
 def check_ruler(options: ExportOptions, photo: ImageU8) -> None:
@@ -219,6 +226,7 @@ def _execute(
         "ridge_period_px": result.period,
         "found_finger": result.found_finger,
         "output_scale": result.output_scale,
+        "print_area": print_area(result, params.roi),
     }
     report: dict[str, Any] = {
         "schema": REPORT_SCHEMA,
