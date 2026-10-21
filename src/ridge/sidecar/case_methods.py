@@ -1,4 +1,4 @@
-"""Sidecar methods on the unlocked case: metadata, legal hold, items, import, verify, export, previews.
+"""Sidecar methods on the unlocked case: case details, legal hold, items, import, verify, export, previews.
 
 Previews are for display only. Every preview decrypts and reads a stored image, so every preview
 is a logged read (FR-22); images never leave the sidecar except as bounded PNGs.
@@ -23,6 +23,7 @@ from ridge.case.store import OpenCase
 from ridge.case.verify import verify_case
 from ridge.errors import ParameterError
 from ridge.image_io import ReadLimits, decode_image, encode_image
+from ridge.metadata import read_metadata
 from ridge.sidecar.protocol import Json
 from ridge.sidecar.session import Session, absolute, item_json
 
@@ -114,6 +115,19 @@ def export_item(session: Session, params: dict[str, Json]) -> Json:
     case, _ = session.require()
     dest = case.export(params["sha256"], absolute(params["dest"], "dest"), overwrite=params.get("overwrite", False))
     return {"exported": str(dest)}
+
+
+def photo_metadata(session: Session, params: dict[str, Json]) -> Json:
+    """Return an imported photo's metadata, read from its verified stored bytes (FR-36; the read is logged).
+
+    Only evidence and reference images carry the original file's metadata: outputs are written by
+    Ridge without any (FR-12), and minutiae are JSON.
+    """
+    case, _ = session.require()
+    item = case.item(params["sha256"])
+    if item.role not in ("evidence", "reference"):
+        raise ParameterError("metadata is shown for imported photos only (evidence or reference images)")
+    return {"sha256": item.sha256, "role": item.role, "metadata": read_metadata(case.read(item.sha256))}
 
 
 def declared_ppi(data: bytes) -> float | None:

@@ -84,6 +84,66 @@ export interface PrintArea {
   parts: number;
 }
 
+/**
+ * One metadata entry as the file records it, made display-safe by the trusted core (hidden and
+ * control characters are written as <U+XXXX>). `id` is the tag (EXIF "0x010F", IPTC "2:80") or,
+ * in the summary, the tags the line comes from.
+ */
+export interface MetadataEntry {
+  name: string;
+  id?: string;
+  value: string;
+}
+
+export interface MetadataGroup {
+  id: string;
+  title: string;
+  entries: MetadataEntry[];
+}
+
+/** The position the photo's metadata records (WGS 84 decimal degrees, rounded to 7 places). */
+export interface PhotoLocation {
+  source: string;
+  latitude: number;
+  longitude: number;
+  recorded: string;
+  /** A Google Maps link to copy; Ridge never opens it. */
+  map_url: string;
+  altitude_m?: number;
+  time_utc?: string;
+  datum?: string;
+  horizontal_error_m?: number;
+}
+
+/** An image inside the file (such as the EXIF thumbnail), recorded by size and hash only. */
+export interface EmbeddedImage {
+  kind: string;
+  format?: string;
+  bytes?: number;
+  sha256?: string;
+  size_px?: [number, number];
+  note?: string;
+}
+
+/** Everything Ridge read from an imported photo's metadata (schema ridge.photo-metadata/1, FR-36). */
+export interface PhotoMetadata {
+  schema: string;
+  notice: string;
+  summary: MetadataEntry[];
+  location: PhotoLocation | null;
+  groups: MetadataGroup[];
+  embedded: EmbeddedImage[];
+  warnings: string[];
+  entries: number;
+  truncated: boolean;
+}
+
+export interface PhotoMetadataView {
+  sha256: string;
+  role: "evidence" | "reference";
+  metadata: PhotoMetadata;
+}
+
 export interface Measurements {
   ridge_period_px: number;
   found_finger: boolean;
@@ -251,6 +311,8 @@ export interface JobReport {
     format?: string;
     size_px?: [number, number];
     source?: string | null;
+    /** Absent in reports made before Ridge recorded the photo's metadata. */
+    metadata?: PhotoMetadata | null;
   };
   parameters: Record<string, unknown>;
   measurements: Measurements | null;

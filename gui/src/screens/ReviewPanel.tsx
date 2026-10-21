@@ -1,5 +1,6 @@
 // Side-by-side review (FR-50): the original photo with region and ruler tools on the left (after a
-// job also where its print was extracted), the job's outputs on the right, the parameters below.
+// job also where its print was extracted), the job's outputs on the right, the photo's metadata
+// under them (FR-36), the parameters below.
 // Both images carry exhibit labels with their SHA-256; processed images say they are not an
 // identification.
 import { useState } from "react";
@@ -7,6 +8,7 @@ import { useState } from "react";
 import { ExhibitLabel } from "../components/ExhibitLabel";
 import { MeasureReadout, MeasureToggle, useMeasure } from "../components/Measure";
 import { MinutiaeNote, MinutiaeToggle, useMinutiaeOverlay } from "../components/MinutiaeToggle";
+import { StoredPhotoMetadata } from "../components/PhotoMetadata";
 import { PrintAreaNote, PrintAreaShape, usePrintArea } from "../components/PrintArea";
 import { ImageViewer, type Detail, type Tool } from "../components/ImageViewer";
 import type { ScaleSource } from "../components/ScaleBar";
@@ -262,6 +264,7 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
           )}
         </div>
       </div>
+      <StoredPhotoMetadata sha256={evidence.sha256} onFailure={onFailure} />
       <ParametersForm value={params} onChange={setParams} disabled={running}>
         <div className="params-actions">
           {problem ? (

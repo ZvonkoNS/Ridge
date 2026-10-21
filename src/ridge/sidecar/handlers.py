@@ -123,6 +123,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
         },
     ),
     "preview.get": (case.preview, {"sha256": (str_, True), "max_side": (int_, False)}),
+    "metadata.get": (case.photo_metadata, {"sha256": (str_, True)}),
     "minutiae.get": (case.minutiae, {"sha256": (str_, True)}),
     "preview.region": (
         case.preview_region,

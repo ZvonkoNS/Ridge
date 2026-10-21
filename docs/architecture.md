@@ -4,7 +4,7 @@
 | --- | --- |
 | Document | `docs/architecture.md` (IEEE 1016-style design description) |
 | Version | 0.2 (draft for owner review) |
-| Date | 2026-10-18 |
+| Date | 2026-10-20 |
 | Status | Draft. §6, §7, §8 and §9 describe the implementation (M0–M4 engineering builds, including the desktop GUI in `gui/`). Packaging of the sidecar for release (§10) is still planned. |
 | Requirements | [`docs/prd.md`](prd.md) (IDs FR-, SEC-, PRIV-, NFR-) |
 | Standards | [`Instruction_documentation/Project_Standards_Profile.md`](../Instruction_documentation/Project_Standards_Profile.md) |
@@ -83,6 +83,7 @@ flowchart TB
     EXP["export/ 500 ppi, polarity, mirror [Implemented M2]"]
     QLT["quality/ NFIQ 2 adapter [Implemented M2]"]
     MIN["minutiae/ Zhang-Suen + crossing number [Implemented M3]"]
+    MET["metadata/ photo metadata readers [Implemented 2026-10-20]"]
     KEY["case/keys.py + identity.py [Implemented M1]"]
   end
   WV -- "invoke (allow-listed)" --> RC
@@ -96,6 +97,8 @@ flowchart TB
   APP --> REP
   APP --> EXP
   APP --> QLT
+  APP --> MET
+  SC --> MET
   CASE --> KEY
   REP --> KEY
 ```
@@ -133,7 +136,8 @@ Dependency rules (enforced by review now; an import-linter contract is planned):
 | `sidecar/*` [Implemented M4] | `ridge.case`, `ridge.image_io`, `ridge.errors` | sockets or any network module (offline test), `cli` |
 | `minutiae/*` [Implemented M3] | `numpy`, `cv2`, `ridge.errors`, `ridge.pipeline.imgutil` | file I/O, `case`, `cli`; no matching of any kind |
 | `export/*`, `quality/*` [Implemented M2] | `numpy`, `cv2`, `PIL` (PNG pHYs), `ridge.errors`, `ridge.pipeline` (result type only); `quality` runs one configured external tool (absolute path, argv list, no shell, timeout) | file I/O except the NFIQ 2 temporary copy in a caller-given folder; `case`, `cli` |
-| `case/*` [Implemented M1-M2] (`crypto`, `keys`, `identity`, `custody`, `store`, `jobs`, `export_step`, `verify`, `dispose`, `reports`, `processing_record`, `compare`, `reproduce`, `listing`, `cli` with `cli_common`, `cli_records`, `cli_compare`) | `cryptography`, `argon2-cffi`, `keyring`, `rfc8785`, `ridge.errors`, `ridge.image_io`; `jobs` also `ridge.pipeline` | `cli` modules of other packages; nothing outside `case` imports `case.cli` |
+| `case/*` [Implemented M1-M2] (`crypto`, `keys`, `identity`, `custody`, `store`, `jobs`, `export_step`, `verify`, `dispose`, `reports`, `processing_record`, `compare`, `reproduce`, `listing`, `metadata_render`, `cli` with `cli_common`, `cli_records`, `cli_compare`) | `cryptography`, `argon2-cffi`, `keyring`, `rfc8785`, `ridge.errors`, `ridge.image_io`; `jobs` also `ridge.pipeline` and `ridge.metadata`; `metadata_render` also `ridge.metadata.gps` (the link template) | `cli` modules of other packages; nothing outside `case` imports `case.cli` |
+| `metadata/*` [Implemented 2026-10-20] (`values`, `exif`, `exif_names`, `gps`, `xmp`, `iptc`, `icc`, `containers`, `summary`) | `PIL`, `defusedxml`, `ridge.errors`, `ridge.image_io` (allow-list and pixel limit only) | `case`, `pipeline`, `cli`, file I/O, `xml.etree` directly (bandit B405), network; bytes in, a bounded dict out |
 
 Files are kept to about 300 lines or fewer, and functions do one job. Documentation is never imported by runtime code.
 
@@ -219,6 +223,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `job.run` | `evidence`, extraction options, `export`, `mirror`, `ppi`, `ruler`, `minutiae` | Outputs, measurements, export, quality, minutiae summary |
 | `preview.get` | `sha256`, `max_side` 16–2048 | Bounded PNG (base64) for display, with the full image's size after EXIF orientation (`source_width`, `source_height`: the space of `roi` and `ruler`); the read is logged |
 | `preview.region` | `sha256`, `x`, `y`, `width`, `height` (1–2048 px per side) | A full-resolution rectangle, unscaled and clipped to the image, for pixel inspection; the read is logged |
+| `metadata.get` | `sha256` (an evidence or reference item) | The photo's metadata (`ridge.photo-metadata/1`, §8.3), read from the verified stored bytes; outputs and minutiae are refused; the read is logged (FR-36, added 2026-10-20) |
 | `minutiae.get` | `sha256` (a minutiae item) | The job's minutiae in print and export pixels, with the "unvalidated" label, for the GUI overlay; the read is logged |
 | `case.export` | `sha256`, `dest` (absolute), `overwrite` | Logged plaintext export |
 | `case.jobs` | – | Jobs from the custody log: id, evidence, start and end time, result, whether a signed report exists |
@@ -252,7 +257,7 @@ The **Rust core** (`gui/src-tauri/src`, trusted, `#![forbid(unsafe_code)]` throu
   - reads response lines of at most 32 MiB on a reader thread, with per-method timeouts of 30 s to 20 min;
   - on a timeout, a transport failure or a protocol violation, stops the sidecar (the case locks). The next call restarts it, at most three times per run. A failed request is never resent.
   - enforces the idle lock itself: a watchdog thread sends `session.lock` once 15 minutes pass without a request (`Sidecar::lock_if_idle`). The sidecar checks its own deadline only when a request arrives, and the WebView's timers may not run while the window is minimised or suspended.
-- Commands (`commands/`): 27 thin commands; the list in `commands/list.rs` is shared by `build.rs` (ACL manifest) and the capability tests. Each command:
+- Commands (`commands/`): 46 thin commands (43 for the main window, 3 for the prompt; 2026-10-20); the list in `commands/list.rs` is shared by `build.rs` (ACL manifest) and the capability tests. Each command:
   - deserialises a `deny_unknown_fields` request;
   - validates every value: SHA-256 handles, UUIDs, free text, dates, numeric ranges;
   - maps to one sidecar method.
@@ -270,8 +275,8 @@ The **WebView** (`gui/src`, untrusted, React and TypeScript with Motion) has the
 
 - the store screen: choose a store, first-run identity, case list, new case;
 - the case screen, with these sections:
-  - **Evidence**: import with a source note, then side-by-side review. Exhibit labels show the role and SHA-256, "Processed image - not an identification" on outputs, and a millimetre scale bar drawn at the current zoom with its method and uncertainty. The viewer has keyboard zoom and pan, stated zoom and interpolation, nearest neighbour when magnified, and full-resolution detail on request. Region and ruler tools have typed alternatives. Every job parameter is visible;
-  - **Jobs**: verified reports, report export, reproduction;
+  - **Evidence**: import with a source note, then side-by-side review. Exhibit labels show the role and SHA-256, "Processed image - not an identification" on outputs, and a millimetre scale bar drawn at the current zoom with its method and uncertainty. The viewer has keyboard zoom and pan, stated zoom and interpolation, nearest neighbour when magnified, and full-resolution detail on request. Region and ruler tools have typed alternatives. Every job parameter is visible. Under the photos, the photo's metadata (FR-36): the recorded position with its Google Maps link and a Copy button (never a clickable link: the WebView may not navigate away, and Ridge has no opener), a summary, and every group in expandable tables with a search;
+  - **Jobs**: verified reports (with the photo metadata each report recorded), report export, reproduction;
   - **References**: view-only comparison and sheet export;
   - **Records**: verify, processing record, legal hold.
 
@@ -353,7 +358,15 @@ There is no custom cryptography: only library AEAD, KDF and signature primitives
   "ridge": {"version": "0.2.0", "python": "3.13.5", "platform": "Windows-11-…", "machine": "AMD64",
             "dependencies": {"numpy": "…", "opencv": "…", "pillow": "…", "cryptography": "…"}},
   "input": {"sha256": "…", "label": "IMG_0042.HEIC", "format": "HEIF", "size_px": [3024, 4032],
-            "source": "Exhibit 12, phone A"},   // size after EXIF orientation: the space of roi and ruler
+            "source": "Exhibit 12, phone A",   // size after EXIF orientation: the space of roi and ruler
+            "metadata": {"schema": "ridge.photo-metadata/1", "notice": "Read from the file as stored. …",
+                         "summary": [{"name": "Camera", "id": "EXIF Make, Model", "value": "…"}],
+                         "location": {"source": "EXIF GPS", "latitude": 46.0512333, "longitude": 14.5056778,
+                                      "recorded": "…", "map_url": "https://www.google.com/maps/search/?api=1&query=…"},
+                         "groups": [{"id": "exif-gps", "title": "EXIF: GPS",
+                                     "entries": [{"name": "GPSLatitude", "id": "0x0002", "value": "46, 3, 4.44"}]}],
+                         "embedded": [{"kind": "EXIF thumbnail", "bytes": 5120, "sha256": "sha256:…", "size_px": [160, 120]}],
+                         "warnings": [], "entries": 142, "truncated": false}},
   "parameters": {"period": null, "min_quality": 0.25, "flip": false, "crop": true, "debug": false,
                  "minutiae": false, "roi": [900, 400, 700, 1100],
                  "export": {"enabled": true, "mirror": true, "target_ppi": 500, "ruler": [12, 40, 812, 44, 40]}},
@@ -374,6 +387,8 @@ There is no custom cryptography: only library AEAD, KDF and signature primitives
 ```
 
 `print_area` (added 2026-10-19, `src/ridge/pipeline/location.py`) says where the print came from, in the photo's pixels after EXIF orientation (the space of `roi` and `ruler`; a region of interest is added back). `box_px` is `[x, y, width, height]` of the photo area the print image shows, rounded outwards to whole pixels; with `crop: false` it is the whole input (the photo or the region of interest). `outline_px` holds the outer edge of each kept area (pixel centres, largest area first), simplified to a quarter of a ridge spacing and at most 256 points in all; `parts` counts the kept areas, so a part left out of the outline would still be counted. It is geometry only and changes no output pixel. The GUI draws it on the original photo; reports signed before it have no `print_area`.
+
+`input.metadata` (added 2026-10-20, PRD FR-36, `src/ridge/metadata/`) is what the photo's file records about itself, read from the same verified bytes as the pixels. It holds the file facts (format, size, SHA-256, stored size, declared resolution), every EXIF group (IFD0, Exif, GPS, interoperability, thumbnail IFD; tags in file order with their number), XMP (every property, lists joined, structures and edit histories as `parent[i]/child`), IPTC-IIM, the ICC profile header and description, PNG text, JPEG segments and the MPF index, and HEIF items. `summary` gathers camera, lens, software, times, serial numbers and exposure, each naming its tags. `location` is the EXIF GPS position (or the XMP one when EXIF has none) in decimal degrees: exact rationals rounded half-even to 7 places, so every platform writes the same text. A position without its N/S or E/W reference, with minutes or seconds of 60 or more, or out of range is not converted and a warning says why. `map_url` is a Google Maps URLs API link; Ridge never opens it, and the readable report rebuilds it from the two numbers instead of copying the stored text. Embedded images (the EXIF thumbnail) and binary blocks (MakerNotes) are recorded by size and SHA-256 only. Every value is made display-safe (control, bidirectional and zero-width characters written as `<U+XXXX>`) and bounded: at most 2000 entries, 2000 bytes per value and 200 kB of text, with `truncated` and a warning when anything was left out. `warnings` also lists blocks that could not be read; a malformed block never fails a job. The metadata is not interpreted and not verified; `notice` says so wherever it is shown. Reports signed before it have no `input.metadata`, and `ridge-case reproduce` still compares outputs only.
 
 All timestamps are ISO 8601 UTC with a `Z` suffix. The report is canonicalised with RFC 8785 before signing. Without a ruler the scale is `ridge-period` (assumed 0.47 mm ridge distance, ±15 %, both to be validated, `assumed_ridge_period_mm` recorded). An impossible scale gives `"export": {"produced": false, "reason": …}` without failing the job; `--no-export` gives `null`. NFIQ 2 that is not configured or fails gives `{"computed": false, "reason": …}`.
 
@@ -426,6 +441,7 @@ The file holds no images and no personal data. The laboratory can countersign or
 | Decompression-bomb guard | Header dimensions checked against `max_pixels` before `load()`; `Image.MAX_IMAGE_PIXELS` set to the limit; Pillow bomb warnings escalated to errors. | FR-9; CWE-409 |
 | Single decoder, explicit errors | No fallback to a second decoder; truncated or corrupt input raises `DecodeError`. | FR-10; CWE-390, CWE-755 |
 | Metadata stripping | Outputs are encoded from pixel arrays only; EXIF orientation is applied, then discarded. | FR-12 |
+| Metadata reading (2026-10-20) | Only allow-listed images, opened with the same `formats=` list; XMP parsed with defusedxml (`forbid_dtd`, no entities, no external references) and only up to 1 MiB; ICC parsed by hand with bounds checks; one entry and byte budget per photo; every value display-safe; a malformed block becomes a warning; PNG text after the pixels is read only within the pixel limit | FR-36; CWE-611, CWE-776, CWE-150, CWE-400, CWE-770 |
 | Safe output writing | Private temporary file in the target folder and `fsync`, then publish with `os.link`, which fails atomically if the target exists (no check-then-write race). File systems without hard links fall back to exclusive create (`open("xb")`). `os.replace` only with `--overwrite`; temporary files always removed; POSIX modes `0o700` (dirs) and `0o600` (files). | FR-11; CWE-367, CWE-732 |
 | Directory traversal | Folder mode lists regular files only and skips symlinks, reporting every skipped file; output names derive from `Path.stem` (no separators). | CWE-22, CWE-59 |
 | Pipeline memory bounds | Library arguments validated (`ParameterError`); finger regions under ~75 px refused; the period-measurement rescale capped at 16 MP; work areas above 40 MP refused (`WorkAreaTooLargeError`). v0 could try to allocate many GiB for a thin skin blob. | FR-13; CWE-789, CWE-400 |
@@ -465,6 +481,9 @@ flowchart LR
 | Tampering (added 2026-10-18) | A swapped report in a disclosure package; loosened limits of use; an edited backup | Package manifest signed, and each report bound to the custody log's `report.sign` hash; signed limits fail closed; backup manifest hashes | `tests/test_package.py`, `tests/test_limits_signing.py`, `tests/test_backup.py` |
 | Elevation of privilege (added 2026-10-18) | Script in a readable HTML copy opened in a browser | Every value escaped; a page CSP of `default-src 'none'` with inline styles only; no images or forms; copies made only from verified bytes | `tests/test_report_html.py`, `tests/test_record_html.py` |
 | Repudiation (added 2026-10-18) | A record backdated past a key's revocation | Register checks use the time inside the signed data, never an unsigned envelope; full protection needs countersigned custody heads (OQ-8) | `tests/test_key_register.py` |
+| Tampering / spoofing (added 2026-10-20) | Forged or edited photo metadata (a false position, time or camera) | Shown and recorded as stored with a notice that it is not verified; never interpreted, scored or used by the pipeline; the provenance assessment stays with the laboratory (ISO/IEC 27037/27042) | `tests/test_metadata.py` (notice in every record) |
+| Denial of service / elevation of privilege (added 2026-10-20) | An XMP entity bomb or external entity; a flood of tags or huge values; hidden characters that make a value read differently (Trojan Source) | defusedxml refuses DTDs and entities; entry and byte budgets; hidden characters written as `<U+XXXX>`; the HTML report escapes every value and rebuilds the map link from numbers | `tests/test_metadata_hostile.py` (including byte-level fuzzing) |
+| Information disclosure (added 2026-10-20) | The photo's GPS position reaching a third party | Ridge has no network code and no opener: the map link is copy-only, with a note that opening it sends the position to Google; reports leave the store only through logged exports; DPO review (PRD OQ-16) | `gui/src/test/metadata.test.tsx` (no `a[href]`), `tests/test_offline.py` |
 | Information disclosure (added 2026-10-18) | The workstation check reading the OS-keystore entry; a malformed `identity.json` or `case.json` crashing a store-wide check | The check reports only whether the device secret is present and well formed, never its value, and creates nothing. `identity.json` and `case.json` are read within 64 KiB and every malformed form is a typed refusal | `tests/test_workstation.py`, `tests/test_case_crypto.py`, `tests/test_case_store.py` |
 | Information disclosure (added 2026-10-18) | A stolen recovery file together with its recovery passphrase | The file replaces only the device factor: the examiner passphrase is still needed to open a case. The laboratory keeps file and passphrase apart. Export needs the examiner passphrase, import never replaces a secret and must unlock the store first, and both are logged in the hash-chained store audit file | `tests/test_recovery.py` |
 
@@ -479,7 +498,7 @@ The full ASVS 5.0 L3 mapping (applicable chapters only, with N/A rationale for s
 ### 9.4 Supply chain
 
 - Dependencies are pinned with hashes (`requirements.lock`, `requirements-dev.lock`, pip-tools). Installs use `--require-hashes`.
-- Runtime dependencies are minimal: `numpy`, `opencv-python-headless` and `pillow` (plus `pillow-heif` as an extra). M1 adds `cryptography`, `argon2-cffi` and `keyring`.
+- Runtime dependencies are minimal: `numpy`, `opencv-python-headless` and `pillow` (plus `pillow-heif` as an extra). M1 adds `cryptography`, `argon2-cffi` and `keyring`; reports add `rfc8785`; photo metadata adds `defusedxml` (pure Python, PSF-2.0, already pinned in the dev lock, 2026-10-20).
 - CI runs `pip-audit`, a licence allow-list, a CycloneDX SBOM, CodeQL, gitleaks, dependency review and OpenSSF Scorecard. Actions are pinned by commit SHA.
 - Releases (M5) are built only from signed tags, produce signed artifacts, and are installed offline after signature verification.
 
@@ -546,5 +565,6 @@ Test layers: characterization (live v0 run, bit-identical on every platform; per
 | ADR-010 | The passphrase is typed in a separate, Rust-owned prompt window with its own page and capability, never in the main WebView ([docs/adr/ADR-010-passphrase-prompt-window.md](adr/ADR-010-passphrase-prompt-window.md)) | Accepted for engineering builds; Security Owner review pending | Tauri has no password dialog; OS-native prompts need unsafe FFI or a shell helper per platform. |
 | ADR-011 | Hand-written IPC types checked by tests; Tauri isolation pattern not adopted for now ([docs/adr/ADR-011-gui-ipc-types-and-isolation.md](adr/ADR-011-gui-ipc-types-and-isolation.md)) | Accepted | Rust and the sidecar validate every value; 27 small types do not justify a generator yet. |
 | ADR-012 | Recovery of the OS-keystore device secret, without which a store backup cannot be opened elsewhere ([docs/adr/ADR-012-device-secret-recovery.md](adr/ADR-012-device-secret-recovery.md)) | **Accepted** 2026-10-18 (product owner, also interim Security Owner) | Implemented: a recovery file sealed under a separate recovery passphrase, `ridge-case recovery export|import|check`, the store screen's recovery card and the store audit file |
+| ADR-013 | Photo metadata is read from the stored original by a pure module, recorded as bounded, display-safe text in the signed report (`input.metadata`), and shown under the photos; the map link is copy-only (no opener capability, no network) | **Accepted** 2026-10-20 (product owner: copy-only link, built-in readers, panel under the photos, evidence and references) | Keeps ADR-001 (offline) and the WebView lock-down intact; the report stays the single record; DPO review of what it may carry is open (PRD OQ-16) |
 
 ADRs move to individual files under `docs/adr/` when they need more than a table row.

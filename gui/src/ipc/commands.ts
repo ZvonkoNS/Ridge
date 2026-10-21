@@ -27,6 +27,7 @@ import type {
   LogExported,
   Note,
   PackageExported,
+  PhotoMetadataView,
   Preview,
   PromptContext,
   RegionPreview,
@@ -136,6 +137,7 @@ export const ipc = {
   preview: (sha256: string, maxSide: number) => call<Preview>("preview", { sha256, max_side: maxSide }),
   previewRegion: (sha256: string, x: number, y: number, width: number, height: number) =>
     call<RegionPreview>("preview_region", { sha256, x, y, width, height }),
+  photoMetadata: (sha256: string) => call<PhotoMetadataView>("photo_metadata", { sha256 }),
   runJob: (options: JobOptions) => call<JobResult>("run_job", { ...options }),
   listJobs: () => call<JobRecord[]>("list_jobs"),
   getReport: (jobId: string) => call<VerifiedReport>("get_report", { job_id: jobId }),

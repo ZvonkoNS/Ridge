@@ -3,8 +3,8 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/prd.md` |
-| Version | 0.12 (draft for owner review; M0-M4 implemented as engineering builds, including the desktop GUI, see `Instruction_documentation/Handoff/Handoff_15.md`) |
-| Date | 2026-10-18 |
+| Version | 0.13 (draft for owner review; M0-M4 implemented as engineering builds, including the desktop GUI, see `Instruction_documentation/Handoff/Handoff_15.md`; photo metadata FR-36 added 2026-10-20) |
+| Date | 2026-10-20 |
 | Status | Draft. Not approved. Not approved for casework. |
 | Product Owner | TBD (named owner required, see §17) |
 | Related | [`docs/architecture.md`](architecture.md), [`Instruction_documentation/Project_Standards_Profile.md`](../Instruction_documentation/Project_Standards_Profile.md), [`AGENTS.md`](../AGENTS.md) |
@@ -142,7 +142,7 @@ Day 7 is reserved for the security review, release candidate and handoff.
 | FR-9 | Ridge MUST enforce configurable limits before full decoding: maximum file size (default 200 MiB, hard cap 1 GiB), maximum pixel count (default 150 MP, hard cap 170 MP) and minimum side (32 px). | M | M0 | Oversized-file, decompression-bomb-header and tiny-image fixtures are rejected before decoding with a typed error. |
 | FR-10 | Ridge MUST report decoder failures explicitly (no silent fallback to another decoder). | M | M0 | Truncated/corrupt fixtures produce a typed `InputRejectedError`/`DecodeError` with a safe message and non-zero exit. |
 | FR-11 | Ridge MUST NOT overwrite existing outputs unless `--overwrite` is given, and MUST publish outputs atomically with no check-then-write race. `--overwrite` MUST NOT be available for case-store artefacts (M1). | M | M0 | Re-run without `--overwrite` fails for that file; an interrupted write leaves no partial or temporary file. |
-| FR-12 | Ridge MUST honour EXIF orientation and MUST NOT copy source metadata (EXIF/GPS/XMP) into outputs. | M | M0 | Test: outputs contain no metadata chunks from the source. |
+| FR-12 | Ridge MUST honour EXIF orientation and MUST NOT copy source metadata (EXIF/GPS/XMP) into outputs. | M | M0 | Test: outputs contain no metadata chunks from the source. Job reports record the source's metadata as text (FR-36); output images still carry none (tested on a GPS-tagged input, 2026-10-20). |
 | FR-13 | The pipeline MUST bound its memory use: refuse a finger region narrower than ~75 px (too small for resolvable ridges), cap the rescaling used to measure ridge spacing, and refuse work areas above 40 MP at working resolution. | M | M0 | Degenerate-mask and huge-work-area tests fail fast with typed errors. |
 
 ### 8.3 Case store and evidence integrity (M1)
@@ -170,6 +170,7 @@ Day 7 is reserved for the security review, release candidate and handoff.
 | FR-33 | Ridge SHOULD compute an NFIQ 2 score (ISO/IEC 29794-4) per export using the NIST reference implementation and record its version. | S | M2 | Score and version appear in the report; missing tool → recorded "not computed", not a failure. |
 | FR-34 | The job report MUST record: Ridge version and commit, dependency versions, platform, all parameters, measured ridge period, region statistics, input/output hashes, transforms and timestamps. | M | M2 | Schema test; reproduction from the report alone yields an identical output (`ridge-case reproduce` re-runs a signed job from its report and compares every output hash, implemented 2026-10-17). Commit recorded 2026-10-18: `ridge.commit` with `commit_source` (`build` from the stamp `tools/build_sidecar.py` writes into the frozen sidecar, `checkout` from git's files in a development checkout, or `unknown`). |
 | FR-35 | Ridge SHOULD let the examiner restrict a job to a rectangle of the photo (for example one finger of several), recorded in the report and honoured by reproduction. **Proposed 2026-10-17 by engineering from the review-and-adjust loop in §6; product-owner confirmation pending.** | S | M2 | `--roi X Y W H` / sidecar `roi`; whole-photo ROI gives identical outputs; malformed ROIs are refused before a job starts; out-of-photo ROIs fail the job with a logged reason. |
+| FR-36 | Ridge MUST read every metadata block it can from an imported photo (evidence or reference): file facts, all EXIF groups including GPS and the thumbnail IFD, XMP, IPTC-IIM, the ICC profile, PNG text, JPEG segments and MPF, HEIF items. It MUST show them next to the photo, show a recorded position in decimal degrees with a Google Maps link to copy, and record them in every job report and its readable copies. Values MUST be shown as recorded, bounded and display-safe, with a notice that Ridge does not verify them. Embedded images and binary blocks MUST be recorded by size and SHA-256 only. Ridge MUST NOT open the link or send metadata anywhere. **Requested by the product owner on 2026-10-20** ("all the available and possible meta data ... shown next to the image ... a link to google maps ... appended to the final report and data"); copy-only link, built-in readers, panel under the photos, evidence and references chosen the same day. | M | M5 | `tests/test_metadata.py` (every block, exact coordinates and link, hemispheres, unusable positions, XMP fallback, thumbnail by hash), `tests/test_metadata_hostile.py` (entity bomb, external entity, hidden characters, size and entry bounds, fuzzing), `tests/test_metadata_reports.py` (signed report, text and HTML copies, outputs metadata-free, sidecar `metadata.get`), `gui/src/test/metadata.test.tsx` (panel, copy-only link, search, axe). |
 
 ### 8.5 Minutiae and exchange (M3)
 
@@ -182,9 +183,9 @@ Day 7 is reserved for the security review, release candidate and handoff.
 
 | ID | Requirement | Pri. | MS | Acceptance criteria |
 | --- | --- | --- | --- | --- |
-| FR-50 | The GUI MUST provide case open/create, evidence import, job run with parameters, side-by-side original/region/result review, export and verify. | M | M4 | E2E tests for each flow; denial paths (locked case, failed verify). Sidecar back end for every flow implemented 2026-10-17. GUI implemented 2026-10-18: store screen (choose store, first-run identity, cases, new case), passphrase prompt window (ADR-010), evidence import, side-by-side review with all job parameters, jobs with verified reports, export, verify, legal hold, processing record. Denial paths covered by tests: locked case returns to the store, verification failure shown as an alert. Tauri WebDriver E2E open (exception). Region review on the original added 2026-10-19: after a job the original photo outlines where the print was extracted (the report's `measurements.print_area`), with the print image's frame dashed; it can be hidden. |
+| FR-50 | The GUI MUST provide case open/create, evidence import, job run with parameters, side-by-side original/region/result review, export and verify. | M | M4 | E2E tests for each flow; denial paths (locked case, failed verify). Sidecar back end for every flow implemented 2026-10-17. GUI implemented 2026-10-18: store screen (choose store, first-run identity, cases, new case), passphrase prompt window (ADR-010), evidence import, side-by-side review with all job parameters, jobs with verified reports, export, verify, legal hold, processing record. Denial paths covered by tests: locked case returns to the store, verification failure shown as an alert. Tauri WebDriver E2E open (exception). Region review on the original added 2026-10-19: after a job the original photo outlines where the print was extracted (the report's `measurements.print_area`), with the print image's frame dashed; it can be hidden. Photo metadata panel under the original and the output added 2026-10-20 (FR-36); the Jobs section shows the metadata recorded in each signed report. |
 | FR-51 | The GUI MUST support two-point scale calibration on a ruler visible in the photo. | M | M4 | Calibrated factor flows into FR-31. Implemented 2026-10-18: ruler points clicked on the photo or typed (photo pixels after EXIF orientation), distance in mm, sent as the job's `ruler`; the scale bar shows the calibrated scale and its uncertainty. |
-| FR-52 | The GUI SHOULD show an imported NAFIS/AFIS candidate image beside the Ridge export for manual comparison (view only, no matching). | S | M4 | Imported image is hashed and logged like evidence. Back end implemented 2026-10-17: `ridge-case import-reference`, `ridge-case compare` (equal-scale sheet with 10 mm bars; resolution from the file or the examiner, never guessed), sidecar `case.import_reference` / `compare.export`. GUI implemented 2026-10-18 (References section: export and reference side by side, view only, sheet export). |
+| FR-52 | The GUI SHOULD show an imported NAFIS/AFIS candidate image beside the Ridge export for manual comparison (view only, no matching). | S | M4 | Imported image is hashed and logged like evidence. Back end implemented 2026-10-17: `ridge-case import-reference`, `ridge-case compare` (equal-scale sheet with 10 mm bars; resolution from the file or the examiner, never guessed), sidecar `case.import_reference` / `compare.export`. GUI implemented 2026-10-18 (References section: export and reference side by side, view only, sheet export). The reference's metadata is shown under the images (FR-36, 2026-10-20). |
 | FR-53 | The GUI MUST meet WCAG 2.2 AA for its controls and MUST respect `prefers-reduced-motion`. | M | M4 | Automated a11y checks plus a keyboard-only walkthrough. Implemented 2026-10-18: axe-core checks of the store, case and prompt screens in Vitest (no violations; colour contrast checked by token design, jsdom has no layout); keyboard-operable viewer, typed alternatives to dragging (SC 2.5.7), 24 px minimum targets, visible focus, `MotionConfig reducedMotion="user"`. Manual screen-reader pass (NVDA, VoiceOver) open. |
 
 ## 9. Security and privacy requirements
@@ -230,6 +231,7 @@ Mapped to OWASP ASVS 5.0 (applicable chapters for an offline desktop application
 | Derived outputs (prints, debug, exports in store) | Biometric special category, evidential | Case store, encrypted | Per case |
 | Exported files | Biometric special category | Examiner-chosen location (logged); lab policy governs | Lab policy (outside Ridge) |
 | Job reports + signatures | Evidential record, personal data by reference | Case store | Per case; may outlive images if policy requires |
+| Photo metadata (camera, lens, times, GPS position, serial numbers, owner names; FR-36) | Case-confidential, personal data | In the signed job reports (encrypted), their readable copies and disclosure packages; read on demand from the stored original for display | Per case, with the reports |
 | Custody log | Evidential record | Case store | Per case; never edited |
 | Case-store keys (wrapped), signing key | Secret | OS keystore + case store (wrapped only) | Until disposal / rotation |
 | Synthetic test data | Non-personal | Repository | Indefinite |
@@ -280,6 +282,7 @@ Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 
 | R-10 | Owners not named, so approvals stall. | High | High | Owner roles are a release blocker in the standards profile. |
 | R-11 | Performance problems on large photos. | Medium | Medium | Baseline in M0; pixel limits; optimisation after correctness. |
 | R-12 | `pillow-heif` wheels bundle GPL (x265) and LGPL (libheif, libde265) code, and native HEIF decoders have a CVE history. | Medium | Medium | Internal use only; legal review; evaluate decoder-only `pi-heif` (OQ-14); HEIF stays behind the format allow-list. |
+| R-13 | Photo metadata (FR-36) is taken as proof of where, when or with what a photo was taken, or its GPS position is disclosed beyond need. | Medium | High | Every view and report says the metadata is read as stored and not verified; nothing is interpreted or scored; the map link is copy-only and says that opening it sends the position to Google; reports leave the store only through logged exports; DPO review (OQ-16). |
 
 ## 15. Open questions
 
@@ -300,6 +303,7 @@ Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 
 | OQ-13 | Confirm the design that case metadata, reports and custody logs are encrypted at rest and file names are keyed (architecture §8.1). | DPO | M1 |
 | OQ-14 | Licence review of `pillow-heif` (bundled GPL/LGPL) versus switching to `pi-heif`. | Legal + Security Owner | Before M1 release |
 | OQ-15 | Which CPU architectures will casework workstations use (x86-64 Windows/Linux, Apple silicon)? Each one needs its own method validation. Tool support added 2026-10-18: `ridge-case workstation` and the GUI "This workstation" say whether the workstation's architecture is among those the signed limits of use cover. | Forensic Quality Manager + IT | Before M5 |
+| OQ-16 | Photo metadata in reports (FR-36): may job reports, readable copies and disclosure packages carry the photo's GPS position, device serial numbers and owner names, or should some be left out or reduced? What guidance do examiners get on opening map links, which disclose the position to Google? | DPO | Before casework |
 
 ## 16. Traceability (initial)
 
@@ -309,6 +313,7 @@ Engineering success metrics for the MVP: all gates green on the 3-OS CI matrix; 
 | FR-8–FR-13 | OWASP ASVS 5.0 file handling and input validation; CWE-20, CWE-22, CWE-59, CWE-367, CWE-400, CWE-409, CWE-434, CWE-789 | §9.1 input handling | `tests/test_image_io.py`, `tests/test_hardening.py`, `tests/test_offline.py` |
 | FR-20–FR-29 | ISO/IEC 27037/27042; ISO/IEC 17025 7.5/7.11; LED Art. 25 | §8 data architecture, §9.3 integrity | case-store, custody and verify tests (M1) |
 | FR-30–FR-35 | ISO/IEC 39794-4/19794-4; ISO/IEC 29794-4; ECMA-404; ISO 8601 | §8.4 export | export and report tests (M2) |
+| FR-36 | EXIF 2.32/3.0 (CIPA DC-008), XMP (ISO 16684-1), IPTC IIM 4.2, ICC.1:2022; CWE-611, CWE-776, CWE-150, CWE-400; LED Art. 4(1)(c) | §8.3 report, §9.1 input handling, ADR-013 | `tests/test_metadata*.py`, `gui/src/test/metadata.test.tsx` |
 | SEC-1–SEC-10 | OWASP ASVS 5.0 L3 (applicable); CWE Top 25; NIST SSDF PW/PS/RV | §9 security architecture | `tools/gate.py all`, CI, tests |
 | PRIV-1–PRIV-3 | LED Art. 4, 10, 20, 25, 27; ISO/IEC 24745 | §8, §9.2 | retention/disposal tests (M1) |
 | NFR-1–NFR-10 | ISO/IEC 25010 | §10–§12 | benchmarks, CI matrix |

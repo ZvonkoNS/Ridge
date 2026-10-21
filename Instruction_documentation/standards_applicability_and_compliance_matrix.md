@@ -1,6 +1,6 @@
 # Standards Applicability And Compliance Matrix
 
-Last verified: 2026-10-16
+Last verified: 2026-10-20
 Use this file to decide which standards apply to a project, feature, module, language, deployment environment, or release. The "Ridge" column gives the verdict for this repository; the selected editions and evidence are in `Project_Standards_Profile.md`; verified sources are in `references.md`.
 
 ## Compliance rule
@@ -100,11 +100,11 @@ Every project needs a profile with owners, repository, product type, environment
 
 | Chapter | Ridge | Scope in Ridge |
 | --- | --- | --- |
-| V1 Encoding and Sanitization | Partly | JSON output encoding; neutralise control characters in file names printed to the terminal (CWE-150); GUI rendering of untrusted strings (M4). |
+| V1 Encoding and Sanitization | Partly | JSON output encoding; neutralise control characters in file names printed to the terminal (CWE-150); GUI rendering of untrusted strings (M4). Photo metadata (FR-36, 2026-10-20): XML parsed without DTDs, entities or external references (defusedxml; XXE, CWE-611/776); control, bidirectional and zero-width characters written as `<U+XXXX>`; HTML reports escape every value. |
 | V2 Validation and Business Logic | Yes | Parameter ranges, input limits, case state transitions. |
 | V3 Web Frontend Security | Future (M4), partly | CSP and script restrictions in the WebView; cookie and HTTP-header items not applicable. |
 | V4 API and Web Service | No | No HTTP API. JSON-RPC over stdio follows `edge_function_standards.md`. Trigger: any network API. |
-| V5 File Handling | Yes (core) | Size and pixel limits, format allow-list, decompression bombs, path handling, no silent overwrite. |
+| V5 File Handling | Yes (core) | Size and pixel limits, format allow-list, decompression bombs, path handling, no silent overwrite. Metadata blocks inside an accepted image are bounded too (entry and byte budgets, XMP at most 1 MiB) and a malformed block is reported, not fatal (FR-36). |
 | V6 Authentication | Future (M1), partly | Case-store passphrase handling; the OS login is outside Ridge. |
 | V7 Session Management | Future (M4), partly | Case auto-lock after inactivity, key material cleared from memory. |
 | V8 Authorization | Partly | Deny-by-default IPC allow-list (M4); case access bound to key unwrap (M1). |

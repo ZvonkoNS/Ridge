@@ -17,6 +17,7 @@ from typing import Any
 from ridge.case.case_model import publish_logged
 from ridge.case.crypto import sha256_hex
 from ridge.case.limits import render_lines as render_limits
+from ridge.case.metadata_render import metadata_html
 from ridge.case.notes import Note, list_notes
 from ridge.case.report_lines import export_line, minutiae_line, nfiq2_line, print_area_line
 from ridge.case.reports import (
@@ -41,6 +42,9 @@ body { font: 15px/1.5 system-ui, sans-serif; color: #1b1d21; background: #fff;
   margin: 2rem auto; max-width: 52rem; padding: 0 1rem; }
 h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
 h2 { font-size: 1.05rem; margin: 1.5rem 0 .5rem; }
+h3 { font-size: .95rem; margin: 1.1rem 0 .4rem; }
+table.meta td { overflow-wrap: anywhere; }
+a { color: #0b4f9c; }
 .banner { border: 2px solid #1b1d21; padding: .5rem .75rem; font-weight: 700; margin: 1rem 0; }
 table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; vertical-align: top; padding: .3rem .5rem; border-top: 1px solid #c3c7cd; }
@@ -155,6 +159,7 @@ def render_report_html(signed: SignedReport, notes: list[Note] | None = None) ->
 <h2>Results</h2>{_rows(results)}
 <h2>Outputs</h2><table><tr><th scope="col">Role</th><th scope="col">File</th><th scope="col">SHA-256</th>
 <th scope="col">Bytes</th></tr>{outputs}</table>
+{metadata_html(source.get("metadata"))}
 {_disclaimer(report.get("disclaimer"))}
 {_notes(notes or [])}
 <footer>This page renders the signed report whose SHA-256 is {_code(canonical_sha)}, custody head

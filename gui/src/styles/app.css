@@ -1438,3 +1438,123 @@ kbd {
     outline: 3px solid Highlight;
   }
 }
+
+/* ------------------------------------------------------------------ photo metadata (FR-36) */
+.meta-panel {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.meta-panel h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--step-1);
+}
+
+.meta-panel h4 {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--step-0);
+}
+
+.meta-notice,
+.meta-hint {
+  margin: 0 0 var(--space-2);
+  font-size: var(--step--1);
+  color: var(--ink-2);
+}
+
+.meta-none {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.meta-facts {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0 0 var(--space-2);
+}
+
+.meta-facts dt {
+  color: var(--ink-2);
+  font-weight: 700;
+}
+
+.meta-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mono,
+.meta-link {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  overflow-wrap: anywhere;
+}
+
+.meta-find {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: end;
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.meta-group {
+  margin: 0 0 var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--raised);
+}
+
+.meta-group > summary {
+  min-height: 24px;
+  padding: var(--space-2) var(--space-3);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.meta-group > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--step--1);
+}
+
+.meta-group .meta-table {
+  border-top: 1px solid var(--line);
+}
+
+.meta-table th,
+.meta-table td {
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.meta-table th {
+  color: var(--ink-2);
+}
+
+.meta-table td:first-child {
+  width: 16rem;
+  overflow-wrap: anywhere;
+}
+
+.meta-value {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.meta-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--step--1);
+}
