@@ -1,7 +1,8 @@
 // Evidence viewer: zoom and pan by keyboard, buttons, wheel or drag; nearest-neighbour above the
 // bitmap's own resolution so pixels are shown as computed; the zoom level and interpolation are
-// always stated. Overlays (region, ruler) are drawn on top and never change pixels. The image is
-// shown as soon as it loads: no fade, so the viewer never delays the first paint of evidence.
+// always stated. Overlays (print area, region, ruler) are drawn on top and never change pixels.
+// The image is shown as soon as it loads: no fade, so the viewer never delays the first paint of
+// evidence.
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { KeyboardEvent, PointerEvent, WheelEvent } from "react";
 
@@ -43,6 +44,8 @@ interface Props {
   loadDetail?: (rect: Rect) => Promise<Detail>;
   /** Minutiae overlay (unvalidated, orientation only), in the shown image's pixels. */
   marks?: Marks | null;
+  /** Further overlay in the image's pixels (the job's print area), drawn under region and ruler. */
+  overlay?: ReactNode;
   /** Controlled zoom (screen pixels per image pixel), for viewers linked at equal scale. */
   zoom?: number | undefined;
   onZoom?: ((zoom: number) => void) | undefined;
@@ -296,6 +299,7 @@ export function ImageViewer(props: Props) {
               viewBox={`0 0 ${source.width} ${source.height}`}
               aria-hidden="true"
             >
+              {props.overlay}
               {shown ? (
                 <rect className="ov-roi" x={shown.x} y={shown.y} width={shown.width} height={shown.height} />
               ) : null}

@@ -1,5 +1,6 @@
 // What a job measured and produced, in the report's own terms. Ridge describes processing only:
 // no score here is a match score, and the quality value is labelled indicative.
+import { areaLine } from "../components/PrintArea";
 import { Hash } from "../components/ui";
 import type { ExportInfo, LimitsSection, Measurements, MinutiaeSummary, Quality } from "../ipc/types";
 
@@ -83,6 +84,8 @@ export function JobSummary({ result }: Props) {
         <dd>{m ? `${m.ridge_period_px.toFixed(2)} px` : "-"}</dd>
         <dt>Finger located</dt>
         <dd>{m ? (m.found_finger ? "yes, by skin colour" : "no: the whole frame was used") : "-"}</dd>
+        <dt>Print area</dt>
+        <dd>{m ? areaLine(m.print_area) : "-"}</dd>
         <dt>Comparison export</dt>
         <dd>{exportLine(result.export)}</dd>
         <dt>NFIQ 2</dt>

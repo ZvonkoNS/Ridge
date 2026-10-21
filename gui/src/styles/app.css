@@ -1011,6 +1011,40 @@ kbd {
   vector-effect: non-scaling-stroke;
 }
 
+/* Print area: where the print was extracted. Outside dimmed, a solid edge on a dark halo so it
+   shows on skin and background alike, the print image's frame dashed. Line style, not colour,
+   tells them apart. */
+.ov-area-dim {
+  fill: #000000;
+  fill-opacity: 0.45;
+  stroke: none;
+}
+
+.ov-area-halo,
+.ov-area-edge,
+.ov-area-frame {
+  fill: none;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.ov-area-halo {
+  stroke: #000000;
+  stroke-opacity: 0.7;
+  stroke-width: 6px;
+}
+
+.ov-area-edge {
+  stroke: #00e676;
+  stroke-width: 3px;
+}
+
+.ov-area-frame {
+  stroke: #00e676;
+  stroke-width: 1.5px;
+  stroke-dasharray: 8 6;
+}
+
 /* Minutiae overlay: shape tells the kind (circle = ending, square = bifurcation), colour only helps. */
 .ov-mark circle,
 .ov-mark rect,
@@ -1041,6 +1075,19 @@ kbd {
 
 .overlay-toggle-start {
   margin-left: 0;
+}
+
+.area-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+  margin: 0 0 var(--space-2);
+  font-size: var(--step--1);
+}
+
+.area-legend {
+  color: var(--ink-2);
 }
 
 .overlay-note {

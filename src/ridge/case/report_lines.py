@@ -1,0 +1,54 @@
+"""One-line descriptions of job-report sections, shared by the text and HTML renderers.
+
+Each line starts with a 14-character label column ("Export        ..."); the HTML renderer
+shows the part after it.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+
+def export_line(export: dict[str, Any] | None) -> str:
+    """Describe a report's export section as one labelled text line."""
+    if export is None:
+        return "Export        not requested"
+    if not export.get("produced"):
+        return f"Export        not produced: {export.get('reason')}"
+    scale = export.get("scale") or {}
+    transforms = ", ".join(export.get("transforms") or []) or "none"
+    return (
+        f"Export        {export.get('ppi'):g} ppi, scale from {scale.get('method')} "
+        f"(+-{scale.get('uncertainty_pct', 0):.1f} %), transforms: {transforms}"
+    )
+
+
+def nfiq2_line(nfiq2: dict[str, Any] | None) -> str:
+    """Describe a report's NFIQ 2 score as one labelled text line (empty when absent)."""
+    if nfiq2 is None:
+        return ""
+    if not nfiq2.get("computed"):
+        return f"NFIQ 2        not computed: {nfiq2.get('reason')}"
+    return f"NFIQ 2        {nfiq2.get('score')} ({nfiq2.get('label')}; {nfiq2.get('version')})"
+
+
+def minutiae_line(minutiae: dict[str, Any] | None) -> str:
+    """Describe a report's minutiae summary as one labelled text line (empty when absent)."""
+    if minutiae is None:
+        return ""
+    if not minutiae.get("produced"):
+        return f"Minutiae      not produced: {minutiae.get('reason')}"
+    return (
+        f"Minutiae      {minutiae.get('count')} ({minutiae.get('endings')} endings, "
+        f"{minutiae.get('bifurcations')} bifurcations), {minutiae.get('label')}"
+    )
+
+
+def print_area_line(area: dict[str, Any] | None) -> str:
+    """Describe where the print came from in the photo (empty for reports made before it was recorded)."""
+    if not area:
+        return ""
+    x, y, w, h = area.get("box_px") or ["?", "?", "?", "?"]
+    parts = area.get("parts")
+    kept = f"{parts} kept area" + ("" if parts == 1 else "s")
+    return f"Print area    x {x}, y {y}, {w}x{h} px of the photo (the print image's frame; {kept})"

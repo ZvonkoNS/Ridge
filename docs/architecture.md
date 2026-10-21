@@ -357,7 +357,9 @@ There is no custom cryptography: only library AEAD, KDF and signature primitives
   "parameters": {"period": null, "min_quality": 0.25, "flip": false, "crop": true, "debug": false,
                  "minutiae": false, "roi": [900, 400, 700, 1100],
                  "export": {"enabled": true, "mirror": true, "target_ppi": 500, "ruler": [12, 40, 812, 44, 40]}},
-  "measurements": {"ridge_period_px": 17.9, "found_finger": true, "output_scale": 1.0},
+  "measurements": {"ridge_period_px": 17.9, "found_finger": true, "output_scale": 1.0,
+                   "print_area": {"box_px": [1010, 520, 420, 560], "parts": 1,
+                                  "outline_px": [[[1040, 545], [1400, 550], …]]}},
   "export": {"produced": true, "sha256": "…", "ppi": 500, "factor": 0.98,
              "transforms": ["polarity:dark-ridges", "mirror:horizontal", "scale:500ppi:ruler"],
              "scale": {"method": "ruler", "px_per_mm": 20.0, "uncertainty_pct": 0.25}},
@@ -370,6 +372,8 @@ There is no custom cryptography: only library AEAD, KDF and signature primitives
   "disclaimer": "Image enhancement only. Ridge does not identify anyone and draws no conclusions."
 }
 ```
+
+`print_area` (added 2026-10-19, `src/ridge/pipeline/location.py`) says where the print came from, in the photo's pixels after EXIF orientation (the space of `roi` and `ruler`; a region of interest is added back). `box_px` is `[x, y, width, height]` of the photo area the print image shows, rounded outwards to whole pixels; with `crop: false` it is the whole input (the photo or the region of interest). `outline_px` holds the outer edge of each kept area (pixel centres, largest area first), simplified to a quarter of a ridge spacing and at most 256 points in all; `parts` counts the kept areas, so a part left out of the outline would still be counted. It is geometry only and changes no output pixel. The GUI draws it on the original photo; reports signed before it have no `print_area`.
 
 All timestamps are ISO 8601 UTC with a `Z` suffix. The report is canonicalised with RFC 8785 before signing. Without a ruler the scale is `ridge-period` (assumed 0.47 mm ridge distance, ±15 %, both to be validated, `assumed_ridge_period_mm` recorded). An impossible scale gives `"export": {"produced": false, "reason": …}` without failing the job; `--no-export` gives `null`. NFIQ 2 that is not configured or fails gives `{"computed": false, "reason": …}`.
 
