@@ -10,9 +10,11 @@ goldens decode PNG only; this tool covers every allow-listed format:
     python tools/decoder_evidence.py compare old.json new.json
 
 `run` records for every input the SHA-256 of the file, of the decoded BGR pixels
-(``ridge.image_io.decode_image``), of the photo metadata record (``ridge.metadata.read_metadata``)
-and of the extracted print and its 500 ppi export PNG (``ridge.export.png.encode_png``).
-`compare` exits 1 if any of them differs. Inputs are synthetic (tests/synthetic.py,
+(``ridge.image_io.decode_image``), of the photo metadata record (``ridge.metadata.read_metadata``),
+of the extracted print and of the comparison export PNG a job with default settings stores
+(``ridge.case.export_step``: ridge-period scale, polarity, mirror, 500 ppi). `compare` exits 1 if
+any of them differs, and 2 if the two manifests come from the same versions of the image
+libraries (nothing was compared). Inputs are synthetic (tests/synthetic.py,
 tests/metadata_samples.py); never point this tool at case material.
 """
 
@@ -40,13 +42,17 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT)]  # also runs in an environment wit
 from tests import metadata_samples  # noqa: E402
 from tests.synthetic import make_photo  # noqa: E402
 
+from ridge.case.export_step import ExportOptions, photo_scale  # noqa: E402
 from ridge.errors import RidgeError  # noqa: E402
 from ridge.export.png import encode_png  # noqa: E402
+from ridge.export.transforms import make_comparison_export  # noqa: E402
 from ridge.image_io import HEIF_AVAILABLE, ReadLimits, decode_image  # noqa: E402
 from ridge.metadata import read_metadata  # noqa: E402
-from ridge.pipeline.extract import extract_fingerprint  # noqa: E402
+from ridge.pipeline.extract import ExtractionResult, extract_fingerprint  # noqa: E402
 
 CODECS = ("jpg", "libjpeg_turbo", "zlib", "libtiff", "webp", "littlecms2")
+# Environment keys whose change the evidence is about; `compare` refuses manifests where none changed.
+LIBRARIES = ("pillow", "pillow_heif", "libheif", "numpy", "opencv", "codecs")
 
 
 def _sha(data: bytes) -> str:
@@ -118,10 +124,22 @@ def _record(data: bytes) -> dict[str, str]:
 
     def extract() -> dict[str, str]:
         result = extract_fingerprint(pixels)
-        return {"print": _sha(result.image.tobytes()), "export_png": _sha(encode_png(result.image, 500.0))}
+        return {"print": _sha(result.image.tobytes()), **_attempt(partial(_export, result))}
 
     entry.update(_attempt(extract))
     return entry
+
+
+def _export(result: ExtractionResult) -> dict[str, str]:
+    """Hash the comparison export a job with default settings writes (``ridge.case.export_step``).
+
+    Ridge-period scale, dark ridges, mirrored, 500 ppi, encoded as the PNG the job stores.
+    """
+    options = ExportOptions()
+    exported = make_comparison_export(
+        result, photo_scale(result, options), mirror_image=options.mirror, target_ppi=options.target_ppi
+    )
+    return {"export_png": _sha(encode_png(exported.image, exported.ppi))}
 
 
 def _environment() -> dict[str, Any]:
@@ -162,11 +180,15 @@ def run(folder: Path, out: Path) -> int:
 
 
 def compare(old: Path, new: Path) -> int:
-    """Print every difference between two manifests; 1 if results differ."""
+    """Print every difference between two manifests; 1 if results differ, 2 if no library changed."""
     a, b = (json.loads(p.read_bytes()) for p in (old, new))
     for key in sorted(set(a["environment"]) | set(b["environment"])):
         if a["environment"].get(key) != b["environment"].get(key):
             print(f"environment {key}: {a['environment'].get(key)} -> {b['environment'].get(key)}")
+    if all(a["environment"].get(k) == b["environment"].get(k) for k in LIBRARIES):
+        # Two runs in the same environment prove nothing about an upgrade.
+        print(f"no change in {', '.join(LIBRARIES)}: the manifests do not compare two versions")
+        return 2
     names = sorted(set(a["files"]) | set(b["files"]))
     differ = [n for n in names if a["files"].get(n) != b["files"].get(n)]
     for name in differ:

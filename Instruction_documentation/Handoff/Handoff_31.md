@@ -17,7 +17,7 @@ Completed work:
 - On 2026-10-22, `pip-audit` reported **35** known vulnerabilities in `pillow 12.3.0`. Handoff_29 had recorded 8 the day before. The fix version is 13.0.0 for all of them.
 - `gui/package.json` / `gui/package-lock.json`: Vite 8.3.2 -> 8.3.5 (exact pin, as before). One package changed; `npm audit --audit-level=moderate` went from 1 high-severity entry (`launch-editor`, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-587h-7wmj-h5pm, plus the Vite dev-server advisories GHSA-9jrq-w75r-8gcw, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg) to 0.
 - `requirements-dev.lock`: certifi 2026.7.22 -> 2026.10.19 and uv 0.13.1 -> 0.13.5, for two advisories the `deps` gate found during this work (PYSEC-2026-4320, PYSEC-2026-4321). Development tools only; nothing shipped changes.
-- New `tools/decoder_evidence.py` (198 lines): evidence for decoder upgrades, which forensic standard §13 requires and the stored goldens cannot give (they decode PNG only). `make-inputs` writes 31 synthetic files once; `run` records, in the environment under test, the SHA-256 of each file's decoded BGR pixels (`ridge.image_io.decode_image`), metadata record (`ridge.metadata.read_metadata`), extracted print and 500 ppi export PNG (`ridge.export.png.encode_png`); `compare` lists every difference and exits 1 if there is one.
+- New `tools/decoder_evidence.py` (220 lines): evidence for decoder upgrades, which forensic standard §13 requires and the stored goldens cannot give (they decode PNG only). `make-inputs` writes 31 synthetic files once; `run` records, in the environment under test, the SHA-256 of each file's decoded BGR pixels (`ridge.image_io.decode_image`), metadata record (`ridge.metadata.read_metadata`), extracted print and the comparison export PNG a job with default settings stores (`ridge.case.export_step.photo_scale`, `make_comparison_export`, `encode_png`: ridge-period scale, dark ridges, mirrored, 500 ppi); `compare` lists every difference and exits 1 if there is one, and 2 if the two manifests come from the same versions of the image libraries (Pillow, pillow-heif, libheif, NumPy, OpenCV, bundled codecs), so a run that compared nothing cannot pass as evidence. Both refinements came from the Codex review of PR #29.
 - `tests/test_fuzz.py::test_decoder_warnings_are_logged_not_raised` adapted to a real Pillow 13 behaviour change (section 4).
 - Documentation: CHANGELOG, `docs/architecture.md` §9.4 (the evidence tool), `Project_Standards_Profile.md` §8 (exception closed; new revalidation row).
 
@@ -51,7 +51,11 @@ python tools/decoder_evidence.py compare pillow-12.3.0.json pillow-13.0.0.json
 # environment codecs: libjpeg_turbo 3.1.4.1 -> 3.2.0, libtiff 4.7.1 -> 4.7.2 (jpg 8.0, littlecms2 2.19, webp 1.6.0, zlib 1.3.1.zlib-ng unchanged)
 # environment pillow: 12.3.0 -> 13.0.0
 # 31 of 31 inputs give identical results   (exit 0)
+python tools/decoder_evidence.py compare pillow-13.0.0.json pillow-13.0.0.json
+# no change in pillow, pillow_heif, libheif, numpy, opencv, codecs: the manifests do not compare two versions   (exit 2)
 ```
+
+The runs above were repeated after the review fix that hashes the production comparison export: still 31 of 31 identical; 29 inputs produce an export.
 
 The 31 inputs: JPEG at quality 95 with 4:4:4 subsampling, at quality 85 with 4:2:0, progressive, greyscale and CMYK; JPEG with EXIF orientations 1 to 8; PNG RGB, RGBA, greyscale, palette, 16-bit grey and 16-bit RGB; TIFF raw, LZW, Deflate and CMYK PackBits; BMP RGB and palette; WebP lossy and lossless; HEIC (libheif 1.23.6); and three metadata samples from `tests/metadata_samples.py`. All 31 decode. 29 produce a print and an export; the two 48 x 64 metadata samples are refused as too small in both versions (`ImageTooSmallError`). The manifests are in `build/evidence/` on the development workstation (not committed: `build/` is ignored); `make-inputs` and `run` reproduce them.
 
@@ -84,6 +88,7 @@ Data classes touched and how class E data stayed out of repository and agent ses
 | `requirements-dev.lock` | certifi 2026.10.19, uv 0.13.5 |
 | `gui/package.json`, `gui/package-lock.json` | Vite 8.3.5 |
 | `tools/decoder_evidence.py` (new) | Decoder-upgrade evidence (forensic standard §13) |
+| `tests/test_decoder_evidence.py` (new) | The export hash equals the export a default job stores; `compare` refuses same-version manifests and reports differences |
 | `tests/test_fuzz.py` | Decoder-warning regression adapted to Pillow 13; checks the new refusal |
 | `CHANGELOG.md` | Unreleased entries for both upgrades |
 | `docs/architecture.md` | §9.4: decoder-upgrade evidence |
