@@ -521,7 +521,6 @@ Packaging the GUI release (implemented 2026-10-18; installers first built and sm
 5. A release build of the Rust core looks for the sidecar in its resource folder only (`sidecar::locate`).
 6. The frozen build is about 210 MB on Windows. It is not bit-reproducible (PyInstaller embeds build timestamps); the release records the SHA-256 of every shipped file instead.
 7. On Windows, `tauri build` writes an MSI (about 82 MiB, WiX 3.14) and a per-user NSIS `setup.exe` (about 57 MiB, no administrator rights). The first build downloads WiX and NSIS into `%LOCALAPPDATA%\tauri`, and Tauri checks their pinned hashes. The NSIS build installs to `%LOCALAPPDATA%\Ridge`, with the engine at `sidecar\ridge-sidecar.exe` (what `sidecar::locate` expects).
-idge-sidecar.exe` (what `sidecar::locate` expects).
 8. In the smoke test, the installed engine answered `ridge.version` with its build commit over stdio. The installed app opened its window and started WebView2 and the engine, closing it stopped the engine, and the silent uninstaller removed the installation. Neither installer is code-signed yet: that needs the laboratory's code-signing certificate.
 
 The reference workstation is to be specified (OQ-11).

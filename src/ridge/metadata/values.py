@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import Any
 
+from ridge.terminal import reveal
+
 MAX_ENTRIES = 2000  # far above a phone photo (about 150); bounds the report and the RPC response
 MAX_VALUE_BYTES = 2000  # UTF-8 bytes of one shown value
 MAX_TOTAL_BYTES = 200_000  # UTF-8 bytes of all names and values together
@@ -40,19 +42,6 @@ READ_FAILURES: tuple[type[Exception], ...] = (
     zlib.error,
 )
 
-# Shown as <U+XXXX>: C0/C1 controls, DEL, bidirectional marks, overrides and isolates (CVE-2021-42574),
-# zero-width characters, word joiners, the byte order mark and interlinear annotation characters.
-_HIDDEN_RANGES = (
-    (0x00, 0x1F),  # C0 controls
-    (0x7F, 0x9F),  # DEL and C1 controls
-    (0x061C, 0x061C),  # Arabic letter mark
-    (0x200B, 0x200F),  # zero-width space, joiners, left-to-right and right-to-left marks
-    (0x202A, 0x202E),  # bidirectional embeddings and overrides
-    (0x2060, 0x2069),  # word joiner, invisible operators, bidirectional isolates
-    (0xFEFF, 0xFEFF),  # byte order mark
-    (0xFFF9, 0xFFFB),  # interlinear annotation
-)
-_HIDDEN = re.compile("[" + "".join(f"{re.escape(chr(a))}-{re.escape(chr(b))}" for a, b in _HIDDEN_RANGES) + "]")
 _CONTROLS = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")
 _SPACES = re.compile("[\t\n\r]+")
 
@@ -60,7 +49,7 @@ _SPACES = re.compile("[\t\n\r]+")
 def text(value: str) -> str:
     """Return `value` safe to show: trailing NULs dropped, line breaks and tabs as spaces, hidden characters visible."""
     value = _SPACES.sub(" ", value.rstrip("\x00"))
-    return _HIDDEN.sub(lambda m: f"<U+{ord(m.group()):04X}>", value)
+    return reveal(value)
 
 
 def from_latin1(value: str) -> str:

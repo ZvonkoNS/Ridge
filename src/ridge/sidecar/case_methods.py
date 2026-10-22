@@ -19,11 +19,11 @@ from ridge.case.compare import PLAUSIBLE_PPI, file_ppi
 from ridge.case.export_all import INDEX, export_role
 from ridge.case.export_step import MINUTIAE_LABEL
 from ridge.case.notes import add_note, list_notes
+from ridge.case.photo_metadata import read_photo_metadata
 from ridge.case.store import OpenCase
 from ridge.case.verify import verify_case
 from ridge.errors import ParameterError
 from ridge.image_io import ReadLimits, decode_image, encode_image
-from ridge.metadata import read_metadata
 from ridge.sidecar.protocol import Json
 from ridge.sidecar.session import Session, absolute, item_json
 
@@ -124,10 +124,8 @@ def photo_metadata(session: Session, params: dict[str, Json]) -> Json:
     Ridge without any (FR-12), and minutiae are JSON.
     """
     case, _ = session.require()
-    item = case.item(params["sha256"])
-    if item.role not in ("evidence", "reference"):
-        raise ParameterError("metadata is shown for imported photos only (evidence or reference images)")
-    return {"sha256": item.sha256, "role": item.role, "metadata": read_metadata(case.read(item.sha256))}
+    item, meta = read_photo_metadata(case, params["sha256"])
+    return {"sha256": item.sha256, "role": item.role, "metadata": meta}
 
 
 def declared_ppi(data: bytes) -> float | None:

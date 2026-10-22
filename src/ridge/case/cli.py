@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 import traceback
 from collections.abc import Sequence
 from dataclasses import asdict
@@ -136,7 +135,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     counts = f"items {result.items}, reports {result.reports}, signed heads {result.signed_heads}"
     common.say(f"custody entries {result.entries}, {counts}")
     for problem in result.problems:
-        print(f"PROBLEM: {problem}", file=sys.stderr)  # noqa: T201
+        common.warn(f"PROBLEM: {problem}")
     common.say("verification passed" if result.ok else f"verification FAILED ({len(result.problems)} problem(s))")
     return 0 if result.ok else 1
 
@@ -246,14 +245,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         code = args.func(args)
     except (RidgeError, ValueError) as exc:
-        print(f"ridge-case: {exc}", file=sys.stderr)  # noqa: T201
+        common.warn(f"ridge-case: {exc}")
         return 1
     except OSError as exc:
-        print(f"ridge-case: {exc.strerror or type(exc).__name__}: {exc.filename or ''}", file=sys.stderr)  # noqa: T201
+        common.warn(f"ridge-case: {exc.strerror or type(exc).__name__}: {exc.filename or ''}")
         return 1
     except Exception as exc:  # noqa: BLE001  # a bug: report without leaking data
-        print(f"ridge-case: internal error ({type(exc).__name__}); rerun with --verbose and report it", file=sys.stderr)  # noqa: T201
+        common.warn(f"ridge-case: internal error ({type(exc).__name__}); rerun with --verbose and report it")
         if args.verbose:
-            traceback.print_exc()
+            common.warn(traceback.format_exc().rstrip())
         return 3
     return int(code or 0)

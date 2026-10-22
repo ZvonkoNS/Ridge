@@ -26,6 +26,7 @@ from typing import Any
 
 from ridge.errors import ParameterError, RidgeError
 from ridge.image_io import MiB, publish, read_bounded
+from ridge.terminal import safe
 from ridge.validation.metrics import det_curve, equal_error_rate, failure_to_extract, operating_point
 
 SCHEMA = "ridge.validation/1"
@@ -129,6 +130,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(text)  # noqa: T201
     except (RidgeError, OSError) as exc:
-        print(f"ridge-validate: {exc}", file=sys.stderr)  # noqa: T201
+        print(safe(f"ridge-validate: {exc}"), file=sys.stderr)  # noqa: T201
         return 1
     return 0

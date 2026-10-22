@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -97,7 +96,7 @@ def cmd_reproduce(args: argparse.Namespace) -> int:
         return 0
     for label, items in (("differs", result.differing), ("missing", result.missing), ("extra", result.extra)):
         for item in items:
-            print(f"{label}: {printable(item)}", file=sys.stderr)  # noqa: T201
+            common.warn(f"{label}: {printable(item)}")
     common.say(
         f"NOT reproduced: job {result.original_job} re-run as {result.new_job}; {len(result.matched)} outputs match"
     )
