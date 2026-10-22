@@ -208,26 +208,9 @@ def _execute(
         debug=params.debug,
     )
     stem = evidence.label.rsplit(".", 1)[0]
-    outputs = [
-        case.store_artefact(
-            encode_image(result.image, ".png"), role="print", label=f"{stem}_fingerprint.png", job_id=job_id
-        )
-    ]
-    if result.debug is not None:
-        for step, ext in (("region", ".jpg"), ("normalized", ".png"), ("gabor", ".png"), ("quality", ".png")):
-            png = encode_image(getattr(result.debug, step), ext)
-            outputs.append(case.store_artefact(png, role="debug", label=f"{stem}_debug_{step}{ext}", job_id=job_id))
-    exports, export_fields = export_and_score(
-        case, result, stem=stem, job_id=job_id, options=params.export, nfiq2_command=nfiq2_command
+    outputs, export_fields = _store_outputs(
+        case, result, stem, job_id=job_id, params=params, nfiq2_command=nfiq2_command
     )
-    outputs.extend(exports)
-    if params.minutiae:
-        found, minutiae_fields = minutiae_step(
-            case, result, stem=stem, job_id=job_id, export=export_fields["export"], mirrored=params.export.mirror
-        )
-        outputs.extend(found)
-        export_fields.update(minutiae_fields)
-
     measurements = {
         "ridge_period_px": result.period,
         "found_finger": result.found_finger,
@@ -256,6 +239,44 @@ def _execute(
         "signer": {"key_id": signer.key_id, "public_key": b64(signer.public_key)},
         "disclaimer": DISCLAIMER,
     }
+    _sign_and_close(case, job_id, report, signer)
+    return JobOutcome(job_id, outputs, report)
+
+
+def _store_outputs(
+    case: OpenCase,
+    result: ExtractionResult,
+    stem: str,
+    *,
+    job_id: str,
+    params: JobParams,
+    nfiq2_command: Sequence[str] | None,
+) -> tuple[list[StoredItem], dict[str, Any]]:
+    """Store the print, debug images, comparison export and minutiae; return them and their report fields."""
+    outputs = [
+        case.store_artefact(
+            encode_image(result.image, ".png"), role="print", label=f"{stem}_fingerprint.png", job_id=job_id
+        )
+    ]
+    if result.debug is not None:
+        for step, ext in (("region", ".jpg"), ("normalized", ".png"), ("gabor", ".png"), ("quality", ".png")):
+            png = encode_image(getattr(result.debug, step), ext)
+            outputs.append(case.store_artefact(png, role="debug", label=f"{stem}_debug_{step}{ext}", job_id=job_id))
+    exports, export_fields = export_and_score(
+        case, result, stem=stem, job_id=job_id, options=params.export, nfiq2_command=nfiq2_command
+    )
+    outputs.extend(exports)
+    if params.minutiae:
+        found, minutiae_fields = minutiae_step(
+            case, result, stem=stem, job_id=job_id, export=export_fields["export"], mirrored=params.export.mirror
+        )
+        outputs.extend(found)
+        export_fields.update(minutiae_fields)
+    return outputs, export_fields
+
+
+def _sign_and_close(case: OpenCase, job_id: str, report: dict[str, Any], signer: Signer) -> None:
+    """Store the signed canonical report, close the job in the custody log and sign the new head."""
     canonical = bytes(rfc8785.dumps(report))
     case.put_report(job_id, canonical, signer.sign(canonical))
     case.entries.append(
@@ -263,4 +284,3 @@ def _execute(
     )
     case.entries.append(case.custody.append("job.end", job_id=job_id))
     case.entries.append(case.custody.sign_head(signer))
-    return JobOutcome(job_id, outputs, report)

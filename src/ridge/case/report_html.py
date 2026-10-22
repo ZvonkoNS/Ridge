@@ -111,39 +111,14 @@ def render_report_html(signed: SignedReport, notes: list[Note] | None = None) ->
     section, marked as not part of the signed report.
     """
     report = signed.report
-    env, source = report.get("ridge") or {}, report.get("input") or {}
-    params, meas = report.get("parameters") or {}, report.get("measurements") or {}
-    size = source.get("size_px") or ["?", "?"]
-    summary = [
-        ("Case reference", _text(report.get("case_reference"))),
-        ("Case", _code(report.get("case_id"))),
-        ("Job", _code(report.get("job_id"))),
-        ("Created (UTC)", _text(report.get("created_utc"))),
-        ("Signed with key", _code(signed.key_id)),
-        ("Ridge", _text(f"{env.get('version')} on {env.get('platform')} ({env.get('machine')})")),
-        ("Python", _text(env.get("python"))),
-        ("Commit", _code(f"{env.get('commit')} ({env.get('commit_source')})") if env.get("commit") else ""),
-    ]
-    inputs = [
-        ("Photo", _text(f"{source.get('label')} · {source.get('format')} {size[0]} x {size[1]} px")),
-        ("SHA-256", _code(source.get("sha256"))),
-        ("Source", _text(source.get("source")) if source.get("source") else ""),
-    ]
+    source, params = report.get("input") or {}, report.get("parameters") or {}
     parameters = [(str(k), _code(_param(v))) for k, v in sorted(params.items())]
-    results = [
-        ("Ridge spacing", _text(f"{meas.get('ridge_period_px', 0):.2f} px") if meas else ""),
-        ("Finger located", _text("yes" if meas.get("found_finger") else "no") if meas else ""),
-        ("Print area", _text(_value(print_area_line(meas.get("print_area"))))),
-        ("Export", _text(_value(export_line(report.get("export"))).replace("+-", "±"))),
-        ("NFIQ 2", _text(_value(nfiq2_line((report.get("quality") or {}).get("nfiq2"))))),
-        ("Minutiae", _text(_value(minutiae_line(report.get("minutiae"))))),
-        ("Limits of use", _limits(report.get("limits_of_use"))),
-    ]
     outputs = "".join(
         f"<tr><td>{_text(o.get('role'))}</td><td>{_text(o.get('label'))}</td><td>{_code(o.get('sha256'))}</td>"
         f"<td>{_text(o.get('size'))}</td></tr>"
         for o in report.get("outputs") or []
     )
+    summary, inputs, results = _summary_rows(signed), _input_rows(source), _result_rows(report)
     canonical_sha = sha256_hex(signed.canonical)
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
@@ -167,6 +142,43 @@ def render_report_html(signed: SignedReport, notes: list[Note] | None = None) ->
 verify them with <code>ridge-case check-report</code>. This page is not signed.</footer>
 </body></html>
 """
+
+
+def _summary_rows(signed: SignedReport) -> list[tuple[str, str]]:
+    report = signed.report
+    env = report.get("ridge") or {}
+    return [
+        ("Case reference", _text(report.get("case_reference"))),
+        ("Case", _code(report.get("case_id"))),
+        ("Job", _code(report.get("job_id"))),
+        ("Created (UTC)", _text(report.get("created_utc"))),
+        ("Signed with key", _code(signed.key_id)),
+        ("Ridge", _text(f"{env.get('version')} on {env.get('platform')} ({env.get('machine')})")),
+        ("Python", _text(env.get("python"))),
+        ("Commit", _code(f"{env.get('commit')} ({env.get('commit_source')})") if env.get("commit") else ""),
+    ]
+
+
+def _input_rows(source: dict[str, Any]) -> list[tuple[str, str]]:
+    size = source.get("size_px") or ["?", "?"]
+    return [
+        ("Photo", _text(f"{source.get('label')} · {source.get('format')} {size[0]} x {size[1]} px")),
+        ("SHA-256", _code(source.get("sha256"))),
+        ("Source", _text(source.get("source")) if source.get("source") else ""),
+    ]
+
+
+def _result_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
+    meas = report.get("measurements") or {}
+    return [
+        ("Ridge spacing", _text(f"{meas.get('ridge_period_px', 0):.2f} px") if meas else ""),
+        ("Finger located", _text("yes" if meas.get("found_finger") else "no") if meas else ""),
+        ("Print area", _text(_value(print_area_line(meas.get("print_area"))))),
+        ("Export", _text(_value(export_line(report.get("export"))).replace("+-", "±"))),
+        ("NFIQ 2", _text(_value(nfiq2_line((report.get("quality") or {}).get("nfiq2"))))),
+        ("Minutiae", _text(_value(minutiae_line(report.get("minutiae"))))),
+        ("Limits of use", _limits(report.get("limits_of_use"))),
+    ]
 
 
 def export_report_html(case: OpenCase, store: Path, ref: str, dest: Path, *, overwrite: bool = False) -> SignedReport:
