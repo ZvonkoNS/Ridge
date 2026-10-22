@@ -74,26 +74,36 @@ impl JobRequest {
         ] {
             params.insert(name.into(), json!(value));
         }
-        if let Some([x1, y1, x2, y2, mm]) = self.ruler {
-            for c in [x1, y1, x2, y2] {
-                validate::number(c, 0.0, 1_000_000.0, "ruler point")?;
-            }
-            validate::number(mm, 0.1, 1000.0, "ruler distance")?;
-            if (x1 - x2).hypot(y1 - y2) < 2.0 {
-                return Err(IpcError::invalid("the two ruler points must be apart"));
-            }
-            params.insert("ruler".into(), json!([x1, y1, x2, y2, mm]));
+        if let Some(ruler) = self.ruler {
+            params.insert("ruler".into(), checked_ruler(ruler)?);
         }
-        if let Some([x, y, w, h]) = self.roi {
-            if w < 32 || h < 32 {
-                return Err(IpcError::invalid(
-                    "the region must be at least 32 x 32 pixels",
-                ));
-            }
-            params.insert("roi".into(), json!([x, y, w, h]));
+        if let Some(roi) = self.roi {
+            params.insert("roi".into(), checked_roi(roi)?);
         }
         Ok(params)
     }
+}
+
+/// Two points in photo pixels and the distance between them in millimetres.
+fn checked_ruler([x1, y1, x2, y2, mm]: [f64; 5]) -> Result<Value, IpcError> {
+    for c in [x1, y1, x2, y2] {
+        validate::number(c, 0.0, 1_000_000.0, "ruler point")?;
+    }
+    validate::number(mm, 0.1, 1000.0, "ruler distance")?;
+    if (x1 - x2).hypot(y1 - y2) < 2.0 {
+        return Err(IpcError::invalid("the two ruler points must be apart"));
+    }
+    Ok(json!([x1, y1, x2, y2, mm]))
+}
+
+/// x, y, width and height in photo pixels; the sidecar checks that it lies on the photo.
+fn checked_roi([x, y, w, h]: [u32; 4]) -> Result<Value, IpcError> {
+    if w < 32 || h < 32 {
+        return Err(IpcError::invalid(
+            "the region must be at least 32 x 32 pixels",
+        ));
+    }
+    Ok(json!([x, y, w, h]))
 }
 
 /// Run one extraction job (FR-23, FR-30 to FR-35, FR-40).
