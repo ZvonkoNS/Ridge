@@ -16,13 +16,13 @@ import {
   toSource,
   visibleRect,
   zoomAround,
-  zoomLabel,
   type Point,
   type Rect,
   type Size,
 } from "../lib/viewport";
 import type { Marks } from "../lib/minutiae";
-import { Button } from "./ui";
+import { ViewerOverlay } from "./ViewerOverlay";
+import { ViewerZoomBar } from "./ViewerZoomBar";
 
 export type Tool = "pan" | "roi" | "ruler";
 
@@ -66,23 +66,6 @@ export function covers(outer: Rect, inner: Rect): boolean {
     outer.y <= inner.y &&
     outer.x + outer.width >= inner.x + inner.width &&
     outer.y + outer.height >= inner.y + inner.height
-  );
-}
-
-/** One minutia: a circle (ending) or a square (bifurcation) with a tick in its direction. */
-function MarkShape({ mark, size }: { mark: Marks["items"][number]; size: number }) {
-  const angle = (mark.angle * Math.PI) / 180; // counter-clockwise from +x; image y grows downwards
-  const x2 = mark.x + Math.cos(angle) * size * 2.2;
-  const y2 = mark.y - Math.sin(angle) * size * 2.2;
-  return (
-    <g className={`ov-mark ov-${mark.kind}`}>
-      {mark.kind === "ending" ? (
-        <circle cx={mark.x} cy={mark.y} r={size} />
-      ) : (
-        <rect x={mark.x - size} y={mark.y - size} width={size * 2} height={size * 2} />
-      )}
-      <line x1={mark.x} y1={mark.y} x2={x2} y2={y2} />
-    </g>
   );
 }
 
@@ -294,69 +277,28 @@ export function ImageViewer(props: Props) {
                 }}
               />
             ) : null}
-            <svg
-              className="viewer-overlay"
-              viewBox={`0 0 ${source.width} ${source.height}`}
-              aria-hidden="true"
-            >
-              {props.overlay}
-              {shown ? (
-                <rect className="ov-roi" x={shown.x} y={shown.y} width={shown.width} height={shown.height} />
-              ) : null}
-              {ruler.length === 2 && ruler[0] && ruler[1] ? (
-                <line className="ov-ruler" x1={ruler[0].x} y1={ruler[0].y} x2={ruler[1].x} y2={ruler[1].y} />
-              ) : null}
-              {props.marks?.items.map((m, i) => (
-                <MarkShape key={i} mark={m} size={props.marks?.size ?? 4} />
-              ))}
-              {ruler.map((p, i) => (
-                <circle key={i} className="ov-point" cx={p.x} cy={p.y} r={6 / zoom} />
-              ))}
-            </svg>
+            <ViewerOverlay
+              source={source}
+              zoom={zoom}
+              overlay={props.overlay}
+              region={shown}
+              ruler={ruler}
+              marks={props.marks}
+            />
           </div>
         ) : (
           <p className="viewer-empty">{url === null ? "Loading the image..." : "No image"}</p>
         )}
       </div>
       <div className="viewer-bar">
-        <div className="viewer-zoom" role="group" aria-label="Zoom">
-          <Button
-            onClick={() => {
-              zoomTo(nextStep(zoom, -1));
-            }}
-            aria-label="Zoom out"
-          >
-            −
-          </Button>
-          <output className="viewer-readout" aria-live="polite">
-            {zoomLabel(zoom)} · {readout}
-          </output>
-          <Button
-            onClick={() => {
-              zoomTo(nextStep(zoom, 1));
-            }}
-            aria-label="Zoom in"
-          >
-            +
-          </Button>
-          <Button onClick={fit}>Fit</Button>
-          <Button
-            onClick={() => {
-              zoomTo(1);
-            }}
-          >
-            100 %
-          </Button>
-          {props.loadDetail && magnifiedPreview && !detailCovers ? (
-            <Button
-              onClick={() => void showDetail()}
-              busy={detailBusy}
-              title="Each full-resolution view is a logged read"
-            >
-              Full resolution here
-            </Button>
-          ) : null}
-        </div>
+        <ViewerZoomBar
+          zoom={zoom}
+          readout={readout}
+          zoomTo={zoomTo}
+          fit={fit}
+          showDetail={props.loadDetail && magnifiedPreview && !detailCovers ? () => void showDetail() : null}
+          detailBusy={detailBusy}
+        />
         {label(zoom)}
       </div>
     </section>
