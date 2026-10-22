@@ -18,7 +18,7 @@ Requested change: the follow-ups Handoff_29 left open (section 11 and 12, items 
 
 Completed work:
 
-- New `src/ridge/terminal.py` (51 lines, a leaf module): `HIDDEN_RANGES` (moved unchanged from `ridge.metadata.values`), `reveal(value)` (every hidden or control character as `<U+XXXX>`) and `safe(value)` (the same, keeping line breaks and tabs; a carriage return is shown, since it could overwrite the line).
+- New `src/ridge/terminal.py` (59 lines, a leaf module): `HIDDEN_RANGES` (moved unchanged from `ridge.metadata.values`), `reveal(value)` (every hidden or control character as `<U+XXXX>`) and `safe(value, lines=False)` (the same, keeping tabs). A line break is shown as `<U+000A>` too: a POSIX file name may contain one and would otherwise print a forged line of its own, such as a fake "verification passed" (Codex review of PR #30, P1). Output that has several lines by structure passes `lines=True`: the eight `--json` outputs (from `json.dumps`, which escapes line breaks inside strings), the readable report (`render_report` passes each line through `printable`), the notes list (each line `printable`, a note's own line breaks become indented lines) and the `--verbose` traceback. `ridge-case identity show` now prints its two lines with two calls.
 - Every terminal write of the three command-line tools goes through `safe`:
   - `ridge-case`: `cli_common.say` (stdout) and the new `cli_common.warn` (stderr); `cli.py`'s error handlers and `PROBLEM:` lines, `cli_extract.py` and `cli_records.py` use `warn` instead of `print(..., file=sys.stderr)`. With `--verbose`, the traceback of an internal error goes through `warn` too.
   - `ridge` (`src/ridge/cli.py`): `_warn` and the per-file result line.
@@ -43,7 +43,7 @@ Project standards profile updated: yes (one deviation row, section 1 item 4).
 
 | Standard/control/rule | Applies? | Evidence produced | Exception/deviation |
 | --- | --- | --- | --- |
-| CWE-150 (terminal escape injection), CVE-2021-42574 (Trojan Source); coding standard "Neutralise control characters in any untrusted string written to a terminal or log" | Yes | `tests/test_terminal.py` (6 tests): every range boundary, layout kept, `say`/`warn`, `ridge-case import` and `list` with U+202E and U+200B in the file name and source note, a `ridge-case cases` error quoting a path with U+202E, the R&D CLI with U+202E in an input name and U+200B in a missing one | None |
+| CWE-150 (terminal escape injection), CVE-2021-42574 (Trojan Source); coding standard "Neutralise control characters in any untrusted string written to a terminal or log" | Yes | `tests/test_terminal.py` (7 tests): a line break in a name cannot forge a line; every range boundary, layout kept, `say`/`warn`, `ridge-case import` and `list` with U+202E and U+200B in the file name and source note, a `ridge-case cases` error quoting a path with U+202E, the R&D CLI with U+202E in an input name and U+200B in a missing one | None |
 | Output encoding for context (coding standard) | Yes | One sink per tool; `printable` still used for the HTML copies | None |
 | FR-36 behaviour of `metadata` and `metadata.get` unchanged | Yes | `tests/test_metadata_cli.py`, `tests/test_sidecar_gui_methods.py` unchanged and passing | None |
 | Coding standard, Errors: bomb warnings escalated | Yes | Profile row with reason, risk and compensating controls | Recorded deviation, pending Security Owner |
@@ -101,6 +101,16 @@ python tools/gate.py docs lint format typecheck test sast deps secrets licenses 
 # test: 875 passed, 3 skipped (POSIX permission bits) in 751 s; total coverage 96.72 %
 python -m pytest tests/test_decoder_evidence.py tests/test_terminal.py -q    # after rebasing onto the reviewed m5-deps-15: 8 passed
 ```
+
+After the Codex review of PR #30 (line breaks, see section 1), on the fixed tree:
+
+```bash
+python -m pytest tests/test_terminal.py tests/test_case_cli.py tests/test_notes.py tests/test_case_reports.py tests/test_store_verify.py tests/test_store_overview.py tests/test_case_status.py tests/test_metadata_cli.py tests/test_cli.py tests/test_workstation.py tests/test_limits_cli.py tests/test_key_register.py tests/test_recovery.py tests/test_processing_record.py tests/test_package.py tests/test_case_reproduce.py tests/test_case_compare.py tests/test_export_all.py tests/test_backup.py tests/test_validation_metrics.py -q
+# 219 passed
+python -m ruff check src tests; python -m ruff format --check; python -m mypy (changed files)   # clean
+```
+
+The full `test` gate runs again on the branch stacked above (Handoff_33), which contains this fix.
 
 The first run of `tests/test_terminal.py` found one wrong assumption in the test itself: `ridge-case cases` treats an existing empty folder as a store with no cases, so the path-error test now uses a folder that does not exist.
 

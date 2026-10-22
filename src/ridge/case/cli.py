@@ -59,7 +59,8 @@ def cmd_identity(args: argparse.Namespace) -> None:
         signer = create_identity(args.store, passphrase, common.KEYSTORE_FACTORY(), common.KDF_PARAMS)
         common.say(f"identity created: key id {signer.key_id}")
     key_id, public = public_identity(args.store)
-    common.say(f"key id {key_id}\npublic key (Ed25519, base64) {b64(public)}")
+    common.say(f"key id {key_id}")
+    common.say(f"public key (Ed25519, base64) {b64(public)}")
 
 
 def cmd_init(args: argparse.Namespace) -> None:
@@ -130,7 +131,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
         result = verify_case(case, args.case.parent)
     if args.json:
-        common.say(json.dumps({**asdict(result), "ok": result.ok}, ensure_ascii=False, indent=2))
+        common.say(json.dumps({**asdict(result), "ok": result.ok}, ensure_ascii=False, indent=2), lines=True)
         return 0 if result.ok else 1
     counts = f"items {result.items}, reports {result.reports}, signed heads {result.signed_heads}"
     common.say(f"custody entries {result.entries}, {counts}")
@@ -253,6 +254,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as exc:  # noqa: BLE001  # a bug: report without leaking data
         common.warn(f"ridge-case: internal error ({type(exc).__name__}); rerun with --verbose and report it")
         if args.verbose:
-            common.warn(traceback.format_exc().rstrip())
+            common.warn(traceback.format_exc().rstrip(), lines=True)  # Ridge's code locations and messages
         return 3
     return int(code or 0)

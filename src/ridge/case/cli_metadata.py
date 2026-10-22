@@ -27,7 +27,7 @@ def cmd_metadata(args: argparse.Namespace) -> None:
         item, meta = read_photo_metadata(case, args.sha)  # other roles refused before the read
     if args.json:
         # The values are attacker-controlled; ASCII-only JSON cannot carry a terminal escape (CWE-150).
-        common.say(json.dumps(meta, ensure_ascii=True, indent=2))
+        common.say(json.dumps(meta, ensure_ascii=True, indent=2), lines=True)
         return
     # The label is the source file's name: shown like a metadata value, so bidirectional marks are visible.
     common.say(printable(f"{item.role} {item.sha256}  {text(item.label)}"))

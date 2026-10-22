@@ -31,14 +31,18 @@ def read_passphrase(*, confirm: bool = False, prompt: str = "Examiner passphrase
     return first
 
 
-def say(text: str) -> None:
-    """Write command output; hidden and control characters appear as ``<U+XXXX>`` (``ridge.terminal``)."""
-    print(safe(text))  # noqa: T201  # CLI output
+def say(text: str, *, lines: bool = False) -> None:
+    """Write one line of command output; hidden and control characters appear as ``<U+XXXX>``.
+
+    Line breaks in `text` are shown too, unless `lines=True`: only for text whose untrusted parts
+    cannot contain one, such as JSON from ``json.dumps`` (``ridge.terminal.safe``).
+    """
+    print(safe(text, lines=lines))  # noqa: T201  # CLI output
 
 
-def warn(text: str) -> None:
+def warn(text: str, *, lines: bool = False) -> None:
     """Write a message or error to stderr, made safe like `say` output."""
-    print(safe(text), file=sys.stderr)  # noqa: T201  # CLI output
+    print(safe(text, lines=lines), file=sys.stderr)  # noqa: T201  # CLI output
 
 
 def nfiq2_command(args: argparse.Namespace) -> list[str] | None:

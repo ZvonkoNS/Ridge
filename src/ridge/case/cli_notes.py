@@ -39,9 +39,10 @@ def cmd_notes(args: argparse.Namespace) -> None:
         item = case.item(args.item).sha256 if args.item else None  # a unique prefix is enough
         notes = list_notes(case.entries, job_id=args.job, sha256=item)
     if args.json:
-        common.say(json.dumps([n.to_json() for n in notes], ensure_ascii=False, indent=2))
+        common.say(json.dumps([n.to_json() for n in notes], ensure_ascii=False, indent=2), lines=True)
         return
-    common.say("\n".join(_line(n) for n in notes) if notes else "no notes")
+    # Each line is printable() and a note's own line breaks are indented lines, so none can be forged.
+    common.say("\n".join(_line(n) for n in notes) if notes else "no notes", lines=True)
 
 
 def add_commands(sub: Any) -> None:

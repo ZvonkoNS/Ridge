@@ -21,7 +21,7 @@ def cmd_verify_store(args: argparse.Namespace) -> int:
     """Verify every active case of a store; exit 1 when any case failed or cannot be read."""
     results = verify_store(args.store, common.read_passphrase(), common.KEYSTORE_FACTORY())
     if args.json:
-        common.say(json.dumps([r.to_json() for r in results], ensure_ascii=False, indent=2))
+        common.say(json.dumps([r.to_json() for r in results], ensure_ascii=False, indent=2), lines=True)
         return 1 if any(not r.ok for r in results) else 0
     for r in results:
         status = ("ok" if r.ok else "FAILED") if r.checked else ("not checked" if r.ok else "NOT CHECKED")
@@ -44,7 +44,7 @@ def cmd_overview(args: argparse.Namespace) -> None:
     if args.due:
         cases = [c for c in cases if c.due]
     if args.json:
-        common.say(json.dumps([c.to_json() for c in cases], ensure_ascii=False, indent=2))
+        common.say(json.dumps([c.to_json() for c in cases], ensure_ascii=False, indent=2), lines=True)
         return
     if args.due:
         common.say(f"{len(cases)} case(s) past their retention date without a legal hold")
@@ -64,7 +64,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
         status = case_status(case)
     if args.json:
-        common.say(json.dumps(status.to_json(), ensure_ascii=False, indent=2))
+        common.say(json.dumps(status.to_json(), ensure_ascii=False, indent=2), lines=True)
         return
     for line in render_status(status):
         common.say(printable(line))
@@ -89,7 +89,7 @@ def cmd_workstation(args: argparse.Namespace) -> int:
     """Check the installation, the OS keystore, the store and its limits; exit 1 on any problem."""
     found = check_workstation(args.store, common.KEYSTORE_FACTORY(), args.register, common.nfiq2_command(args))
     if args.json:
-        common.say(json.dumps([f.to_json() for f in found], ensure_ascii=False, indent=2))
+        common.say(json.dumps([f.to_json() for f in found], ensure_ascii=False, indent=2), lines=True)
     else:
         for f in found:
             common.say(printable(f"{f.level.upper():8} {f.topic}: {f.text}"))

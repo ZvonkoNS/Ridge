@@ -26,8 +26,9 @@ def test_every_hidden_character_is_written_as_its_code_point() -> None:
     assert reveal("Škofja Loka, 指纹, café") == "Škofja Loka, 指纹, café"  # ordinary letters stay
 
 
-def test_safe_keeps_line_breaks_and_tabs_but_shows_carriage_returns() -> None:
-    assert safe(f"one\ttwo\nthree{CR}four") == "one\ttwo\nthree<U+000D>four"
+def test_safe_keeps_one_line_unless_asked_for_lines() -> None:
+    assert safe(f"one\ttwo\nthree{CR}four") == "one\ttwo<U+000A>three<U+000D>four"
+    assert safe(f"one\ttwo\nthree{CR}four", lines=True) == "one\ttwo\nthree<U+000D>four"
     assert safe(f"{ESC}[2J{RLO}") == "<U+001B>[2J<U+202E>"
     assert reveal("one\ntwo") == "one<U+000A>two"
     assert safe(42) == "42"
@@ -36,9 +37,22 @@ def test_safe_keeps_line_breaks_and_tabs_but_shows_carriage_returns() -> None:
 def test_say_and_warn_never_pass_hidden_characters(capsys: pytest.CaptureFixture[str]) -> None:
     cli_common.say(f"label {RLO}fdp.exe")
     cli_common.warn(f"problem {ESC}]0;title{BOM}")
+    cli_common.say('{\n  "ok": true\n}', lines=True)
     captured = capsys.readouterr()
-    assert captured.out == "label <U+202E>fdp.exe\n"
+    assert captured.out == 'label <U+202E>fdp.exe\n{\n  "ok": true\n}\n'
     assert captured.err == "problem <U+001B>]0;title<U+FEFF>\n"
+
+
+def test_a_line_break_in_a_name_cannot_forge_a_line(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Review finding on PR #30: POSIX file names may contain line breaks."""
+    photo = write_png(tmp_path / "finger.png", CASES_BY_NAME["whorl_default"].photo())
+    forged = tmp_path / "x.png\nverification passed"  # never created: a missing input is reported by name
+    assert ridge_cli.main([str(forged), str(photo), "-o", str(tmp_path / "out")]) == 0
+    err_lines = capsys.readouterr().err.splitlines()
+    assert "verification passed" not in err_lines
+    assert any(line.endswith("x.png<U+000A>verification passed not found, skipped") for line in err_lines)
+    cli_common.say("case x.png\nverification passed")
+    assert capsys.readouterr().out == "case x.png<U+000A>verification passed\n"
 
 
 @pytest.fixture

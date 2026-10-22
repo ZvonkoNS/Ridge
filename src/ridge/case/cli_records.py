@@ -42,7 +42,7 @@ def cmd_jobs(args: argparse.Namespace) -> None:
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
         jobs = list_jobs(case.entries)
     if args.json:
-        common.say(json.dumps([j.to_json() for j in jobs], ensure_ascii=False, indent=2))
+        common.say(json.dumps([j.to_json() for j in jobs], ensure_ascii=False, indent=2), lines=True)
         return
     if not jobs:
         common.say("no jobs")
@@ -68,7 +68,9 @@ def cmd_report(args: argparse.Namespace) -> None:
             )
             return
         signed = load_report(case, args.case.parent, args.job)
-    common.say(signed.canonical.decode("utf-8") if args.json else render_report(signed.report, signed.key_id))
+    # Canonical JSON has no line breaks; render_report() passes every line through printable().
+    text = signed.canonical.decode("utf-8") if args.json else render_report(signed.report, signed.key_id)
+    common.say(text, lines=True)
 
 
 def cmd_compare_jobs(args: argparse.Namespace) -> None:

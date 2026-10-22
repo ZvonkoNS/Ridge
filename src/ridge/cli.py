@@ -36,8 +36,8 @@ RND_NOTICE = (
 )
 
 
-def _warn(message: str) -> None:
-    print(safe(message), file=sys.stderr)  # file names are attacker-controlled (CWE-150)
+def _warn(message: str, *, lines: bool = False) -> None:
+    print(safe(message, lines=lines), file=sys.stderr)  # file names are attacker-controlled (CWE-150)
 
 
 def is_own_output(path: Path) -> bool:
@@ -208,5 +208,5 @@ def main(argv: Sequence[str] | None = None) -> int:
             code = EXIT_INTERNAL
             _warn(f"{f}: FAILED - internal error ({type(exc).__name__}); rerun with --verbose and report it")
             if args.verbose:
-                _warn(traceback.format_exc().rstrip())
+                _warn(traceback.format_exc().rstrip(), lines=True)
     return code
