@@ -91,7 +91,20 @@ Closes the CWE-150 / Trojan Source gap in all command-line output (Handoff_29 se
 
 ## 9. Tests
 
-GATE_RESULTS
+Tests added: `tests/test_terminal.py` (6 tests, section 3). Existing tests that cover the changed output: `tests/test_metadata_cli.py` (hidden characters in metadata output, unchanged), `tests/test_cli.py`, `tests/test_case_cli.py`, `tests/test_sidecar_gui_methods.py` (`metadata.get` refusals).
+
+Commands run (Windows 11 x86-64, Python 3.13.5; `PYTHONPATH` set to this worktree's `src`):
+
+```bash
+python tools/gate.py docs lint format typecheck test sast deps secrets licenses sbom    # on 3bb4b7a
+# === all 10 gate(s) passed: docs, lint, format, typecheck, test, sast, deps, secrets, licenses, sbom
+# test: 875 passed, 3 skipped (POSIX permission bits) in 751 s; total coverage 96.72 %
+python -m pytest tests/test_decoder_evidence.py tests/test_terminal.py -q    # after rebasing onto the reviewed m5-deps-15: 8 passed
+```
+
+The first run of `tests/test_terminal.py` found one wrong assumption in the test itself: `ridge-case cases` treats an existing empty folder as a store with no cases, so the path-error test now uses a folder that does not exist.
+
+Not run and why: the `gui` gate. This branch changes no GUI, Rust or sidecar-protocol code (the sidecar's `metadata.get` returns the same result through the shared helper, covered by `tests/test_sidecar_gui_methods.py`). The GUI gate runs on the branch stacked above (Handoff_33), which contains this change.
 
 ## 10. Release readiness
 
