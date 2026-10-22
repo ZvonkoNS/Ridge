@@ -83,7 +83,27 @@ No change to validation, limits, the sidecar's environment scrubbing, the binary
 
 ## 9. Tests
 
-GATE_RESULTS
+Commands run (Windows 11 x86-64, Python 3.13.5, Node 24 via fnm, Rust 1.98.0):
+
+```bash
+# in a second worktree while other gates ran, after each commit:
+python -m pytest tests/test_characterization.py tests/test_pipeline_units.py tests/test_print_area.py tests/test_output_scale.py -q   # 54 passed (live v0 bit-identical, stored goldens exact)
+python -m pytest tests/test_report_html.py tests/test_case_cli.py tests/test_case_reports.py tests/test_metadata_reports.py tests/test_print_area.py -q   # 54 passed
+npm run typecheck; npm run lint; npx prettier --check (changed files)   # clean
+cargo fmt --check; cargo clippy --locked --all-targets -- -D warnings; cargo test --locked   # clean; 36 passed
+
+# in the main checkout, on cd13c23 (this branch before the PR #30 review fix was rebased in):
+python tools/gate.py all
+# === all 11 gate(s) passed: docs, lint, format, typecheck, test, sast, deps, secrets, licenses, sbom, gui
+# test: 877 passed, 3 skipped in 890 s; gui: Vitest 28 files / 108 tests, npm audit 0, cargo test 36 passed
+#   (including the live Rust-to-sidecar test), cargo audit and cargo deny clean
+
+# after rebasing onto the fixed m5-terminal-16:
+python tools/gate.py docs lint format typecheck test sast
+# === all 6 gate(s) passed: docs, lint, format, typecheck, test, sast   (test: 878 passed, 3 skipped in 702 s)
+```
+
+Not run and why: the `gui` gate was not repeated after the rebase: the rebased-in commits change Python CLI output only (`ridge.terminal`, `ridge.case.cli*`, `ridge.cli`), no GUI, Rust or sidecar code. Tauri WebDriver E2E: profile exception.
 
 ## 10. Release readiness
 
