@@ -112,6 +112,7 @@ src/ridge/
   cli.py               Argument parsing and the per-file loop (thin)
   errors.py            Typed error hierarchy (RidgeError → InputError, ParameterError, OutputError, ExtractionError, …)
   image_io.py          Allow-listed, size-bounded decoding; atomic, no-overwrite encoding
+  terminal.py          Display-safe text: hidden and control characters as <U+XXXX> (CWE-150, CVE-2021-42574)
   debug.py             Writing of debug images (intermediate arrays → files)
   pipeline/
     imgutil.py         masked_blur, disk, largest_component, fill_holes, remove_specks
@@ -132,12 +133,13 @@ Dependency rules (enforced by review now; an import-linter contract is planned):
 | `pipeline/*` | `numpy`, `cv2`, `ridge.errors`, sibling pipeline modules | `image_io`, `cli`, filesystem, `PIL`, clock, randomness, network |
 | `image_io` | `PIL`, `numpy`, `cv2` (encode only), `ridge.errors` | `pipeline`, `cli` |
 | `debug` | `image_io`, `numpy`, `cv2` | `cli` |
+| `terminal` | `re` only | everything else (a leaf: `cli`, `case`, `metadata` and `validation` use it) |
 | `cli` | everything above | — (nothing imports `cli`, except `__main__` and the shim) |
 | `sidecar/*` [Implemented M4] | `ridge.case`, `ridge.image_io`, `ridge.errors` | sockets or any network module (offline test), `cli` |
 | `minutiae/*` [Implemented M3] | `numpy`, `cv2`, `ridge.errors`, `ridge.pipeline.imgutil` | file I/O, `case`, `cli`; no matching of any kind |
 | `export/*`, `quality/*` [Implemented M2] | `numpy`, `cv2`, `PIL` (PNG pHYs), `ridge.errors`, `ridge.pipeline` (result type only); `quality` runs one configured external tool (absolute path, argv list, no shell, timeout) | file I/O except the NFIQ 2 temporary copy in a caller-given folder; `case`, `cli` |
-| `case/*` [Implemented M1-M2] (`crypto`, `keys`, `identity`, `custody`, `store`, `jobs`, `export_step`, `verify`, `dispose`, `reports`, `processing_record`, `compare`, `reproduce`, `listing`, `metadata_render`, `cli` with `cli_common`, `cli_records`, `cli_compare`, `cli_metadata`) | `cryptography`, `argon2-cffi`, `keyring`, `rfc8785`, `ridge.errors`, `ridge.image_io`; `jobs` and `cli_metadata` also `ridge.metadata`, and `jobs` also `ridge.pipeline`; `metadata_render` also `ridge.metadata.gps` (the link template) | `cli` modules of other packages; nothing outside `case` imports `case.cli` |
-| `metadata/*` [Implemented 2026-10-20] (`values`, `exif`, `exif_names`, `gps`, `xmp`, `iptc`, `icc`, `containers`, `summary`) | `PIL`, `defusedxml`, `ridge.errors`, `ridge.image_io` (allow-list and pixel limit only) | `case`, `pipeline`, `cli`, file I/O, `xml.etree` directly (bandit B405), network; bytes in, a bounded dict out |
+| `case/*` [Implemented M1-M2] (`crypto`, `keys`, `identity`, `custody`, `store`, `jobs`, `export_step`, `verify`, `dispose`, `reports`, `processing_record`, `compare`, `reproduce`, `listing`, `metadata_render`, `photo_metadata`, `cli` with `cli_common`, `cli_records`, `cli_compare`, `cli_metadata`) | `cryptography`, `argon2-cffi`, `keyring`, `rfc8785`, `ridge.errors`, `ridge.image_io`; `jobs` and `cli_metadata` also `ridge.metadata`, and `jobs` also `ridge.pipeline`; `metadata_render` also `ridge.metadata.gps` (the link template) | `cli` modules of other packages; nothing outside `case` imports `case.cli` |
+| `metadata/*` [Implemented 2026-10-20] (`values`, `exif`, `exif_names`, `gps`, `xmp`, `iptc`, `icc`, `containers`, `summary`) | `PIL`, `defusedxml`, `ridge.errors`, `ridge.image_io` (allow-list and pixel limit only), `ridge.terminal` | `case`, `pipeline`, `cli`, file I/O, `xml.etree` directly (bandit B405), network; bytes in, a bounded dict out |
 
 Files are kept to about 300 lines or fewer, and functions do one job. Documentation is never imported by runtime code.
 

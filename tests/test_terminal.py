@@ -71,8 +71,7 @@ def test_case_listing_and_import_show_hidden_characters_in_names_and_notes(
 
 
 def test_case_errors_show_hidden_characters_in_paths(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    missing = tmp_path / f"store{RLO}x"
-    missing.mkdir()
+    missing = tmp_path / f"store{RLO}x"  # does not exist
     assert ridge_case(["cases", "--store", str(missing)]) == 1
     err = capsys.readouterr().err
     assert RLO not in err
