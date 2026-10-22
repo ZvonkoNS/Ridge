@@ -62,6 +62,27 @@ def _to8(a: FloatImage, lo: float, hi: float) -> ImageU8:
     return cast(ImageU8, np.clip((a - lo) / (hi - lo) * 255, 0, 255).astype(np.uint8))
 
 
+@dataclass(frozen=True)
+class _WorkArea:
+    """The finger's bounding box in photo pixels, padded, and the scale that makes ridges WORK_PERIOD apart."""
+
+    y0: int
+    y1: int
+    x0: int
+    x1: int
+    scale: float
+
+
+@dataclass(frozen=True)
+class _Enhanced:
+    """Working-scale images: contrast-normalised photo, Gabor output, ridge quality and the print region."""
+
+    norm: FloatImage
+    enh: FloatImage
+    quality: FloatImage
+    region: FloatImage
+
+
 def extract_fingerprint(
     bgr: ImageU8,
     *,
@@ -80,10 +101,8 @@ def extract_fingerprint(
     _check_arguments(bgr, period, min_quality)
     h, w = bgr.shape[:2]
     detected = finger_mask(bgr)
-    found_finger = detected is not None
     mask: Mask = detected if detected is not None else np.ones((h, w), bool)
     gray = cast(FloatImage, bgr[:, :, 1].astype(np.float32) / 255.0)  # green shows ridges best on skin
-
     if period is None:
         period = estimate_period(gray, mask)
     if period < MIN_PERIOD:
@@ -91,8 +110,34 @@ def extract_fingerprint(
             f"ridges are only {period:.1f}px apart: the photo is too low-resolution "
             "(take it closer, or pass --period if the estimate is wrong)"
         )
+    area = _work_area(mask, period, h, w)
+    enhanced = _enhance(*_rescale(gray, mask, area), min_quality)
+    window, size, out_scale = _output_window(enhanced, area, period, crop=crop)
+    result = _binarize(enhanced, window, size, period * out_scale, flip=flip)
+    if not crop:  # paste the finger box back into a frame the size of the photo
+        full = np.zeros((h, w), np.uint8)
+        full[area.y0 : area.y1, area.x0 : area.x1] = result
+        result = full
+    location = locate(
+        enhanced.region,
+        window=window if crop else None,
+        scale=area.scale,
+        bounds=(area.x0, area.y0, area.x1, area.y1),
+        size=(w, h),
+        period=WORK_PERIOD,
+    )
+    return ExtractionResult(
+        image=result,
+        period=period,
+        found_finger=detected is not None,
+        debug=_debug_images(bgr, area, enhanced, period) if debug else None,
+        output_scale=float(out_scale),
+        location=location,
+    )
 
-    # Work on the finger's bounding box, rescaled so ridges are WORK_PERIOD px apart.
+
+def _work_area(mask: Mask, period: float, h: int, w: int) -> _WorkArea:
+    """Return the finger's bounding box with three ridge spacings of margin; refuse areas over MAX_WORK_PIXELS."""
     bx, by, bw, bh = cv2.boundingRect(mask.astype(np.uint8))
     pad = int(3 * period)
     y0, y1 = max(by - pad, 0), min(by + bh + pad, h)
@@ -103,14 +148,25 @@ def extract_fingerprint(
             f"at a ridge spacing of {period:.1f}px the finger area is too large to process; "
             "crop the photo to the finger or check --period"
         )
-    interp = cv2.INTER_AREA if scale < 1 else cv2.INTER_CUBIC
-    g = cast(FloatImage, cv2.resize(gray[y0:y1, x0:x1], None, fx=scale, fy=scale, interpolation=interp))
-    m_resized = cv2.resize(
-        mask[y0:y1, x0:x1].astype(np.float32), (g.shape[1], g.shape[0]), interpolation=cv2.INTER_LINEAR
-    )
-    m = cast(FloatImage, (m_resized > 0.5).astype(np.float32))
-    p = WORK_PERIOD
+    return _WorkArea(y0, y1, x0, x1, scale)
 
+
+def _rescale(gray: FloatImage, mask: Mask, area: _WorkArea) -> tuple[FloatImage, FloatImage]:
+    """Cut the work area out of the photo and the finger mask, rescaled so ridges are WORK_PERIOD px apart."""
+    interp = cv2.INTER_AREA if area.scale < 1 else cv2.INTER_CUBIC
+    photo = gray[area.y0 : area.y1, area.x0 : area.x1]
+    g = cast(FloatImage, cv2.resize(photo, None, fx=area.scale, fy=area.scale, interpolation=interp))
+    m_resized = cv2.resize(
+        mask[area.y0 : area.y1, area.x0 : area.x1].astype(np.float32),
+        (g.shape[1], g.shape[0]),
+        interpolation=cv2.INTER_LINEAR,
+    )
+    return g, cast(FloatImage, (m_resized > 0.5).astype(np.float32))
+
+
+def _enhance(g: FloatImage, m: FloatImage, min_quality: float) -> _Enhanced:
+    """Normalise, filter and rate the ridges at working scale; keep the single compact print region."""
+    p = WORK_PERIOD
     # 1. Flatten lighting and equalize contrast.
     hp = (g - masked_blur(g, m, 0.7 * p)) * m
     std = np.sqrt(masked_blur(hp * hp, m, 2 * p))
@@ -125,54 +181,58 @@ def extract_fingerprint(
 
     # 3. Ridge quality and the single compact area kept as the print.
     quality = ridge_quality(enh, power, phi, m, period=p, bank_power=bank_power)
-    region = print_region(quality, m, p, min_quality)
+    return _Enhanced(norm, enh, quality, print_region(quality, m, p, min_quality))
 
-    # 4. Threshold the smooth filter output at the photo's resolution (or finer for
-    #    low-res photos when cropping, so ridge edges stay smooth).
+
+def _output_window(
+    enhanced: _Enhanced, area: _WorkArea, period: float, *, crop: bool
+) -> tuple[tuple[int, int, int, int], tuple[int, int], float]:
+    """Working-scale window (x0, y0, x1, y1) to output, the output size and output pixels per photo pixel.
+
+    The smooth filter output is thresholded at the photo's resolution, or finer for low-res photos
+    when cropping, so ridge edges stay smooth.
+    """
+    enh, p = enhanced.enh, WORK_PERIOD
     if crop:  # just the print, plus one ridge spacing of margin
         out_scale = max(1.0, WORK_PERIOD / period)
-        rx, ry, rw, rh = cv2.boundingRect((region > 0.5).astype(np.uint8))
+        rx, ry, rw, rh = cv2.boundingRect((enhanced.region > 0.5).astype(np.uint8))
         wx0, wy0 = max(rx - int(p), 0), max(ry - int(p), 0)
         wx1, wy1 = min(rx + rw + int(p), enh.shape[1]), min(ry + rh + int(p), enh.shape[0])
-        f = out_scale / scale  # output pixels per working pixel
-        size = (round((wx1 - wx0) * f), round((wy1 - wy0) * f))
-    else:  # the whole finger box, pasted back into a frame the size of the photo
-        out_scale = 1.0
-        wx0, wy0, wx1, wy1 = 0, 0, enh.shape[1], enh.shape[0]
-        size = (x1 - x0, y1 - y0)
-    enh_out = cv2.resize(enh[wy0:wy1, wx0:wx1], size, interpolation=cv2.INTER_CUBIC)
-    region_out = cv2.resize(region[wy0:wy1, wx0:wx1], size, interpolation=cv2.INTER_LINEAR) > 0.5
+        f = out_scale / area.scale  # output pixels per working pixel
+        return (wx0, wy0, wx1, wy1), (round((wx1 - wx0) * f), round((wy1 - wy0) * f)), out_scale
+    # the whole finger box, at the photo's resolution
+    return (0, 0, enh.shape[1], enh.shape[0]), (area.x1 - area.x0, area.y1 - area.y0), 1.0
+
+
+def _binarize(
+    enhanced: _Enhanced,
+    window: tuple[int, int, int, int],
+    size: tuple[int, int],
+    p_out: float,
+    *,
+    flip: bool,
+) -> ImageU8:
+    """Threshold the filter output inside the print region at output size; `p_out` is the output ridge spacing."""
+    wx0, wy0, wx1, wy1 = window
+    enh_out = cv2.resize(enhanced.enh[wy0:wy1, wx0:wx1], size, interpolation=cv2.INTER_CUBIC)
+    region_out = cv2.resize(enhanced.region[wy0:wy1, wx0:wx1], size, interpolation=cv2.INTER_LINEAR) > 0.5
     if not region_out.any():
         raise NoRidgePatternError(NO_RIDGES)
     ridges = (enh_out < 0) if flip else (enh_out > 0)  # ridges are the bright lines in a photo
-    p_out = period * out_scale
     kept = remove_specks(ridges & region_out, min_area=0.25 * p_out * p_out)
-    result = kept.astype(np.uint8) * 255
-    if not crop:
-        full = np.zeros((h, w), np.uint8)
-        full[y0:y1, x0:x1] = result
-        result = full
-    window = (wx0, wy0, wx1, wy1) if crop else None
-    location = locate(region, window=window, scale=scale, bounds=(x0, y0, x1, y1), size=(w, h), period=p)
+    return kept.astype(np.uint8) * 255
 
-    debug_images = None
-    if debug:
-        overlay = bgr[y0:y1, x0:x1].copy()
-        outline = cv2.resize(region, (x1 - x0, y1 - y0)) > 0.5
-        contours, _ = cv2.findContours(outline.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        cv2.drawContours(overlay, contours, -1, (0, 255, 0), max(2, round(period / 4)))
-        debug_images = DebugImages(
-            region=overlay,
-            normalized=_to8(norm, -2.5, 2.5),
-            gabor=_to8(enh, -1.5, 1.5),
-            quality=_to8(quality, 0, 1),
-        )
 
-    return ExtractionResult(
-        image=result,
-        period=period,
-        found_finger=found_finger,
-        debug=debug_images,
-        output_scale=float(out_scale),
-        location=location,
+def _debug_images(bgr: ImageU8, area: _WorkArea, enhanced: _Enhanced, period: float) -> DebugImages:
+    """Return what the pipeline saw at each step, for review (written only on request: class E data)."""
+    overlay = bgr[area.y0 : area.y1, area.x0 : area.x1].copy()
+    size = (area.x1 - area.x0, area.y1 - area.y0)
+    outline = cv2.resize(enhanced.region, size, interpolation=cv2.INTER_LINEAR) > 0.5
+    contours, _ = cv2.findContours(outline.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    cv2.drawContours(overlay, contours, -1, (0, 255, 0), max(2, round(period / 4)))
+    return DebugImages(
+        region=overlay,
+        normalized=_to8(enhanced.norm, -2.5, 2.5),
+        gabor=_to8(enhanced.enh, -1.5, 1.5),
+        quality=_to8(enhanced.quality, 0, 1),
     )
