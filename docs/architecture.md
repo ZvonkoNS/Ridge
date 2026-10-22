@@ -502,6 +502,7 @@ The full ASVS 5.0 L3 mapping (applicable chapters only, with N/A rationale for s
 - Dependencies are pinned with hashes (`requirements.lock`, `requirements-dev.lock`, pip-tools). Installs use `--require-hashes`.
 - Runtime dependencies are minimal: `numpy`, `opencv-python-headless` and `pillow` (plus `pillow-heif` as an extra). M1 adds `cryptography`, `argon2-cffi` and `keyring`; reports add `rfc8785`; photo metadata adds `defusedxml` (pure Python, PSF-2.0, already pinned in the dev lock, 2026-10-20).
 - CI runs `pip-audit`, a licence allow-list, a CycloneDX SBOM, CodeQL, gitleaks, dependency review and OpenSSF Scorecard. Actions are pinned by commit SHA.
+- A decoder upgrade (Pillow, pillow-heif) is a method-relevant change (forensic standard §13). The stored goldens decode PNG only, so `tools/decoder_evidence.py` adds the evidence for the other formats: `make-inputs` writes synthetic files once (every allow-listed format, EXIF orientations, HEIC, metadata samples), `run` records the SHA-256 of the decoded pixels, the metadata record, the print and the 500 ppi export in each environment, and `compare` lists every difference. First used for Pillow 12.3.0 -> 13.0.0 (2026-10-23, Handoff_31): 31 of 31 inputs identical.
 - Releases (M5) are built only from signed tags, produce signed artifacts, and are installed offline after signature verification.
 
 ## 10. Deployment view
