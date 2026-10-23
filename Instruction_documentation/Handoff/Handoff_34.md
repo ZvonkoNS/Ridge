@@ -3,7 +3,7 @@
 Date/time (ISO 8601 with offset): 2026-10-23T02:20+02:00
 Author/agent: Claude Code (claude-opus-5-5), end of the autonomous window granted by the product owner on 2026-10-22 ("do everything one by one. Make it fully production ready. Also do a refactoring run based on the instructions provided in the instructions folder ... do everything yourself")
 Project: Ridge
-Branch: `m5-release-check-18`, stacked on `m5-refactor-17` (PR #31, Handoff_33)
+Branch: `m5-release-check-18` (PR #32; stacked on `m5-refactor-17`, retargeted to `main` after PR #26 to PR #31 were merged on 2026-10-23)
 Base commit: `a0c6525` (tip of `m5-refactor-17`)
 Latest commit: see the pull request
 
@@ -27,27 +27,24 @@ Completed in this window. Each item has its own pull request; they are stacked a
 | The frozen-sidecar build now checks that every allow-listed decoder is bundled; release build repeated with the upgraded dependencies; this release-readiness review | this pull request | Handoff_34 |
 | Housekeeping: 31 local branches already merged into `main` deleted; 2 stale, clean worktrees removed (`m2-export`, `claude/nostalgic-babbage-40e1ce`) | — | — |
 
-Codex review findings in this window, all fixed, answered with the commit and test, and resolved: two on PR #29 (the evidence tool hashed a relabelled print instead of the stored comparison export; `compare` could pass with two manifests from one environment) and one P1 on PR #30 (a line break in a POSIX file name could forge an output line).
+Codex review findings in this window, all fixed, answered with the commit and test, and resolved: one P1 on this pull request (the archive check proved only the Python modules, not that the decoders can run; section 9), two on PR #29 (the evidence tool hashed a relabelled print instead of the stored comparison export; `compare` could pass with two manifests from one environment) and one P1 on PR #30 (a line break in a POSIX file name could forge an output line).
 
 Out of scope: anything needing a person or an organisational decision (section 10); merging (section 2).
 
 ## 2. Current repository state
 
-Git status summary: committed on `m5-release-check-18`. `main` is unchanged at `36e264a`.
+Git status summary: committed on `m5-release-check-18` (PR #32).
 
-Not merged, and why: `gh pr merge` was refused by the Claude Code auto-mode permission classifier ("Merge Without Review"), so no pull request was merged and nothing was pushed to `main`. Every pull request in the stack has green CI and no open review thread: Codex's findings on PR #29 and PR #30 are fixed and resolved, and its review of PR #31 completed with no findings. The owner merges them, with merge commits, in this order:
+Merges. During the unattended window `gh pr merge` was refused by the Claude Code auto-mode permission classifier ("Merge Without Review"), so nothing was merged then. On 2026-10-23 the owner asked in the session to merge PRs #26, #29, #30, #31 and #32 in that order with merge commits, retargeting each to `main` first, and to check PR #32's Codex review before merging it. Done so far, each with green CI and no open review thread:
 
-```bash
-gh pr merge 26 --merge
-gh pr edit 29 --base main
-gh pr merge 29 --merge
-gh pr edit 30 --base main
-gh pr merge 30 --merge
-gh pr edit 31 --base main
-gh pr merge 31 --merge
-gh pr edit 32 --base main      # this pull request
-gh pr merge 32 --merge
-```
+| Pull request | Merge commit on `main` |
+| --- | --- |
+| #26 | `dd4a1ff` |
+| #29 | `c98c22e` |
+| #30 | `581401f` |
+| #31 | `d533626` |
+
+PR #32 (this one) was retargeted to `main`. Its Codex review had been stuck at "running" for about five hours, so it was requested again (`@codex review`); the new review's P1 finding is fixed in this pull request (sections 1 and 9) before it is merged.
 
 Merged branches that are still on GitHub: deleting them (`git push origin --delete …`) was also refused by the classifier. They are listed by `git branch -r --merged origin/main`.
 
@@ -66,7 +63,7 @@ Project standards profile updated: yes (`Last verified` 2026-10-23; the rows add
 
 | Standard/control/rule | Applies? | Evidence produced | Exception/deviation |
 | --- | --- | --- | --- |
-| Release packaging (architecture §10, release checklist "From M4") | Yes | `python tools/build_sidecar.py` on `5097d54` (clean tree): archive check passes (913 modules, keystore backend, 7 decoder modules), stdio smoke test passes; native decoders present in the bundle (`PIL/_imaging`, `PIL/_webp`, `_pillow_heif`, libheif); `npx tauri build --config src-tauri/tauri.release.conf.json` (section 9) | Code signing: profile §8 |
+| Release packaging (architecture §10, release checklist "From M4") | Yes | `python tools/build_sidecar.py` on `5097d54` (clean tree): archive check passes (913 modules, keystore backend, 7 decoder modules), stdio smoke test passes; after the PR #32 review, `check_native` and the extended smoke test pass on that same frozen build (section 9); `npx tauri build --config src-tauri/tauri.release.conf.json` (section 9) | Code signing: profile §8 |
 | Dependency audit | Yes | Handoff_31: pip-audit (both locks), npm audit, cargo audit and deny clean | None |
 
 ## 4. Forensic impact
@@ -81,7 +78,7 @@ Data classes touched: none; synthetic data only throughout the window.
 
 | File | Purpose of change |
 | --- | --- |
-| `tools/build_sidecar.py` | `check_bundle` also requires the decoder modules |
+| `tools/build_sidecar.py` | `check_bundle` also requires the decoder modules; new `check_native` requires the native decoder libraries; the smoke test asks the frozen engine's workstation check whether it reads HEIF/HEIC |
 | `docs/architecture.md` | §10 item 2 describes the new check |
 | `Instruction_documentation/Project_Standards_Profile.md` | `Last verified` 2026-10-23 |
 | `Instruction_documentation/Handoff/Handoff_34.md` (new) | This handoff |
@@ -106,6 +103,12 @@ python -m pip install --require-hashes --no-deps -r requirements-build.lock
 python tools/build_sidecar.py
 # frozen archive ok: 913 modules, keystore backend keyring.backends.Windows, 7 decoders
 # frozen sidecar ok: Ridge 0.2.0 5097d542f66d5665aa18bd87e4bfffd73cf37550, protocol ridge.sidecar/1   (_build.json: dirty false)
+# after the Codex review of this pull request (P1: module names do not prove a decoder can run), on the same frozen build:
+python -c "import build_sidecar as b; b.check_native(...); b.smoke(...)"   # with tools/ on sys.path
+# native decoders ok: _imaging.*, _webp.*, _pillow_heif.*, libheif*
+# frozen sidecar ok: Ridge 0.2.0 5097d54..., protocol ridge.sidecar/1, reads HEIF
+# negative checks: a folder with only _imaging.* fails check_native (lacks _webp.*, _pillow_heif.*, libheif*); a copy of the frozen
+#   build without _pillow_heif*.pyd fails the smoke test (the engine stops at start: No module named '_pillow_heif')
 cd gui && npx tauri build --config src-tauri/tauri.release.conf.json
 # Finished 2 bundles: Ridge_0.2.0_x64_en-US.msi (82.09 MiB, WiX), Ridge_0.2.0_x64-setup.exe (57.48 MiB, per-user NSIS)
 python tools/gate.py docs lint format typecheck
@@ -175,7 +178,7 @@ Not ready. Each item needs a decision or document from outside engineering:
 
 - The stack is unmerged (section 2).
 - Revalidation decision for Pillow 13 pending (profile §8).
-- Codex's review of this pull request was still running when this was written; any finding needs the usual fix, reply and resolve before merging.
+- The smoke test proves that HEIF loads in the frozen engine and that every decoder's files are present; it does not decode a sample image of each format inside the frozen engine, because no engine method decodes without an unlocked case (and unlocking would write to the OS keystore).
 
 ## 12. Recommended next work
 
