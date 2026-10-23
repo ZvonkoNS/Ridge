@@ -5,13 +5,16 @@
 
 The release bundle ships this folder as ``resources/sidecar/`` (architecture §10;
 ``gui/src-tauri/tauri.release.conf.json``). The build is checked before it is accepted: the
-frozen sidecar must answer ``ridge.version`` with the protocol the GUI speaks and must list an
-empty synthetic store, over the same newline-delimited JSON-RPC the GUI uses. Code signing of
-the result is a release step outside this script (release_readiness_checklist.md).
+archive must hold the keystore backend and the image decoders, the folder their native
+libraries, and the frozen sidecar must answer ``ridge.version`` with the protocol the GUI speaks,
+list an empty synthetic store and report in its workstation check that it reads HEIF/HEIC, over
+the same newline-delimited JSON-RPC the GUI uses. Code signing of the result is a release step
+outside this script (release_readiness_checklist.md).
 """
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import shutil
@@ -31,6 +34,26 @@ ENTRY = "from ridge.sidecar.server import main\n\nraise SystemExit(main())\n"
 KEYSTORE_BACKEND = {"win32": "keyring.backends.Windows", "darwin": "keyring.backends.macOS"}.get(
     sys.platform, "keyring.backends.SecretService"
 )
+# Pillow finds its format plugins by name when a file is opened, so a frozen build without one
+# would refuse that format as unsupported at run time. One plugin per allow-listed format
+# (ridge.image_io.ALLOWED_FORMATS), the HEIF opener and the XMP parser (FR-36).
+DECODERS = frozenset(
+    {
+        "PIL.JpegImagePlugin",
+        "PIL.PngImagePlugin",
+        "PIL.TiffImagePlugin",
+        "PIL.BmpImagePlugin",
+        "PIL.WebPImagePlugin",
+        "pillow_heif",
+        "defusedxml.ElementTree",
+    }
+)
+# The decoders' native parts, as file-name patterns for any platform: Pillow's core and WebP
+# extensions, pillow-heif's extension and libheif. The archive can hold the Python modules without
+# them; ridge.image_io would then drop HEIF from its allow-list without an error, so the smoke test
+# also asks the frozen engine itself whether it reads HEIF.
+NATIVE = ("_imaging.*", "_webp.*", "_pillow_heif.*", "libheif*")
+HEIF_READABLE = "HEIF/HEIC photos can be read"  # the workstation check's wording (ridge.case.workstation)
 
 
 def stamp(work: Path) -> Path:
@@ -90,21 +113,34 @@ def freeze() -> Path:
 
 
 def check_bundle() -> None:
-    """Check that this platform's keystore backend and the sidecar methods are in the frozen archive."""
+    """Check that the keystore backend, the image decoders and the sidecar methods are in the frozen archive."""
     # build tool only: untyped, and installed from requirements-build.lock, not in development or CI
     from PyInstaller.archive.readers import (  # type: ignore[import-untyped,import-not-found,unused-ignore]  # noqa: PLC0415
         ZlibArchiveReader,
     )
 
     names = set(ZlibArchiveReader(str(BUILD / "pyinstaller" / NAME / "PYZ-00.pyz")).toc)
-    missing = {KEYSTORE_BACKEND, "ridge.sidecar.handlers", "ridge.case.limits"} - names
+    missing = {KEYSTORE_BACKEND, "ridge.sidecar.handlers", "ridge.case.limits", *DECODERS} - names
     if missing:
         raise SystemExit(f"frozen sidecar lacks {sorted(missing)}")
-    print(f"frozen archive ok: {len(names)} modules, keystore backend {KEYSTORE_BACKEND}")
+    print(f"frozen archive ok: {len(names)} modules, keystore backend {KEYSTORE_BACKEND}, {len(DECODERS)} decoders")
+
+
+def check_native(folder: Path) -> None:
+    """Check that the decoders' native extensions and libraries are in the frozen folder."""
+    names = [p.name for p in folder.rglob("*") if p.is_file()]
+    missing = [pattern for pattern in NATIVE if not fnmatch.filter(names, pattern)]
+    if missing:
+        raise SystemExit(f"frozen sidecar lacks the native libraries {missing}")
+    print(f"native decoders ok: {', '.join(NATIVE)}")
 
 
 def smoke(exe: Path) -> None:
-    """Talk JSON-RPC to the frozen sidecar the way the GUI does; raise on any mismatch."""
+    """Talk JSON-RPC to the frozen sidecar the way the GUI does; raise on any mismatch.
+
+    The workstation check is read-only: it asks the OS keystore whether a Ridge device secret
+    exists, never shows it, and here it serves to learn whether the frozen engine reads HEIF.
+    """
     with tempfile.TemporaryDirectory() as tmp:
         store = Path(tmp) / "store"
         store.mkdir()
@@ -112,26 +148,32 @@ def smoke(exe: Path) -> None:
             {"jsonrpc": "2.0", "id": 1, "method": "ridge.version"},
             {"jsonrpc": "2.0", "id": 2, "method": "store.identity", "params": {"store": str(store)}},
             {"jsonrpc": "2.0", "id": 3, "method": "store.cases", "params": {"store": str(store)}},
+            {"jsonrpc": "2.0", "id": 4, "method": "store.workstation", "params": {"store": str(store)}},
         ]
         stdin = "".join(json.dumps(r) + "\n" for r in requests)
         done = subprocess.run([str(exe)], input=stdin.encode(), capture_output=True, timeout=120, check=False)  # nosec B603
     replies = [json.loads(line) for line in done.stdout.decode("utf-8").splitlines()]
     expected = [{"protocol": PROTOCOL}, {"exists": False}, []]
     results = [r.get("result") for r in replies]
-    if done.returncode != 0 or len(results) != 3:
+    if done.returncode != 0 or len(results) != len(requests):
         tail = done.stderr.decode(errors="replace")[-2000:]
         raise SystemExit(f"frozen sidecar failed (exit {done.returncode}): {tail}")
-    if results[0].get("protocol") != PROTOCOL or results[1:] != expected[1:]:
-        raise SystemExit(f"frozen sidecar answered unexpectedly: {results}")
+    if results[0].get("protocol") != PROTOCOL or results[1:3] != expected[1:]:
+        raise SystemExit(f"frozen sidecar answered unexpectedly: {results[:3]}")
     if not str(results[0].get("commit_source", "")).startswith("build"):  # the stamp must be in the bundle
         raise SystemExit(f"frozen sidecar does not carry its commit stamp: {results[0]}")
-    print(f"frozen sidecar ok: Ridge {results[0].get('ridge')} {results[0].get('commit')}, protocol {PROTOCOL}")
+    libraries = next((f.get("text", "") for f in results[3] or [] if f.get("topic") == "Libraries"), "")
+    if HEIF_READABLE not in libraries:
+        raise SystemExit(f"the frozen sidecar does not read HEIF/HEIC: {libraries!r}")
+    version = f"Ridge {results[0].get('ridge')} {results[0].get('commit')}"
+    print(f"frozen sidecar ok: {version}, protocol {PROTOCOL}, reads HEIF")
 
 
 def main() -> int:
-    """Freeze, then smoke-test."""
+    """Freeze, check the bundle, then smoke-test."""
     exe = freeze()
     check_bundle()
+    check_native(exe.parent)
     smoke(exe)
     print(f"sidecar folder: {exe.parent}")
     return 0
