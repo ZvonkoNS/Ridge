@@ -35,7 +35,7 @@ Out of scope: anything needing a person or an organisational decision (section 1
 
 Git status summary: committed on `m5-release-check-18`. `main` is unchanged at `36e264a`.
 
-Not merged, and why: `gh pr merge` was refused by the Claude Code auto-mode permission classifier ("Merge Without Review"), so no pull request was merged and nothing was pushed to `main`. Every pull request in the stack has green CI and resolved review threads (PR #31's Codex review had not arrived when this was written). The owner merges them, with merge commits, in this order:
+Not merged, and why: `gh pr merge` was refused by the Claude Code auto-mode permission classifier ("Merge Without Review"), so no pull request was merged and nothing was pushed to `main`. Every pull request in the stack has green CI and no open review thread: Codex's findings on PR #29 and PR #30 are fixed and resolved, and its review of PR #31 completed with no findings. The owner merges them, with merge commits, in this order:
 
 ```bash
 gh pr merge 26 --merge
@@ -175,7 +175,7 @@ Not ready. Each item needs a decision or document from outside engineering:
 
 - The stack is unmerged (section 2).
 - Revalidation decision for Pillow 13 pending (profile §8).
-- PR #31's Codex review had not arrived when this was written; if it reports findings, they need the usual fix, reply and resolve before merging.
+- Codex's review of this pull request was still running when this was written; any finding needs the usual fix, reply and resolve before merging.
 
 ## 12. Recommended next work
 
