@@ -15,6 +15,7 @@ mod prompt_calls;
 mod rpc;
 mod settings;
 mod sidecar;
+mod sidecar_process;
 mod state;
 mod validate;
 mod windows;

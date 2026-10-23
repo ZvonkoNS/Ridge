@@ -1,6 +1,7 @@
 //! The sidecar calls a submitted passphrase is used for, one per prompt purpose (ADR-010). Only
 //! the Rust core sends these methods; the passphrase is borrowed from the prompt's zeroised buffer.
 
+use std::path::Path;
 use std::time::Duration;
 
 use serde::Serialize;
@@ -26,99 +27,50 @@ struct WithSecret<'a> {
 /// Make the sidecar call `purpose` stands for, with the examiner's passphrase.
 pub fn perform(app: &AppHandle, purpose: &Purpose, passphrase: &str) -> Result<Value, IpcError> {
     match purpose {
-        Purpose::VerifyStore { store } => {
-            let store = path_text(store)?;
-            let params = WithSecret {
-                store: &store,
-                case_id: None,
-                passphrase,
-            };
-            state::call_now(app, "store.verify", &params, STORE_VERIFY_TIMEOUT)
+        Purpose::VerifyStore { store } => with_store(
+            app,
+            "store.verify",
+            store,
+            None,
+            passphrase,
+            STORE_VERIFY_TIMEOUT,
+        ),
+        Purpose::StoreOverview { store } => with_store(
+            app,
+            "store.overview",
+            store,
+            None,
+            passphrase,
+            STORE_VERIFY_TIMEOUT,
+        ),
+        Purpose::CreateIdentity { store } => {
+            with_store(app, "identity.create", store, None, passphrase, KDF_TIMEOUT)
         }
+        Purpose::Unlock { store, case_id } => with_store(
+            app,
+            "session.unlock",
+            store,
+            Some(case_id),
+            passphrase,
+            KDF_TIMEOUT,
+        ),
         Purpose::KeyCard {
             store,
             holder,
             dest,
-        } => {
-            #[derive(Serialize)]
-            struct Card<'a> {
-                store: &'a str,
-                passphrase: &'a str,
-                holder: &'a str,
-                dest: &'a str,
-            }
-            let (store, dest) = (path_text(store)?, path_text(dest)?);
-            let params = Card {
-                store: &store,
-                passphrase,
-                holder,
-                dest: &dest,
-            };
-            state::call_now(app, "identity.card", &params, KDF_TIMEOUT)
-        }
-        Purpose::StoreOverview { store } => {
-            let store = path_text(store)?;
-            let params = WithSecret {
-                store: &store,
-                case_id: None,
-                passphrase,
-            };
-            state::call_now(app, "store.overview", &params, STORE_VERIFY_TIMEOUT)
-        }
-        Purpose::CreateIdentity { store } => {
-            let store = path_text(store)?;
-            let params = WithSecret {
-                store: &store,
-                case_id: None,
-                passphrase,
-            };
-            state::call_now(app, "identity.create", &params, KDF_TIMEOUT)
-        }
-        Purpose::Unlock { store, case_id } => {
-            let store = path_text(store)?;
-            let params = WithSecret {
-                store: &store,
-                case_id: Some(case_id),
-                passphrase,
-            };
-            state::call_now(app, "session.unlock", &params, KDF_TIMEOUT)
-        }
+        } => key_card(app, store, holder, dest, passphrase),
         Purpose::CreateCase {
             store,
             reference,
             legal_basis,
             retention_until,
         } => {
-            let store = path_text(store)?;
-            #[derive(Serialize)]
-            struct Create<'a> {
-                store: &'a str,
-                reference: &'a str,
-                legal_basis: &'a str,
-                retention_until: &'a str,
-                passphrase: &'a str,
-            }
-            let params = Create {
-                store: &store,
+            let case = NewCase {
                 reference,
                 legal_basis,
                 retention_until,
-                passphrase,
             };
-            let created = state::call_now(app, "case.create", &params, KDF_TIMEOUT)?;
-            let case_id = created
-                .get("case_id")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_owned();
-            let unlock = WithSecret {
-                store: &store,
-                case_id: Some(&case_id),
-                passphrase,
-            };
-            // The case exists even if opening it fails; the examiner can unlock it from the list.
-            let session = state::call_now(app, "session.unlock", &unlock, KDF_TIMEOUT).ok();
-            Ok(json!({"case_id": case_id, "session": session}))
+            create_case(app, store, &case, passphrase)
         }
         Purpose::RecoveryNew => {
             state::stash_recovery(app, Secret::new(passphrase))?;
@@ -128,51 +80,157 @@ pub fn perform(app: &AppHandle, purpose: &Purpose, passphrase: &str) -> Result<V
             store,
             dest,
             recovery,
-        } => {
-            if recovery.expose() == passphrase {
-                return Err(IpcError::invalid(
-                    "the recovery passphrase must not be your examiner passphrase",
-                ));
-            }
-            let (store, dest) = (path_text(store)?, path_text(dest)?);
-            let params = Recovery {
-                store: Some(&store),
-                path: None,
-                dest: Some(&dest),
-                examiner_passphrase: Some(passphrase),
-                recovery_passphrase: recovery.expose(),
-            };
-            state::call_now(app, "recovery.export", &params, KDF_TIMEOUT)
-        }
-        Purpose::RecoveryOpen { path } => {
-            let path = path_text(path)?;
-            let params = Recovery {
-                store: None,
-                path: Some(&path),
-                dest: None,
-                examiner_passphrase: None,
-                recovery_passphrase: passphrase,
-            };
-            let opened = state::call_now(app, "recovery.check", &params, KDF_TIMEOUT)?;
-            state::stash_recovery(app, Secret::new(passphrase))?;
-            Ok(opened)
-        }
+        } => recovery_export(app, store, dest, recovery, passphrase),
+        Purpose::RecoveryOpen { path } => recovery_open(app, path, passphrase),
         Purpose::RecoveryImport {
             path,
             store,
             recovery,
-        } => {
-            let (path, store) = (path_text(path)?, path_text(store)?);
-            let params = Recovery {
-                store: Some(&store),
-                path: Some(&path),
-                dest: None,
-                examiner_passphrase: Some(passphrase),
-                recovery_passphrase: recovery.expose(),
-            };
-            state::call_now(app, "recovery.import", &params, KDF_TIMEOUT)
-        }
+        } => recovery_import(app, path, store, recovery, passphrase),
     }
+}
+
+/// A method that needs only the store (and a case) besides the passphrase.
+fn with_store(
+    app: &AppHandle,
+    method: &str,
+    store: &Path,
+    case_id: Option<&str>,
+    passphrase: &str,
+    timeout: Duration,
+) -> Result<Value, IpcError> {
+    let store = path_text(store)?;
+    let params = WithSecret {
+        store: &store,
+        case_id,
+        passphrase,
+    };
+    state::call_now(app, method, &params, timeout)
+}
+
+fn key_card(
+    app: &AppHandle,
+    store: &Path,
+    holder: &str,
+    dest: &Path,
+    passphrase: &str,
+) -> Result<Value, IpcError> {
+    #[derive(Serialize)]
+    struct Card<'a> {
+        store: &'a str,
+        passphrase: &'a str,
+        holder: &'a str,
+        dest: &'a str,
+    }
+    let (store, dest) = (path_text(store)?, path_text(dest)?);
+    let params = Card {
+        store: &store,
+        passphrase,
+        holder,
+        dest: &dest,
+    };
+    state::call_now(app, "identity.card", &params, KDF_TIMEOUT)
+}
+
+/// What the examiner entered for a new case (everything but the store and the passphrase).
+struct NewCase<'a> {
+    reference: &'a str,
+    legal_basis: &'a str,
+    retention_until: &'a str,
+}
+
+/// Create the case, then open it with the same passphrase.
+fn create_case(
+    app: &AppHandle,
+    store: &Path,
+    case: &NewCase<'_>,
+    passphrase: &str,
+) -> Result<Value, IpcError> {
+    #[derive(Serialize)]
+    struct Create<'a> {
+        store: &'a str,
+        reference: &'a str,
+        legal_basis: &'a str,
+        retention_until: &'a str,
+        passphrase: &'a str,
+    }
+    let store = path_text(store)?;
+    let params = Create {
+        store: &store,
+        reference: case.reference,
+        legal_basis: case.legal_basis,
+        retention_until: case.retention_until,
+        passphrase,
+    };
+    let created = state::call_now(app, "case.create", &params, KDF_TIMEOUT)?;
+    let case_id = created
+        .get("case_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_owned();
+    let unlock = WithSecret {
+        store: &store,
+        case_id: Some(&case_id),
+        passphrase,
+    };
+    // The case exists even if opening it fails; the examiner can unlock it from the list.
+    let session = state::call_now(app, "session.unlock", &unlock, KDF_TIMEOUT).ok();
+    Ok(json!({"case_id": case_id, "session": session}))
+}
+
+fn recovery_export(
+    app: &AppHandle,
+    store: &Path,
+    dest: &Path,
+    recovery: &Secret,
+    passphrase: &str,
+) -> Result<Value, IpcError> {
+    if recovery.expose() == passphrase {
+        return Err(IpcError::invalid(
+            "the recovery passphrase must not be your examiner passphrase",
+        ));
+    }
+    let (store, dest) = (path_text(store)?, path_text(dest)?);
+    let params = Recovery {
+        store: Some(&store),
+        path: None,
+        dest: Some(&dest),
+        examiner_passphrase: Some(passphrase),
+        recovery_passphrase: recovery.expose(),
+    };
+    state::call_now(app, "recovery.export", &params, KDF_TIMEOUT)
+}
+
+fn recovery_open(app: &AppHandle, path: &Path, passphrase: &str) -> Result<Value, IpcError> {
+    let path = path_text(path)?;
+    let params = Recovery {
+        store: None,
+        path: Some(&path),
+        dest: None,
+        examiner_passphrase: None,
+        recovery_passphrase: passphrase,
+    };
+    let opened = state::call_now(app, "recovery.check", &params, KDF_TIMEOUT)?;
+    state::stash_recovery(app, Secret::new(passphrase))?;
+    Ok(opened)
+}
+
+fn recovery_import(
+    app: &AppHandle,
+    path: &Path,
+    store: &Path,
+    recovery: &Secret,
+    passphrase: &str,
+) -> Result<Value, IpcError> {
+    let (path, store) = (path_text(path)?, path_text(store)?);
+    let params = Recovery {
+        store: Some(&store),
+        path: Some(&path),
+        dest: None,
+        examiner_passphrase: Some(passphrase),
+        recovery_passphrase: recovery.expose(),
+    };
+    state::call_now(app, "recovery.import", &params, KDF_TIMEOUT)
 }
 
 /// Parameters of the recovery methods (ADR-012); absent fields are left out of the request.

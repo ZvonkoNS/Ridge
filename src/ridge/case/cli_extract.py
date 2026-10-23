@@ -14,9 +14,9 @@ from typing import Any
 
 from ridge.case import cli_common as common
 from ridge.case.export_step import ExportOptions
-from ridge.case.identity import unlock_identity
+from ridge.case.identity import Signer, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
-from ridge.case.store import open_case
+from ridge.case.store import OpenCase, open_case
 from ridge.errors import ExtractionError, InputError, ParameterError
 
 # What --keep-going may skip: problems with one photo or its settings. Case-store, integrity, key,
@@ -28,6 +28,21 @@ def cmd_extract(args: argparse.Namespace) -> int:
     """Run extraction jobs on evidence (with --keep-going, a refused photo does not stop the batch)."""
     passphrase, keystore = common.read_passphrase(), common.KEYSTORE_FACTORY()
     signer = unlock_identity(args.case.parent, passphrase, keystore)
+    params = _job_params(args)
+    with open_case(args.case, passphrase, keystore) as case:
+        targets = [i.sha256 for i in case.items() if i.role == "evidence"] if args.all else args.evidence
+        if not targets:
+            raise ParameterError("no evidence selected (use --all or --evidence SHA)")
+        failed = 0
+        for sha in targets:
+            failed += not _run_job(case, sha, signer, params, args)
+    if failed:
+        common.say(f"{failed} of {len(targets)} job(s) failed (see the messages above and `ridge-case jobs`)")
+    return 1 if failed else 0
+
+
+def _job_params(args: argparse.Namespace) -> JobParams:
+    """Build the job parameters from the command line; --ruler and --roi need exactly one photo."""
     if (args.ruler or args.roi) and (args.all or len(args.evidence) != 1):
         raise ParameterError("--ruler and --roi describe one photo: use them with exactly one --evidence SHA")
     export = ExportOptions(
@@ -36,7 +51,7 @@ def cmd_extract(args: argparse.Namespace) -> int:
         target_ppi=args.ppi,
         ruler=tuple(args.ruler) if args.ruler else None,
     )
-    params = JobParams(
+    return JobParams(
         args.period,
         args.min_quality,
         args.flip,
@@ -46,26 +61,21 @@ def cmd_extract(args: argparse.Namespace) -> int:
         args.minutiae,
         tuple(args.roi) if args.roi else None,
     )
-    with open_case(args.case, passphrase, keystore) as case:
-        targets = [i.sha256 for i in case.items() if i.role == "evidence"] if args.all else args.evidence
-        if not targets:
-            raise ParameterError("no evidence selected (use --all or --evidence SHA)")
-        failed = 0
-        for sha in targets:
-            try:
-                outcome = run_extraction_job(case, sha, signer, params, nfiq2_command=common.nfiq2_command(args))
-            except PHOTO_REFUSALS as exc:  # logged as a failed job; store, custody and output errors stop
-                if not args.keep_going:
-                    raise
-                failed += 1
-                common.warn(f"ridge-case: {sha[:12]}: {exc}")
-                continue
-            common.say(_job_summary(sha, outcome.job_id, outcome.report, len(outcome.outputs)))
-            for warning in (outcome.report.get("limits_of_use") or {}).get("warnings", []):
-                common.say(f"  outside the limits of use: {warning}")
-    if failed:
-        common.say(f"{failed} of {len(targets)} job(s) failed (see the messages above and `ridge-case jobs`)")
-    return 1 if failed else 0
+
+
+def _run_job(case: OpenCase, sha: str, signer: Signer, params: JobParams, args: argparse.Namespace) -> bool:
+    """Run one job and print its summary; return False when --keep-going skipped a refused photo."""
+    try:
+        outcome = run_extraction_job(case, sha, signer, params, nfiq2_command=common.nfiq2_command(args))
+    except PHOTO_REFUSALS as exc:  # logged as a failed job; store, custody and output errors stop
+        if not args.keep_going:
+            raise
+        common.warn(f"ridge-case: {sha[:12]}: {exc}")
+        return False
+    common.say(_job_summary(sha, outcome.job_id, outcome.report, len(outcome.outputs)))
+    for warning in (outcome.report.get("limits_of_use") or {}).get("warnings", []):
+        common.say(f"  outside the limits of use: {warning}")
+    return True
 
 
 def _job_summary(sha: str, job_id: str, report: dict[str, Any], outputs: int) -> str:
