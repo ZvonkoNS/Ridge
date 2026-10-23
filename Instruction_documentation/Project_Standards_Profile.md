@@ -1,6 +1,6 @@
 # Ridge Project Standards Profile
 
-Last verified: 2026-10-20
+Last verified: 2026-10-23
 Derived from `Project_Standards_Profile_Template.md`. Review triggers are in section 10. Product requirements: `docs/prd.md`. Design: `docs/architecture.md` (ADR table in section 13; `docs/adr/` when created).
 
 ## 1. Project identification
