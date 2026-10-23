@@ -28,6 +28,9 @@ pub const IDLE_LOCK: Duration = Duration::from_secs(15 * 60);
 /// First start plus at most three restarts per application run.
 pub const MAX_STARTS: u32 = 4;
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(60);
+/// A missing engine file (launch `NotFound`) is a broken installation, which restarting Ridge does
+/// not fix. No path: IPC errors carry none (desktop_gui_tauri_standards.md §8).
+const MISSING: &str = "the processing engine is missing from this installation; reinstall Ridge";
 /// Variables that would let the environment change which Python code, or which keystore, the sidecar uses.
 const SCRUBBED_ENV: [&str; 10] = [
     "PYTHONPATH",
@@ -172,6 +175,8 @@ pub struct Sidecar<T: Transport> {
     launch: Box<dyn FnMut() -> io::Result<T> + Send>,
     transport: Option<T>,
     starts: u32,
+    /// The last launch found no engine file; still the reason once the starts are used up.
+    missing: bool,
     next_id: u64,
     last_request: Instant,
     idle_locked: bool,
@@ -183,6 +188,7 @@ impl<T: Transport> Sidecar<T> {
             launch,
             transport: None,
             starts: 0,
+            missing: false,
             next_id: 1,
             last_request: Instant::now(),
             idle_locked: false,
@@ -239,13 +245,22 @@ impl<T: Transport> Sidecar<T> {
             return Ok(());
         }
         if self.starts >= MAX_STARTS {
-            return Err(IpcError::unavailable(
-                "the processing engine stopped too often; restart Ridge and report the problem",
-            ));
+            return Err(IpcError::unavailable(if self.missing {
+                MISSING
+            } else {
+                "the processing engine stopped too often; restart Ridge and report the problem"
+            }));
         }
         self.starts += 1;
-        let transport = (self.launch)()
-            .map_err(|_| IpcError::unavailable("the processing engine could not be started"))?;
+        let launched = (self.launch)();
+        self.missing = matches!(&launched, Err(e) if e.kind() == io::ErrorKind::NotFound);
+        let transport = launched.map_err(|_| {
+            IpcError::unavailable(if self.missing {
+                MISSING
+            } else {
+                "the processing engine could not be started"
+            })
+        })?;
         self.transport = Some(transport);
         let version = self.exchange("ridge.version", &serde_json::json!({}), STARTUP_TIMEOUT);
         match version {
@@ -298,6 +313,17 @@ impl<T: Transport> Sidecar<T> {
 
 fn stopped() -> IpcError {
     IpcError::unavailable("the processing engine stopped; any open case was locked")
+}
+
+/// Start the sidecar found by `locate`; no location, or nothing there, is `NotFound`.
+pub fn launch(program: Option<&Path>) -> io::Result<ChildTransport> {
+    match program {
+        Some(path) if path.is_file() => spawn(path),
+        _ => Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "the processing engine is not bundled",
+        )),
+    }
 }
 
 /// Where the sidecar binary is: inside the bundle's resources (release), or the repository
@@ -482,6 +508,69 @@ mod tests {
             .filter(|m| m["method"] == "job.run")
             .count();
         assert_eq!(jobs, 2, "a failed request is never resent");
+    }
+
+    /// The errors of `MAX_STARTS + 1` calls when every launch fails with `kind`: the last call
+    /// finds the starts used up and launches nothing.
+    fn launch_failures(kind: io::ErrorKind) -> Vec<(crate::error::ErrorKind, String)> {
+        let launches = Arc::new(Mutex::new(0));
+        let counted = launches.clone();
+        let mut sidecar = Sidecar::<Fake>::new(Box::new(move || {
+            *counted.lock().unwrap() += 1;
+            Err(io::Error::from(kind))
+        }));
+        let errors = (0..=MAX_STARTS)
+            .map(|_| {
+                let err = sidecar
+                    .call(
+                        "ridge.version",
+                        &serde_json::json!({}),
+                        Duration::from_secs(1),
+                    )
+                    .unwrap_err();
+                (err.kind, err.message)
+            })
+            .collect();
+        assert_eq!(*launches.lock().unwrap(), MAX_STARTS, "starts stay bounded");
+        errors
+    }
+
+    #[test]
+    fn a_missing_engine_asks_for_a_reinstall_every_time() {
+        let unavailable = crate::error::ErrorKind::Unavailable;
+        let missing = launch_failures(io::ErrorKind::NotFound);
+        let reinstall = (
+            unavailable,
+            "the processing engine is missing from this installation; reinstall Ridge".to_owned(),
+        );
+        assert_eq!(missing, vec![reinstall; missing.len()]);
+        let denied = launch_failures(io::ErrorKind::PermissionDenied);
+        let (last, starts) = denied.split_last().unwrap();
+        for failed in starts {
+            assert_eq!(
+                failed,
+                &(
+                    unavailable,
+                    "the processing engine could not be started".to_owned()
+                )
+            );
+        }
+        assert_eq!(
+            last.1,
+            "the processing engine stopped too often; restart Ridge and report the problem"
+        );
+    }
+
+    #[test]
+    fn no_engine_file_is_not_found() {
+        let absent = std::env::temp_dir().join(format!("ridge-absent-{}", std::process::id()));
+        let not_a_file = std::env::temp_dir();
+        for program in [None, Some(absent.as_path()), Some(not_a_file.as_path())] {
+            assert_eq!(
+                launch(program).err().map(|e| e.kind()),
+                Some(io::ErrorKind::NotFound)
+            );
+        }
     }
 
     #[test]
