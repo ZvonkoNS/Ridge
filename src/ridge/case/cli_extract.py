@@ -9,7 +9,6 @@ does not stop the batch, while case-store, integrity, key, custody and output er
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -59,7 +58,7 @@ def cmd_extract(args: argparse.Namespace) -> int:
                 if not args.keep_going:
                     raise
                 failed += 1
-                print(f"ridge-case: {sha[:12]}: {exc}", file=sys.stderr)  # noqa: T201
+                common.warn(f"ridge-case: {sha[:12]}: {exc}")
                 continue
             common.say(_job_summary(sha, outcome.job_id, outcome.report, len(outcome.outputs)))
             for warning in (outcome.report.get("limits_of_use") or {}).get("warnings", []):

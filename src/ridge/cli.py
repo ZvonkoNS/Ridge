@@ -26,6 +26,7 @@ from ridge.image_io import (
     save_image,
 )
 from ridge.pipeline import extract_fingerprint
+from ridge.terminal import safe
 
 OUT_TAG = "_fingerprint"  # output: <photo>_fingerprint.png
 EXIT_OK, EXIT_FAILURES, EXIT_INTERNAL = 0, 1, 3
@@ -35,8 +36,8 @@ RND_NOTICE = (
 )
 
 
-def _warn(message: str) -> None:
-    print(message, file=sys.stderr)
+def _warn(message: str, *, lines: bool = False) -> None:
+    print(safe(message, lines=lines), file=sys.stderr)  # file names are attacker-controlled (CWE-150)
 
 
 def is_own_output(path: Path) -> bool:
@@ -171,7 +172,7 @@ def _process(f: Path, outdir: Path, args: argparse.Namespace, limits: ReadLimits
     save_image(out, result.image, overwrite=args.overwrite)
     note = "" if result.found_finger else "  (couldn't find the finger by skin colour; searched the whole photo)"
     height, width = result.image.shape[:2]
-    print(f"{f} -> {out}  [ridge spacing {result.period:.1f}px, {width}x{height}]{note}")
+    print(safe(f"{f} -> {out}  [ridge spacing {result.period:.1f}px, {width}x{height}]{note}"))
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -207,5 +208,5 @@ def main(argv: Sequence[str] | None = None) -> int:
             code = EXIT_INTERNAL
             _warn(f"{f}: FAILED - internal error ({type(exc).__name__}); rerun with --verbose and report it")
             if args.verbose:
-                traceback.print_exc()
+                _warn(traceback.format_exc().rstrip(), lines=True)
     return code

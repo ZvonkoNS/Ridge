@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +42,7 @@ def cmd_jobs(args: argparse.Namespace) -> None:
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
         jobs = list_jobs(case.entries)
     if args.json:
-        common.say(json.dumps([j.to_json() for j in jobs], ensure_ascii=False, indent=2))
+        common.say(json.dumps([j.to_json() for j in jobs], ensure_ascii=False, indent=2), lines=True)
         return
     if not jobs:
         common.say("no jobs")
@@ -69,7 +68,9 @@ def cmd_report(args: argparse.Namespace) -> None:
             )
             return
         signed = load_report(case, args.case.parent, args.job)
-    common.say(signed.canonical.decode("utf-8") if args.json else render_report(signed.report, signed.key_id))
+    # Canonical JSON has no line breaks; render_report() passes every line through printable().
+    text = signed.canonical.decode("utf-8") if args.json else render_report(signed.report, signed.key_id)
+    common.say(text, lines=True)
 
 
 def cmd_compare_jobs(args: argparse.Namespace) -> None:
@@ -97,7 +98,7 @@ def cmd_reproduce(args: argparse.Namespace) -> int:
         return 0
     for label, items in (("differs", result.differing), ("missing", result.missing), ("extra", result.extra)):
         for item in items:
-            print(f"{label}: {printable(item)}", file=sys.stderr)  # noqa: T201
+            common.warn(f"{label}: {printable(item)}")
     common.say(
         f"NOT reproduced: job {result.original_job} re-run as {result.new_job}; {len(result.matched)} outputs match"
     )

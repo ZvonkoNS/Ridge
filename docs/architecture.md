@@ -112,6 +112,7 @@ src/ridge/
   cli.py               Argument parsing and the per-file loop (thin)
   errors.py            Typed error hierarchy (RidgeError → InputError, ParameterError, OutputError, ExtractionError, …)
   image_io.py          Allow-listed, size-bounded decoding; atomic, no-overwrite encoding
+  terminal.py          Display-safe text: hidden and control characters as <U+XXXX> (CWE-150, CVE-2021-42574)
   debug.py             Writing of debug images (intermediate arrays → files)
   pipeline/
     imgutil.py         masked_blur, disk, largest_component, fill_holes, remove_specks
@@ -132,12 +133,13 @@ Dependency rules (enforced by review now; an import-linter contract is planned):
 | `pipeline/*` | `numpy`, `cv2`, `ridge.errors`, sibling pipeline modules | `image_io`, `cli`, filesystem, `PIL`, clock, randomness, network |
 | `image_io` | `PIL`, `numpy`, `cv2` (encode only), `ridge.errors` | `pipeline`, `cli` |
 | `debug` | `image_io`, `numpy`, `cv2` | `cli` |
+| `terminal` | `re` only | everything else (a leaf: `cli`, `case`, `metadata` and `validation` use it) |
 | `cli` | everything above | — (nothing imports `cli`, except `__main__` and the shim) |
 | `sidecar/*` [Implemented M4] | `ridge.case`, `ridge.image_io`, `ridge.errors` | sockets or any network module (offline test), `cli` |
 | `minutiae/*` [Implemented M3] | `numpy`, `cv2`, `ridge.errors`, `ridge.pipeline.imgutil` | file I/O, `case`, `cli`; no matching of any kind |
 | `export/*`, `quality/*` [Implemented M2] | `numpy`, `cv2`, `PIL` (PNG pHYs), `ridge.errors`, `ridge.pipeline` (result type only); `quality` runs one configured external tool (absolute path, argv list, no shell, timeout) | file I/O except the NFIQ 2 temporary copy in a caller-given folder; `case`, `cli` |
-| `case/*` [Implemented M1-M2] (`crypto`, `keys`, `identity`, `custody`, `store`, `jobs`, `export_step`, `verify`, `dispose`, `reports`, `processing_record`, `compare`, `reproduce`, `listing`, `metadata_render`, `cli` with `cli_common`, `cli_records`, `cli_compare`, `cli_metadata`) | `cryptography`, `argon2-cffi`, `keyring`, `rfc8785`, `ridge.errors`, `ridge.image_io`; `jobs` and `cli_metadata` also `ridge.metadata`, and `jobs` also `ridge.pipeline`; `metadata_render` also `ridge.metadata.gps` (the link template) | `cli` modules of other packages; nothing outside `case` imports `case.cli` |
-| `metadata/*` [Implemented 2026-10-20] (`values`, `exif`, `exif_names`, `gps`, `xmp`, `iptc`, `icc`, `containers`, `summary`) | `PIL`, `defusedxml`, `ridge.errors`, `ridge.image_io` (allow-list and pixel limit only) | `case`, `pipeline`, `cli`, file I/O, `xml.etree` directly (bandit B405), network; bytes in, a bounded dict out |
+| `case/*` [Implemented M1-M2] (`crypto`, `keys`, `identity`, `custody`, `store`, `jobs`, `export_step`, `verify`, `dispose`, `reports`, `processing_record`, `compare`, `reproduce`, `listing`, `metadata_render`, `photo_metadata`, `cli` with `cli_common`, `cli_records`, `cli_compare`, `cli_metadata`) | `cryptography`, `argon2-cffi`, `keyring`, `rfc8785`, `ridge.errors`, `ridge.image_io`; `jobs` and `cli_metadata` also `ridge.metadata`, and `jobs` also `ridge.pipeline`; `metadata_render` also `ridge.metadata.gps` (the link template) | `cli` modules of other packages; nothing outside `case` imports `case.cli` |
+| `metadata/*` [Implemented 2026-10-20] (`values`, `exif`, `exif_names`, `gps`, `xmp`, `iptc`, `icc`, `containers`, `summary`) | `PIL`, `defusedxml`, `ridge.errors`, `ridge.image_io` (allow-list and pixel limit only), `ridge.terminal` | `case`, `pipeline`, `cli`, file I/O, `xml.etree` directly (bandit B405), network; bytes in, a bounded dict out |
 
 Files are kept to about 300 lines or fewer, and functions do one job. Documentation is never imported by runtime code.
 
@@ -440,7 +442,7 @@ The file holds no images and no personal data. The laboratory can countersign or
 | --- | --- | --- |
 | Format allow-list by content | `PIL.Image.open(fp, formats=ALLOWED)`. Exotic plugins (EPS/Ghostscript, PSD, …) are never reached; the extension is ignored. | FR-8; CWE-434, CWE-20 |
 | Bounded reading | Open with `O_NONBLOCK` (no hang on FIFOs); `fstat` regular-file and size check; capped read of at most `max_bytes + 1`; decode from memory; hard caps that configuration cannot exceed; minimum side 32 px. | FR-9; CWE-400, CWE-770 |
-| Decompression-bomb guard | Header dimensions checked against `max_pixels` before `load()`; `Image.MAX_IMAGE_PIXELS` set to the limit; Pillow bomb warnings escalated to errors. | FR-9; CWE-409 |
+| Decompression-bomb guard | Header dimensions checked against Ridge's own `max_pixels` (default 150 MP, hard cap 170 MP) before `load()`. Pillow's `DecompressionBombError` (above about 179 MP, raised while opening) is reported as a refused input. Pillow's `DecompressionBombWarning` (from about 89 MP) is ignored on purpose: Ridge's limit has already been applied, and the warning would refuse legitimate 100 MP and 200 MP phone photos. `Image.MAX_IMAGE_PIXELS` is left at Pillow's default (no process-wide state). | FR-9; CWE-409 |
 | Single decoder, explicit errors | No fallback to a second decoder; truncated or corrupt input raises `DecodeError`. | FR-10; CWE-390, CWE-755 |
 | Metadata stripping | Outputs are encoded from pixel arrays only; EXIF orientation is applied, then discarded. | FR-12 |
 | Metadata reading (2026-10-20) | Only allow-listed images, opened with the same `formats=` list; XMP parsed with defusedxml (`forbid_dtd`, no entities, no external references) and only up to 1 MiB; ICC parsed by hand with bounds checks; one entry and byte budget per photo; every value display-safe; a malformed block becomes a warning; PNG text after the pixels is read only within the pixel limit | FR-36; CWE-611, CWE-776, CWE-150, CWE-400, CWE-770 |
@@ -521,7 +523,6 @@ Packaging the GUI release (implemented 2026-10-18; installers first built and sm
 5. A release build of the Rust core looks for the sidecar in its resource folder only (`sidecar::locate`).
 6. The frozen build is about 210 MB on Windows. It is not bit-reproducible (PyInstaller embeds build timestamps); the release records the SHA-256 of every shipped file instead.
 7. On Windows, `tauri build` writes an MSI (about 82 MiB, WiX 3.14) and a per-user NSIS `setup.exe` (about 57 MiB, no administrator rights). The first build downloads WiX and NSIS into `%LOCALAPPDATA%\tauri`, and Tauri checks their pinned hashes. The NSIS build installs to `%LOCALAPPDATA%\Ridge`, with the engine at `sidecar\ridge-sidecar.exe` (what `sidecar::locate` expects).
-idge-sidecar.exe` (what `sidecar::locate` expects).
 8. In the smoke test, the installed engine answered `ridge.version` with its build commit over stdio. The installed app opened its window and started WebView2 and the engine, closing it stopped the engine, and the silent uninstaller removed the installation. Neither installer is code-signed yet: that needs the laboratory's code-signing certificate.
 
 The reference workstation is to be specified (OQ-11).
