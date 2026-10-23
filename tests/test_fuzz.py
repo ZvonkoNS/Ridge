@@ -95,9 +95,18 @@ def test_custody_log_rejects_authenticated_garbage(payload: bytes) -> None:
 
 
 def test_decoder_warnings_are_logged_not_raised(caplog: pytest.LogCaptureFixture) -> None:
-    """Regression for a fuzzer finding: a malformed TIFF tag made Pillow emit a UserWarning."""
+    """Regression for a fuzzer finding: a malformed TIFF tag made Pillow emit a UserWarning.
+
+    The finding was a PhotometricInterpretation tag with too many entries (byte 62). Pillow 12
+    decoded that file with a warning; Pillow 13 refuses it as unidentified, which Ridge reports as
+    InputRejectedError. RowsPerStrip with too many entries (byte 98) still decodes with a warning.
+    """
+    refused = bytearray(SAMPLES["TIFF"])
+    refused[62] = 2
+    with pytest.raises(InputRejectedError):
+        decode_image(bytes(refused), ReadLimits())
     data = bytearray(SAMPLES["TIFF"])
-    data[62] = 2  # PhotometricInterpretation tag with too many entries
+    data[98] = 2  # RowsPerStrip tag with too many entries
     with caplog.at_level(logging.WARNING, logger="ridge.image_io"):
-        _decode_or_typed_error(bytes(data))
+        decode_image(bytes(data), ReadLimits())
     assert any("image decoder warning" in r.getMessage() for r in caplog.records)
