@@ -31,6 +31,20 @@ ENTRY = "from ridge.sidecar.server import main\n\nraise SystemExit(main())\n"
 KEYSTORE_BACKEND = {"win32": "keyring.backends.Windows", "darwin": "keyring.backends.macOS"}.get(
     sys.platform, "keyring.backends.SecretService"
 )
+# Pillow finds its format plugins by name when a file is opened, so a frozen build without one
+# would refuse that format as unsupported at run time. One plugin per allow-listed format
+# (ridge.image_io.ALLOWED_FORMATS), the HEIF opener and the XMP parser (FR-36).
+DECODERS = frozenset(
+    {
+        "PIL.JpegImagePlugin",
+        "PIL.PngImagePlugin",
+        "PIL.TiffImagePlugin",
+        "PIL.BmpImagePlugin",
+        "PIL.WebPImagePlugin",
+        "pillow_heif",
+        "defusedxml.ElementTree",
+    }
+)
 
 
 def stamp(work: Path) -> Path:
@@ -90,17 +104,17 @@ def freeze() -> Path:
 
 
 def check_bundle() -> None:
-    """Check that this platform's keystore backend and the sidecar methods are in the frozen archive."""
+    """Check that the keystore backend, the image decoders and the sidecar methods are in the frozen archive."""
     # build tool only: untyped, and installed from requirements-build.lock, not in development or CI
     from PyInstaller.archive.readers import (  # type: ignore[import-untyped,import-not-found,unused-ignore]  # noqa: PLC0415
         ZlibArchiveReader,
     )
 
     names = set(ZlibArchiveReader(str(BUILD / "pyinstaller" / NAME / "PYZ-00.pyz")).toc)
-    missing = {KEYSTORE_BACKEND, "ridge.sidecar.handlers", "ridge.case.limits"} - names
+    missing = {KEYSTORE_BACKEND, "ridge.sidecar.handlers", "ridge.case.limits", *DECODERS} - names
     if missing:
         raise SystemExit(f"frozen sidecar lacks {sorted(missing)}")
-    print(f"frozen archive ok: {len(names)} modules, keystore backend {KEYSTORE_BACKEND}")
+    print(f"frozen archive ok: {len(names)} modules, keystore backend {KEYSTORE_BACKEND}, {len(DECODERS)} decoders")
 
 
 def smoke(exe: Path) -> None:
