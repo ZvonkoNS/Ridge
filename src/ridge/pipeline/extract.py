@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import cast
 
 import cv2
@@ -10,10 +10,12 @@ import numpy as np
 
 from ridge.arrays import FloatImage, ImageU8, Mask
 from ridge.errors import ParameterError, ResolutionTooLowError, WorkAreaTooLargeError
+from ridge.pipeline.channel import gray_channel
 from ridge.pipeline.gabor import gabor_bank, oriented_filter, ridge_orientation
 from ridge.pipeline.imgutil import masked_blur
 from ridge.pipeline.location import PrintLocation, locate
-from ridge.pipeline.mask import finger_mask
+from ridge.pipeline.mask import finger_mask, without_specular
+from ridge.pipeline.options import MethodOptions
 from ridge.pipeline.period import estimate_period
 from ridge.pipeline.quality import print_region, ridge_quality
 from ridge.pipeline.render import binarize, render_gray
@@ -51,6 +53,10 @@ class ExtractionResult:
     # mapped through a soft contrast curve instead of a threshold (ridge.pipeline.render). None
     # only when built by hand.
     gray: ImageU8 | None = None
+    # Method variants that were on (ADR-014) and what they did; defaults for a hand-built result.
+    options: MethodOptions = field(default_factory=MethodOptions)
+    channel_used: str = "green"
+    specular_fraction: float | None = None  # share of the finger area removed as highlights, when the mask was on
 
 
 def _check_arguments(bgr: object, period: float | None, min_quality: float) -> None:
@@ -88,6 +94,14 @@ class _Enhanced:
     region: FloatImage
 
 
+def _check_resolution(period: float) -> None:
+    if period < MIN_PERIOD:
+        raise ResolutionTooLowError(
+            f"ridges are only {period:.1f}px apart: the photo is too low-resolution "
+            "(take it closer, or pass --period if the estimate is wrong)"
+        )
+
+
 def extract_fingerprint(
     bgr: ImageU8,
     *,
@@ -96,25 +110,32 @@ def extract_fingerprint(
     flip: bool = False,
     crop: bool = True,
     debug: bool = False,
+    options: MethodOptions | None = None,
 ) -> ExtractionResult:
     """Extract the fingerprint from a BGR uint8 photo of a finger.
 
-    Raises ParameterError for invalid arguments and ImageTooSmallError,
+    `options` turns on method variants (ADR-014); None or the defaults give the characterised
+    pipeline. Raises ParameterError for invalid arguments and ImageTooSmallError,
     ResolutionTooLowError, WorkAreaTooLargeError or NoRidgePatternError (all
     ExtractionError) when no fingerprint can be extracted.
     """
     _check_arguments(bgr, period, min_quality)
+    options = options or MethodOptions()
+    if not isinstance(options, MethodOptions):
+        raise ParameterError("options must be a MethodOptions")
     h, w = bgr.shape[:2]
     detected = finger_mask(bgr)
     mask: Mask = detected if detected is not None else np.ones((h, w), bool)
-    gray = cast(FloatImage, bgr[:, :, 1].astype(np.float32) / 255.0)  # green shows ridges best on skin
-    if period is None:
-        period = estimate_period(gray, mask)
-    if period < MIN_PERIOD:
-        raise ResolutionTooLowError(
-            f"ridges are only {period:.1f}px apart: the photo is too low-resolution "
-            "(take it closer, or pass --period if the estimate is wrong)"
-        )
+    gray, channel_used = gray_channel(bgr, options.channel, mask)  # the default is the green plane
+    measured = estimate_period(gray, mask) if period is None else period
+    _check_resolution(measured)
+    specular_fraction: float | None = None
+    if options.specular_mask:
+        mask, specular_fraction = without_specular(bgr, mask, measured)
+        if period is None:  # measure again without the highlights
+            measured = estimate_period(gray, mask)
+            _check_resolution(measured)
+    period = measured
     area = _work_area(mask, period, h, w)
     enhanced = _enhance(*_rescale(gray, mask, area), min_quality)
     window, size, out_scale = _output_window(enhanced, area, period, crop=crop)
@@ -137,6 +158,9 @@ def extract_fingerprint(
         output_scale=float(out_scale),
         location=location,
         gray=gray_print,
+        options=options,
+        channel_used=channel_used,
+        specular_fraction=specular_fraction,
     )
 
 

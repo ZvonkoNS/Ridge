@@ -24,6 +24,7 @@ from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.reports import list_jobs, load_report
 from ridge.case.store import OpenCase
 from ridge.errors import IntegrityError, RidgeError
+from ridge.pipeline import MethodOptions
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,7 @@ def params_from_report(parameters: dict[str, Any]) -> JobParams:
             roi=None if parameters.get("roi") is None else tuple(parameters["roi"]),  # older reports: none
             finger_position=parameters.get("finger_position", 0),  # reports before FR-38: unknown
             source_agency=parameters.get("source_agency"),
+            options=MethodOptions.from_json(parameters.get("options")),  # reports before ADR-014: defaults
         )
     except (KeyError, TypeError, IndexError, ValueError):
         raise IntegrityError("the report's parameters are incomplete; the job cannot be reproduced") from None

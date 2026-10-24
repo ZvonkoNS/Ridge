@@ -17,6 +17,16 @@ const JOB: Duration = Duration::from_secs(20 * 60);
 const JSON_FILE: (&str, &[&str]) = ("JSON", &["json"]);
 const PNG: (&str, &[&str]) = ("PNG image", &["png"]);
 
+/// Opt-in method variants (ADR-014); the sidecar validates them again.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MethodOptionsRequest {
+    channel: String,
+    specular_mask: bool,
+}
+
+const CHANNELS: [&str; 5] = ["green", "red", "blue", "luma", "auto"];
+
 /// Extraction options as the review panel sends them (all fields required: no hidden defaults).
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -36,6 +46,7 @@ pub struct JobRequest {
     roi: Option<[u32; 4]>,
     finger_position: u8,
     source_agency: Option<String>,
+    options: MethodOptionsRequest,
 }
 
 impl JobRequest {
@@ -90,6 +101,13 @@ impl JobRequest {
             ));
         }
         params.insert("finger_position".into(), json!(self.finger_position));
+        if !CHANNELS.contains(&self.options.channel.as_str()) {
+            return Err(IpcError::invalid("not a known colour plane"));
+        }
+        params.insert(
+            "options".into(),
+            json!({"channel": self.options.channel, "specular_mask": self.options.specular_mask}),
+        );
         params.insert(
             "source_agency".into(),
             json!(validate::optional_text(
@@ -306,7 +324,8 @@ mod tests {
         let mut base = json!({
             "evidence": "a".repeat(64), "period": null, "min_quality": 0.25, "flip": false, "crop": true,
             "debug": false, "export": true, "mirror": true, "ppi": 500.0, "ruler": null, "reference": "ruler",
-            "minutiae": false, "roi": null, "finger_position": 0, "source_agency": null
+            "minutiae": false, "roi": null, "finger_position": 0, "source_agency": null,
+            "options": {"channel": "green", "specular_mask": false}
         });
         if let (Some(base), Some(extra)) = (base.as_object_mut(), extra.as_object()) {
             base.extend(extra.clone());
@@ -337,6 +356,10 @@ mod tests {
         assert_eq!(stated["finger_position"], json!(7));
         assert_eq!(stated["source_agency"], json!("Lab A"));
         assert_eq!(params["source_agency"], json!(null));
+        assert_eq!(
+            params["options"],
+            json!({"channel": "green", "specular_mask": false})
+        );
     }
 
     #[test]
@@ -360,6 +383,7 @@ mod tests {
             json!({"reference": "coin"}),
             json!({"finger_position": 11}),
             json!({"source_agency": "x".repeat(201)}),
+            json!({"options": {"channel": "cyan", "specular_mask": false}}),
         ] {
             assert!(request(extra.clone()).unwrap().params().is_err(), "{extra}");
         }

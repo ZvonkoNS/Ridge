@@ -3,5 +3,14 @@
 from __future__ import annotations
 
 from ridge.pipeline.extract import WORK_PERIOD, DebugImages, ExtractionResult, extract_fingerprint
+from ridge.pipeline.options import CHANNELS, Channel, MethodOptions
 
-__all__ = ["WORK_PERIOD", "DebugImages", "ExtractionResult", "extract_fingerprint"]
+__all__ = [
+    "CHANNELS",
+    "WORK_PERIOD",
+    "Channel",
+    "DebugImages",
+    "ExtractionResult",
+    "MethodOptions",
+    "extract_fingerprint",
+]

@@ -121,6 +121,8 @@ src/ridge/
     gabor.py           gabor_bank, ridge_orientation, oriented_filter
     quality.py         periodicity and print-region selection
     render.py          binarize (the print) and render_gray (its grayscale twin, FR-37)
+    options.py         MethodOptions: opt-in variants, off by default (ADR-014)
+    channel.py         colour plane choice, including the measured "auto" choice (ADR-014)
     extract.py         extract_fingerprint orchestration → ExtractionResult
 fingerprint_extract.py Backward-compatible shim (legacy CLI and legacy function signature)
 tests/                 pytest; synthetic data generator; golden characterization arrays
@@ -592,5 +594,6 @@ Test layers: characterization (live v0 run, bit-identical on every platform; per
 | ADR-011 | Hand-written IPC types checked by tests; Tauri isolation pattern not adopted for now ([docs/adr/ADR-011-gui-ipc-types-and-isolation.md](adr/ADR-011-gui-ipc-types-and-isolation.md)) | Accepted | Rust and the sidecar validate every value; 27 small types do not justify a generator yet. |
 | ADR-012 | Recovery of the OS-keystore device secret, without which a store backup cannot be opened elsewhere ([docs/adr/ADR-012-device-secret-recovery.md](adr/ADR-012-device-secret-recovery.md)) | **Accepted** 2026-10-18 (product owner, also interim Security Owner) | Implemented: a recovery file sealed under a separate recovery passphrase, `ridge-case recovery export|import|check`, the store screen's recovery card and the store audit file |
 | ADR-013 | Photo metadata is read from the stored original by a pure module, recorded as bounded, display-safe text in the signed report (`input.metadata`), and shown under the photos; the map link is copy-only (no opener capability, no network) | **Accepted** 2026-10-20 (product owner: copy-only link, built-in readers, panel under the photos, evidence and references) | Keeps ADR-001 (offline) and the WebView lock-down intact; the report stays the single record; DPO review of what it may carry is open (PRD OQ-16) |
+| ADR-014 | Method variants are opt-in, off by default and recorded in every report; the characterised pipeline stays bit-identical; a variant becomes a default only after the validation study ([docs/adr/ADR-014-opt-in-method-variants.md](adr/ADR-014-opt-in-method-variants.md)) | Proposed 2026-10-24 (engineering, autonomous window); Forensic Quality Manager decision pending | Lets the pilot and the validation study measure the variants without touching the goldens or the method's defaults (ADR-009, forensic standard §13) |
 
 ADRs move to individual files under `docs/adr/` when they need more than a table row.

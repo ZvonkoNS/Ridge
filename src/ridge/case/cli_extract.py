@@ -16,9 +16,11 @@ from ridge.case import cli_common as common
 from ridge.case.export_step import ExportOptions
 from ridge.case.identity import Signer, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
+from ridge.case.report_lines import variants_line
 from ridge.case.store import OpenCase, open_case
 from ridge.errors import ExtractionError, InputError, ParameterError
 from ridge.export import REFERENCE_OBJECTS, ReferenceKind
+from ridge.pipeline import CHANNELS, MethodOptions
 
 # What --keep-going may skip: problems with one photo or its settings. Case-store, integrity, key,
 # custody and output errors are not about one photo and always stop the batch.
@@ -85,6 +87,7 @@ def _job_params(args: argparse.Namespace) -> JobParams:
         tuple(args.roi) if args.roi else None,
         finger_position=args.finger_position,
         source_agency=args.source_agency,
+        options=MethodOptions(channel=args.channel, specular_mask=args.specular_mask),
     )
 
 
@@ -106,6 +109,9 @@ def _run_job(case: OpenCase, sha: str, signer: Signer, params: JobParams, args: 
         common.say(f"  scale notice: {notice}")
     if export.get("resolution_note"):
         common.say(f"  resolution note: {export['resolution_note']}")
+    variants = variants_line(outcome.report.get("parameters") or {}, outcome.report.get("measurements") or {})
+    if variants:
+        common.say(f"  {variants.strip()}")
     return True
 
 
@@ -175,6 +181,17 @@ def add_commands(sub: Any) -> None:
         help="finger the photo shows, ANSI/NIST-ITL code 0 (unknown) to 10, recorded as your statement (FR-38)",
     )
     p.add_argument("--source-agency", metavar="TEXT", help="submitting agency, recorded as your statement (FR-38)")
+    p.add_argument(
+        "--channel",
+        choices=CHANNELS,
+        default="green",
+        help="colour plane the ridge signal is taken from; auto picks the strongest (unvalidated variant, ADR-014)",
+    )
+    p.add_argument(
+        "--specular-mask",
+        action="store_true",
+        help="exclude specular highlights from the finger area (unvalidated variant, ADR-014)",
+    )
     p.add_argument("--nfiq2", type=Path, help="absolute path of the NIST NFIQ 2 executable (indicative score)")
     p.add_argument("--nfiq2-arg", action="append", default=[], help="extra argument for the NFIQ 2 command")
     p.set_defaults(func=cmd_extract)
