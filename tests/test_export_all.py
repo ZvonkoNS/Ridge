@@ -113,6 +113,9 @@ def test_cli(case_dir: tuple[Path, MemoryKeyStore], tmp_path: Path, monkeypatch:
     monkeypatch.setattr(getpass, "getpass", lambda prompt="": PASSPHRASE)
     assert main(["export-all", str(folder), "--to", str(tmp_path / "prints"), "--role", "print"]) == 0
     assert len(list((tmp_path / "prints").glob("*.png"))) == 2
+    assert main(["export-all", str(folder), "--to", str(tmp_path / "grey")]) == 0  # the default role (ADR-015)
+    with (tmp_path / "grey" / INDEX).open(encoding="utf-8") as index:
+        assert {row["role"] for row in csv.DictReader(index)} == {"export-gray"}
 
 
 def test_a_label_cannot_become_a_spreadsheet_formula(tmp_path: Path) -> None:

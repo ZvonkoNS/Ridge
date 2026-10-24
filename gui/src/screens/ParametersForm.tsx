@@ -156,13 +156,27 @@ interface Props {
   value: Params;
   onChange: (next: Params) => void;
   disabled: boolean;
+  /** Research mode (ADR-015): the unvalidated method variants are shown and editable only when true. */
+  research?: boolean;
   children?: ReactNode;
+}
+
+/** The variant fields of ADR-014 at their defaults: what leaving research mode puts back. */
+export function withoutVariants(p: Params): Params {
+  return {
+    ...p,
+    channel: DEFAULT_PARAMS.channel,
+    specularMask: DEFAULT_PARAMS.specularMask,
+    upright: DEFAULT_PARAMS.upright,
+    localFrequency: DEFAULT_PARAMS.localFrequency,
+    rectify: DEFAULT_PARAMS.rectify,
+  };
 }
 
 const whole = (e: ChangeEvent<HTMLInputElement>): number =>
   Math.max(0, Math.round(Number(e.target.value) || 0));
 
-export function ParametersForm({ value: p, onChange, disabled, children }: Props) {
+export function ParametersForm({ value: p, onChange, disabled, research = false, children }: Props) {
   const set = (patch: Partial<Params>) => {
     onChange({ ...p, ...patch });
   };
@@ -264,7 +278,7 @@ export function ParametersForm({ value: p, onChange, disabled, children }: Props
           }}
         />
       </div>
-      <MethodVariants value={p} onChange={set} />
+      {research ? <MethodVariants value={p} onChange={set} /> : null}
       <fieldset className="subset">
         <legend>Submission record (your statements, recorded in the report)</legend>
         <label className="field">

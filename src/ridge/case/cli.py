@@ -216,7 +216,9 @@ def _add_case_commands(sub: Any) -> None:
     p = sub.add_parser("export-all", help="export every stored item of one role into a new folder (logged)")
     p.add_argument("case", type=Path)
     p.add_argument("--to", type=Path, required=True, help="a folder that does not exist yet")
-    p.add_argument("--role", choices=ROLES, default="export", help="which items (default: comparison exports)")
+    p.add_argument(
+        "--role", choices=ROLES, default="export-gray", help="which items (default: grayscale comparison exports)"
+    )
     p.add_argument(
         "--format",
         choices=FORMATS,

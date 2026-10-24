@@ -64,7 +64,7 @@ From the command line, `ridge-case metadata <case> <sha>` prints the same for on
 ## Jobs and review
 
 1. Choose a photo and its settings. Use **Region** to process one finger of several. Use **Scale reference** (two points on a ruler in the photo, with the distance in mm, or two points across a bank-size ID-1 card, whose edge length is filled in) for a calibrated 500 ppi comparison export. Without one, the form says so before you run the job, the job still runs, and the report and the job summary carry a notice: the scale is estimated from the ridge spacing (±15 %), so add a ruler or a card in the plane of the finger pad where that is still possible, or proceed as is and state it when the export is used.
-   **Method variants** are off by default and are not covered by the validation: a different colour plane for the ridge signal (or "auto", which picks the strongest), a mask for flash highlights, a rotation of the finger to upright (tip up) before extraction, in which case the print area's frame is drawn tilted on the original, a local ridge frequency, which filters each area at its own ridge spacing (slower), and a rectification of the pad's curvature, which unrolls the finger so the ridges towards its sides keep their spacing; the scale of a rectified print holds on the centre line only, and its frame is drawn with curved sides on the original. If you turn one on, the report records it and says so; use them only within the limits of use the laboratory states.
+   **Method variants** (shown only in research mode, see below) are off by default and are not covered by the validation: a different colour plane for the ridge signal (or "auto", which picks the strongest), a mask for flash highlights, a rotation of the finger to upright (tip up) before extraction, in which case the print area's frame is drawn tilted on the original, a local ridge frequency, which filters each area at its own ridge spacing (slower), and a rectification of the pad's curvature, which unrolls the finger so the ridges towards its sides keep their spacing; the scale of a rectified print holds on the centre line only, and its frame is drawn with curved sides on the original. If you turn one on, the report records it and says so; use them only within the limits of use the laboratory states.
 2. **Run job.** The original, the region and the result are shown side by side. Zoom with <kbd>+</kbd> and <kbd>-</kbd>; <kbd>0</kbd> fits the image, and the arrow keys move it.
    After the job, the original shows where the print was extracted. A solid line surrounds the area kept as the print, a dashed box marks the frame of the print image, and the rest of the photo is dimmed on screen only. The comparison export is usually mirrored, so it shows this area the other way round. **Show where the print was extracted** hides or shows the outline. The job summary and the report give the same area in photo pixels ("Print area").
 3. **Measure** shows the distance between two points in pixels and, on a scaled export, in millimetres with its uncertainty. It is for orientation and is not recorded.
@@ -79,6 +79,14 @@ Every job is logged, and a failed job is logged with its reason. Only a job that
 - **Compare settings with** lists only the settings that differ between two jobs. It does not rank the outputs.
 
 If the laboratory has set limits of use, each report says whether the job stayed within them, and names any deviation.
+
+### Research mode
+
+The method variants of ADR-014 (colour plane, specular mask, upright rotation, local ridge frequency, rectification) change the output pixels and are not covered by any validation. The review panel hides them until you switch on **Research mode**; switching it off puts every variant back to its default, so a job can never carry a variant you cannot see. Use research mode for the validation study and for research, not for casework; every report records the variants a job used either way.
+
+### What an NFIQ 2 score is worth here
+
+NFIQ 2 was trained on contact prints at 500 ppi. Ridge scores the grayscale export with it and labels the score indicative. Treat it as a weak hint about the image, not as a statement about the photograph, the finger or the chances of a search; a low score is a reason to look, not a conclusion.
 
 ## References
 

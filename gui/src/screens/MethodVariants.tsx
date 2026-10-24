@@ -13,6 +13,10 @@ export const CHANNELS: Record<Channel, string> = {
 export const VARIANTS_NOTE =
   "Method variants change the output pixels and are not covered by the validation (ADR-014). Off by default; every report records them.";
 
+/** The research-mode switch's explanation (ADR-015). */
+export const RESEARCH_NOTE =
+  "Shows the unvalidated method variants (ADR-014). Switching it off puts every variant back to its default. For research and the validation study, not for casework; every report records the variants a job used.";
+
 type VariantParams = Pick<Params, "channel" | "specularMask" | "upright" | "localFrequency" | "rectify">;
 
 /** The opt-in method variants of ADR-014: off by default, recorded in every report. */
