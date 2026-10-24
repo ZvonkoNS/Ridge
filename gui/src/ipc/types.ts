@@ -250,6 +250,8 @@ export interface JobResult {
   quality: Quality | null;
   minutiae: MinutiaeSummary | null;
   limits_of_use: LimitsSection | null;
+  /** Absent in reports made before FR-38. */
+  submission?: SubmissionRecord | null;
 }
 
 export interface MinutiaPoint {
@@ -290,6 +292,20 @@ export interface JobOptions {
   reference: ReferenceKind;
   minutiae: boolean;
   roi: [number, number, number, number] | null;
+  /** ANSI/NIST-ITL finger code stated by the examiner, 0 = unknown (FR-38). */
+  finger_position: number;
+  source_agency: string | null;
+}
+
+/** The submission record of a job (FR-38): the examiner's statements and the unverified camera. */
+export interface SubmissionRecord {
+  finger_position: number;
+  finger: string;
+  source_agency: string | null;
+  impression: string;
+  capture_device: string | null;
+  capture_device_note: string;
+  notice: string;
 }
 
 export interface JobRecord {
@@ -334,6 +350,7 @@ export interface JobReport {
   quality: Quality | null;
   minutiae?: MinutiaeSummary | null;
   limits_of_use?: LimitsSection | null;
+  submission?: SubmissionRecord | null;
   outputs: { role: Role; label: string; sha256: string; size: number }[];
   custody_head: string;
   signer: { key_id: string; public_key: string };

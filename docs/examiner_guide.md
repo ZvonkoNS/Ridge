@@ -66,6 +66,7 @@ From the command line, `ridge-case metadata <case> <sha>` prints the same for on
 Every job is logged, and a failed job is logged with its reason. Only a job that succeeds has a signed report. In **Jobs**:
 
 - **Export signed report...** writes the report with its signature;
+- **Save submission cover sheet...** writes an HTML page for the AFIS operator: the case reference, your submission record (the finger shown and the source agency as you stated them in the job's settings, the camera the photo's file names, unverified), the files to attach with their hashes, the export's resolution and scale, and the notes. It is not signed; the signed report stays the record;
 - **Save readable copy...** writes an HTML page for the case file. The page is not signed: the JSON report is the record;
 - **Reproduce job** runs the job again from its report and compares every output. Results are reproducible on the same operating system and processor type;
 - **Compare settings with** lists only the settings that differ between two jobs. It does not rank the outputs.

@@ -24,6 +24,21 @@ export const NO_REFERENCE_HINT =
   "No scale reference: the export scale will be estimated from the ridge spacing (±15 %). If possible, add a " +
   "ruler or an ID-1 (bank-size) card in the plane of the finger pad and mark two points on it; otherwise proceed as is.";
 
+/** ANSI/NIST-ITL finger position codes (0 unknown, 1-5 right thumb to little, 6-10 left), as ridge.case.submission. */
+export const FINGER_POSITIONS: readonly string[] = [
+  "unknown",
+  "right thumb",
+  "right index",
+  "right middle",
+  "right ring",
+  "right little",
+  "left thumb",
+  "left index",
+  "left middle",
+  "left ring",
+  "left little",
+];
+
 export interface Params {
   period: string;
   minQuality: number;
@@ -38,6 +53,8 @@ export interface Params {
   ruler: Point[];
   rulerMm: string;
   reference: ReferenceKind;
+  fingerPosition: number;
+  sourceAgency: string;
 }
 
 /** The distance the form sends: the typed millimetres for a ruler, the standard edge length for a card. */
@@ -59,6 +76,8 @@ export const DEFAULT_PARAMS: Params = {
   ruler: [],
   rulerMm: "10",
   reference: "ruler",
+  fingerPosition: 0,
+  sourceAgency: "",
 };
 
 /** Turn the form into job options, or explain what to fix. */
@@ -91,6 +110,10 @@ export function toOptions(evidence: string, p: Params, photo?: Size | null): Job
   if (p.roi && (p.roi.width < 32 || p.roi.height < 32)) {
     return "The region must be at least 32 x 32 pixels.";
   }
+  const agency = p.sourceAgency.trim();
+  if (agency.length > 200) {
+    return "The source agency must be at most 200 characters.";
+  }
   return {
     evidence,
     period,
@@ -105,6 +128,8 @@ export function toOptions(evidence: string, p: Params, photo?: Size | null): Job
     reference: p.reference,
     minutiae: p.minutiae,
     roi: p.roi ? [p.roi.x, p.roi.y, p.roi.width, p.roi.height] : null,
+    finger_position: p.fingerPosition,
+    source_agency: agency === "" ? null : agency,
   };
 }
 
@@ -246,6 +271,35 @@ export function ParametersForm({ value: p, onChange, disabled, children }: Props
           }}
         />
       </div>
+      <fieldset className="subset">
+        <legend>Submission record (your statements, recorded in the report)</legend>
+        <label className="field">
+          <span>Finger shown</span>
+          <select
+            value={p.fingerPosition}
+            onChange={(e) => {
+              set({ fingerPosition: Math.min(10, Math.max(0, Math.round(Number(e.target.value) || 0))) });
+            }}
+          >
+            {FINGER_POSITIONS.map((name, code) => (
+              <option key={code} value={code}>
+                {code}: {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Source agency</span>
+          <input
+            value={p.sourceAgency}
+            maxLength={200}
+            placeholder="not stated"
+            onChange={(e) => {
+              set({ sourceAgency: e.target.value });
+            }}
+          />
+        </label>
+      </fieldset>
       <div className="params-geometry">
         <fieldset className="subset">
           <legend>Region of interest (photo pixels)</legend>

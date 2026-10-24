@@ -101,6 +101,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
         job.report_export_html,
         {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)},
     ),
+    "cover.export": (job.cover_export, {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
     "log.export": (job.log_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
     "log.entries": (
         job.log_entries,
@@ -148,6 +149,8 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
             "reference": (str_, False),
             "minutiae": (bool_, False),
             "roi": ((list, type(None)), False),
+            "finger_position": (int_, False),
+            "source_agency": ((str, type(None)), False),
         },
     ),
 }

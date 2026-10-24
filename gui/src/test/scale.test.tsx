@@ -27,7 +27,7 @@ describe("scale reference (FR-31)", () => {
       />,
     );
     expect(screen.queryByRole("note")).toBeNull();
-    expect(screen.getByRole("combobox")).toHaveValue("id1-long");
+    expect(screen.getByLabelText("Object")).toHaveValue("id1-long");
     expect(screen.getByLabelText("mm")).toBeDisabled();
     expect(screen.getByLabelText("mm")).toHaveValue("85.6");
   });

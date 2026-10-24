@@ -436,6 +436,7 @@ const handlers: Record<string, Handler> = {
     exported: "D:\\Exports\\ridge_key_card.json",
   }),
   export_report_html: (r) => ({ exported: "D:\\Exports\\ridge_job_report.html", job_id: r.job_id }),
+  export_cover: (r) => ({ exported: "D:\\Exports\\ridge_submission_cover.html", job_id: r.job_id }),
   import_evidence: () => ({
     imported: [],
     refused: [{ name: "IMG_0099.gif", message: "the preview imports nothing (synthetic data only)" }],

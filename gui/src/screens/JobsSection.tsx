@@ -38,7 +38,7 @@ function ReportView({
   const images = report.outputs.filter((o) => o.role !== "minutiae");
   const [selected, setSelected] = useState(images[0]?.sha256 ?? null);
   const [reproduction, setReproduction] = useState<Reproduction | null>(null);
-  const [busy, setBusy] = useState<"export" | "html" | "reproduce" | null>(null);
+  const [busy, setBusy] = useState<"export" | "html" | "cover" | "reproduce" | null>(null);
   const measure = useMeasure();
   const current = images.find((o) => o.sha256 === selected) ?? null;
   const item = items.find((i) => i.sha256 === current?.sha256);
@@ -48,13 +48,18 @@ function ReportView({
   const overlay = useMinutiaeOverlay(minutiaeSha, current?.role ?? null, preview.source, onFailure);
   const result = report;
 
-  const act = async (what: "export" | "html" | "reproduce") => {
+  const act = async (what: "export" | "html" | "cover" | "reproduce") => {
     setBusy(what);
     try {
       if (what === "html") {
         const done = await ipc.exportReportHtml(report.job_id);
         notify(
           `Readable copy saved (${done.exported.split(/[\\/]/).pop() ?? ""}). It is not signed: the signed report stays authoritative.`,
+        );
+      } else if (what === "cover") {
+        const done = await ipc.exportCover(report.job_id);
+        notify(
+          `Submission cover sheet saved (${done.exported.split(/[\\/]/).pop() ?? ""}). It is not signed; it names the files to attach and their hashes.`,
         );
       } else if (what === "export") {
         const done = await ipc.exportReport(report.job_id);
@@ -80,6 +85,9 @@ function ReportView({
           </Button>
           <Button onClick={() => void act("html")} busy={busy === "html"}>
             Save readable copy...
+          </Button>
+          <Button onClick={() => void act("cover")} busy={busy === "cover"}>
+            Save submission cover sheet...
           </Button>
           <Button onClick={() => void act("reproduce")} busy={busy === "reproduce"}>
             Reproduce job

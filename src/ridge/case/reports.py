@@ -38,6 +38,7 @@ from ridge.case.report_lines import (
     scale_notice_line,
 )
 from ridge.case.store import OpenCase
+from ridge.case.submission import submission_line
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
 from ridge.image_io import read_bounded
 
@@ -269,6 +270,7 @@ def render_report(report: dict[str, Any], key_id: str) -> str:
         f"Measured      ridge spacing {meas.get('ridge_period_px', 0):.2f} px, "
         f"finger found {_yes(meas.get('found_finger'))}, output scale {meas.get('output_scale')}",
         print_area_line(meas.get("print_area")),
+        submission_line(report.get("submission")),
         export_line(report.get("export")),
         scale_notice_line(report.get("export")),
         resolution_note_line(report.get("export")),

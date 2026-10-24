@@ -17,6 +17,7 @@ from typing import Any
 
 from ridge.case import cli_common as common
 from ridge.case.cli_register import add_register_argument, confirm, registered_line
+from ridge.case.cover_sheet import export_cover_sheet
 from ridge.case.custody import select_entries
 from ridge.case.custody_head import check_head, export_head
 from ridge.case.identity import unlock_identity
@@ -57,6 +58,10 @@ def cmd_jobs(args: argparse.Namespace) -> None:
 def cmd_report(args: argparse.Namespace) -> None:
     """Show or export a job's signed report after verifying it."""
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
+        if args.cover:
+            signed = export_cover_sheet(case, args.case.parent, args.job, args.cover, overwrite=args.overwrite)
+            common.say(f"submission cover sheet for job {signed.job_id} written to {args.cover} (not signed; logged)")
+            return
         if args.html:
             signed = export_report_html(case, args.case.parent, args.job, args.html, overwrite=args.overwrite)
             common.say(f"readable report {signed.job_id} written to {args.html} (the signed JSON stays authoritative)")
@@ -217,6 +222,9 @@ def add_commands(sub: Any) -> None:
     shown.add_argument("--json", action="store_true", help="print the signed canonical JSON")
     shown.add_argument("--to", type=Path, help="export the report and its detached signature (PATH.sig)")
     shown.add_argument("--html", type=Path, help="write a readable HTML rendering (not signed; logged)")
+    shown.add_argument(
+        "--cover", type=Path, help="write the AFIS submission cover sheet (HTML, not signed; logged) (FR-38)"
+    )
     p.add_argument("--overwrite", action="store_true")
     p.set_defaults(func=cmd_report)
     p = sub.add_parser("compare-jobs", help="list the settings that differ between two jobs (no ranking)")

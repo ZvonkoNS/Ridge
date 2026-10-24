@@ -33,6 +33,7 @@ from ridge.case.identity import Signer
 from ridge.case.keys import b64
 from ridge.case.limits import LimitsOfUse, load_limits, report_section
 from ridge.case.store import OpenCase
+from ridge.case.submission import Submission, submission_record
 from ridge.errors import ExtractionError, ParameterError, RidgeError
 from ridge.image_io import ALLOWED_FORMATS, ReadLimits, decode_image, encode_image
 from ridge.metadata import read_metadata
@@ -55,10 +56,16 @@ class JobParams:
     export: ExportOptions = field(default_factory=ExportOptions)
     minutiae: bool = False
     roi: tuple[int, int, int, int] | None = None  # x, y, width, height in the EXIF-oriented photo
+    finger_position: int = 0  # ANSI/NIST-ITL finger code stated by the examiner, 0 = unknown (FR-38)
+    source_agency: str | None = None  # submitting agency as stated by the examiner (FR-38)
 
     def to_json(self) -> dict[str, Any]:
         """JSON-friendly form for the custody log and the report."""
         return {**asdict(self), "export": self.export.to_json(), "roi": None if self.roi is None else list(self.roi)}
+
+    def submission(self) -> Submission:
+        """Return the validated submission statements (raises ParameterError for a bad code or text)."""
+        return Submission(self.finger_position, self.source_agency)
 
 
 def validate_roi(roi: object) -> None:
@@ -157,6 +164,7 @@ def run_extraction_job(
         raise ExtractionError("jobs run on evidence items only")
     validate_job_settings(params.export, nfiq2_command)  # nothing is logged or stored for invalid settings
     validate_roi(params.roi)
+    submission = params.submission()
     limits_of_use = load_limits(case.dir.parent)  # a malformed limits file stops the job before it starts
     job_id = str(uuid.uuid4())
     case.entries.append(
@@ -178,6 +186,7 @@ def run_extraction_job(
             limits=limits or ReadLimits(),
             nfiq2_command=nfiq2_command,
             limits_of_use=limits_of_use,
+            submission=submission,
         )
     except BaseException as exc:  # every started job is closed in the custody log
         error = str(exc) if isinstance(exc, RidgeError) else f"internal error ({type(exc).__name__})"
@@ -195,6 +204,7 @@ def _execute(
     limits: ReadLimits,
     nfiq2_command: Sequence[str] | None,
     limits_of_use: LimitsOfUse | None,
+    submission: Submission,
 ) -> JobOutcome:
     data = case.read(evidence.sha256, job_id=job_id)
     photo = decode_image(data, limits)  # EXIF orientation applied: the coordinate space of roi and ruler
@@ -217,6 +227,12 @@ def _execute(
         "output_scale": result.output_scale,
         "print_area": print_area(result, params.roi),
     }
+    source: dict[str, Any] = {
+        "sha256": evidence.sha256,
+        "label": evidence.label,
+        **_probe(data, photo),
+        **({"source": evidence.source} if evidence.source else {}),
+    }
     report: dict[str, Any] = {
         "schema": REPORT_SCHEMA,
         "job_id": job_id,
@@ -224,13 +240,9 @@ def _execute(
         "case_reference": case.meta().case_reference,
         "created_utc": utc_now(),
         "ridge": environment(),
-        "input": {
-            "sha256": evidence.sha256,
-            "label": evidence.label,
-            **_probe(data, photo),
-            **({"source": evidence.source} if evidence.source else {}),
-        },
+        "input": source,
         "parameters": params.to_json(),
+        "submission": submission_record(submission, source.get("metadata")),
         "measurements": measurements,
         **export_fields,
         "limits_of_use": report_section(limits_of_use, {"measurements": measurements, **export_fields}),

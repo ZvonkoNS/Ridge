@@ -99,6 +99,8 @@ ridge-case export-all D:/ridge-store/<case-id> --to D:/for-afis   # every binary
 ridge-case export-all D:/ridge-store/<case-id> --to D:/for-afis-gray --role export-gray   # the grayscale exports (FR-37)
 ridge-case export-all D:/ridge-store/<case-id> --to D:/for-afis-tiff --role export-gray --format tiff   # converted to uncompressed TIFF (FR-32)
 ridge-case export D:/ridge-store/<case-id> <sha> --to D:/out/finger.bmp   # one image output converted to BMP; .png copies the stored bytes
+ridge-case extract D:/ridge-store/<case-id> --evidence <sha> --finger-position 2 --source-agency "Lab A"   # submission record (FR-38)
+ridge-case report D:/ridge-store/<case-id> <job> --cover D:/out/cover.html   # AFIS submission cover sheet (not signed; logged)
 ridge-case verify D:/ridge-store/<case-id>              # hashes, custody chain, report signatures
 ridge-case status D:/ridge-store/<case-id>              # one-screen summary: stored items, jobs, notes, last verify
 ridge-case verify-store --store D:/ridge-store           # every case of the store, one passphrase

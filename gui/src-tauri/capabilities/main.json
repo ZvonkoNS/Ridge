@@ -40,6 +40,7 @@
     "allow-export-package",
     "allow-custody-log",
     "allow-export-report-html",
+    "allow-export-cover",
     "allow-export-key-card",
     "allow-check-exported",
     "allow-backup-store",
