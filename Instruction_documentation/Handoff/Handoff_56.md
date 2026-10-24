@@ -37,7 +37,7 @@ Out of scope: code signing (needs the laboratory's certificate, profile §8); th
 
 ## 2. Current repository state
 
-Git status summary: committed on `afis-release-check-36`; the build outputs are in ignored folders.
+Git status summary: committed on `afis-release-check-36` and pushed; pull request #50 against `afis-linked-marking-35` (opened 2026-10-25 on the owner's instruction); the build outputs are in ignored folders.
 
 Recent commits: `56c15b8` (ADR acceptance and the build check), then this handoff; `0549dd5` (Handoff_55) and the stack below.
 
