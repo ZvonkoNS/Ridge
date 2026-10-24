@@ -60,7 +60,9 @@ def test_export_is_stored_recorded_and_matches_the_library(
     assert export["scale"]["method"] == "ridge-period"
     assert export["scale"]["assumed_ridge_period_mm"] == 0.47
     assert export["scale"]["uncertainty_pct"] == 15.0
-    assert outcome.report["quality"] == {"nfiq2": {"computed": False, "reason": "NFIQ 2 is not configured"}}
+    assert outcome.report["quality"] == {
+        "nfiq2": {"computed": False, "reason": "NFIQ 2 is not configured", "image": "export-gray"}
+    }
 
     with Image.open(io.BytesIO(blobs["export"])) as im:
         assert im.mode == "L"
@@ -198,3 +200,44 @@ def test_nfiq2_is_skipped_unless_the_export_is_500_ppi(
     nfiq2 = outcome.report["quality"]["nfiq2"]
     assert nfiq2["computed"] is False
     assert "500 ppi" in nfiq2["reason"]
+
+
+def hashing_nfiq2(folder: Path, seen: Path, output: str) -> list[str]:
+    """A fake NFIQ 2 that records the SHA-256 of the image it was given (its last argument)."""
+    script = folder / "hashing_nfiq2.py"
+    script.write_text(
+        "import hashlib, sys\nfrom pathlib import Path\n"
+        "Path(sys.argv[1]).write_text(hashlib.sha256(Path(sys.argv[-1]).read_bytes()).hexdigest(), encoding='utf-8')\n"
+        f"print({output!r})\n",
+        encoding="utf-8",
+    )
+    return [sys.executable, str(script), str(seen)]
+
+
+def test_grayscale_export_is_stored_and_scored(case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path) -> None:
+    photo = photo_file(tmp_path / "in")
+    seen = tmp_path / "seen.txt"
+    outcome, blobs = run_job(case_dir, keystore, photo, nfiq2_command=hashing_nfiq2(tmp_path, seen, "61"))
+    gray = outcome.report["export"]["grayscale"]
+    assert gray["transforms"] == [
+        "tone:grayscale",
+        "polarity:dark-ridges",
+        "mirror:horizontal",
+        "scale:500ppi:ridge-period",
+    ]
+    item = next(o for o in outcome.outputs if o.role == "export-gray")
+    assert (item.sha256, item.label) == (gray["sha256"], "finger_comparison_gray_500ppi.png")
+    assert [o.role for o in outcome.outputs] == ["print", "export", "export-gray"]
+    with Image.open(io.BytesIO(blobs["export-gray"])) as im:
+        assert im.mode == "L"
+        assert im.info["dpi"] == pytest.approx((500, 500), abs=0.1)
+        stored = np.asarray(im)
+    with Image.open(io.BytesIO(blobs["export"])) as im:
+        assert stored.shape == np.asarray(im).shape  # the same geometry as the binary export
+    assert len(np.unique(stored)) > 2
+    direct = extract_fingerprint(load_image(photo))
+    expected = make_comparison_export(direct, scale_from_ridge_period(direct.period), tone="grayscale").image
+    assert np.array_equal(stored, expected)
+    nfiq2 = outcome.report["quality"]["nfiq2"]
+    assert (nfiq2["computed"], nfiq2["score"], nfiq2["image"]) == (True, 61, "export-gray")
+    assert seen.read_text(encoding="utf-8").strip() == item.sha256  # the tool scored the grayscale export

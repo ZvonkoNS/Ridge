@@ -28,7 +28,8 @@ export function marksFor(view: MinutiaeView | null, role: Role, shown: Size | nu
   if (!view || !shown) {
     return null;
   }
-  const space: MinutiaeSpace | null = role === "export" ? view.export : role === "print" ? view.print : null;
+  const space: MinutiaeSpace | null =
+    role === "export" || role === "export-gray" ? view.export : role === "print" ? view.print : null;
   if (space?.width !== shown.width || space.height !== shown.height) {
     return null;
   }

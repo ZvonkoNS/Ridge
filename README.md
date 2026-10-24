@@ -95,7 +95,8 @@ ridge-case metadata D:/ridge-store/<case-id> <sha>      # a photo's metadata wit
 ridge-case import-reference D:/ridge-store/<case-id> candidate.png --source "NAFIS candidate 3"
 ridge-case compare D:/ridge-store/<case-id> <export-sha> <reference-sha> --to sheet.png   # equal scale, view only
 ridge-case export D:/ridge-store/<case-id> <sha> --to print.png   # the only way plaintext leaves the store (logged)
-ridge-case export-all D:/ridge-store/<case-id> --to D:/for-afis   # every comparison export, one logged export each, with EXPORTS.csv
+ridge-case export-all D:/ridge-store/<case-id> --to D:/for-afis   # every binary comparison export, one logged export each, with EXPORTS.csv
+ridge-case export-all D:/ridge-store/<case-id> --to D:/for-afis-gray --role export-gray   # the grayscale exports (FR-37)
 ridge-case verify D:/ridge-store/<case-id>              # hashes, custody chain, report signatures
 ridge-case status D:/ridge-store/<case-id>              # one-screen summary: stored items, jobs, notes, last verify
 ridge-case verify-store --store D:/ridge-store           # every case of the store, one passphrase
@@ -141,8 +142,12 @@ ridge-case dispose D:/ridge-store/<case-id> --confirm <case-id> --reason retenti
 Each job also stores a **comparison export**: dark ridges on light, mirrored to contact
 orientation, resampled to 500 ppi (PNG with resolution metadata). Without `--ruler` the
 scale is estimated from the ridge spacing and an assumed 0.47 mm ridge distance (±15 %,
-to be validated); the report records the method and uncertainty. With `--nfiq2` an
-**indicative** NFIQ 2 score is recorded (NFIQ 2 is defined for contact prints).
+to be validated); the report records the method and uncertainty. Beside it, every job
+stores a **grayscale comparison export** of the same geometry (role `export-gray`, FR-37):
+the filtered ridge signal through a soft contrast curve instead of a threshold, zero wherever
+the print's region ends, so it keeps ridge strength for AFIS feature extractors without
+showing any ridge the print does not. With `--nfiq2` an **indicative** NFIQ 2 score of the
+grayscale export is recorded (NFIQ 2 is defined for contact prints).
 
 **Limits of use.** When the laboratory's validation report defines limits of use, the
 Forensic Quality Manager places them in the store as `limits-of-use.json`. Every job report

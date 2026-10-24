@@ -125,9 +125,18 @@ function runJob(request: Record<string, unknown>): JobResult {
       job_id: jobId,
       source: null,
     },
+    {
+      sha256: hex(70 + n),
+      role: "export-gray",
+      size: 611_204,
+      label: "IMG_0042_comparison_gray_500ppi.png",
+      job_id: jobId,
+      source: null,
+    },
   ];
   SIZES[hex(10 + n)] = [1180, 1500, "print"];
   SIZES[hex(20 + n)] = [760, 966, "export"];
+  SIZES[hex(70 + n)] = [760, 966, "export"]; // drawn like the export: synthetic preview only
   if (request.minutiae === true) {
     outputs.push({
       sha256: hex(50 + n),
@@ -157,8 +166,23 @@ function runJob(request: Record<string, unknown>): JobResult {
       scale: ruler
         ? { method: "ruler", px_per_mm: 20.0, uncertainty_pct: 0.25 }
         : { method: "ridge-period", px_per_mm: 38.1, uncertainty_pct: 15, assumed_ridge_period_mm: 0.47 },
+      grayscale: {
+        sha256: hex(70 + n),
+        transforms: [
+          "tone:grayscale",
+          "polarity:dark-ridges",
+          "mirror:horizontal",
+          `scale:500ppi:${ruler ? "ruler" : "ridge-period"}`,
+        ],
+      },
     },
-    quality: { nfiq2: { computed: false, reason: "NFIQ 2 is not configured on this workstation" } },
+    quality: {
+      nfiq2: {
+        computed: false,
+        reason: "NFIQ 2 is not configured on this workstation",
+        image: "export-gray",
+      },
+    },
     minutiae:
       request.minutiae === true
         ? {

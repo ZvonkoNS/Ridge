@@ -17,9 +17,11 @@ def export_line(export: dict[str, Any] | None) -> str:
         return f"Export        not produced: {export.get('reason')}"
     scale = export.get("scale") or {}
     transforms = ", ".join(export.get("transforms") or []) or "none"
+    gray = export.get("grayscale") or {}  # reports made before FR-37 have no grayscale twin
+    twin = f"; grayscale twin sha256 {str(gray.get('sha256'))[:12]}" if gray.get("sha256") else ""
     return (
         f"Export        {export.get('ppi'):g} ppi, scale from {scale.get('method')} "
-        f"(+-{scale.get('uncertainty_pct', 0):.1f} %), transforms: {transforms}"
+        f"(+-{scale.get('uncertainty_pct', 0):.1f} %), transforms: {transforms}{twin}"
     )
 
 
@@ -29,7 +31,8 @@ def nfiq2_line(nfiq2: dict[str, Any] | None) -> str:
         return ""
     if not nfiq2.get("computed"):
         return f"NFIQ 2        not computed: {nfiq2.get('reason')}"
-    return f"NFIQ 2        {nfiq2.get('score')} ({nfiq2.get('label')}; {nfiq2.get('version')})"
+    scored = f" on the {nfiq2['image']} image" if nfiq2.get("image") else ""  # older reports name none
+    return f"NFIQ 2        {nfiq2.get('score')} ({nfiq2.get('label')}; {nfiq2.get('version')}){scored}"
 
 
 def minutiae_line(minutiae: dict[str, Any] | None) -> str:

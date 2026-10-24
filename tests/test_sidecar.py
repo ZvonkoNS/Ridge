@@ -145,7 +145,7 @@ def test_full_workflow(session: Session, case_dir: Path, tmp_path: Path) -> None
     ]
     assert job["export"]["scale"]["method"] == "ruler"
     roles = {o["role"] for o in job["outputs"]}
-    assert roles == {"print", "export", "minutiae"}
+    assert roles == {"print", "export", "export-gray", "minutiae"}
 
     print_sha = next(o["sha256"] for o in job["outputs"] if o["role"] == "print")
     shown = call(session, "preview.get", {"sha256": print_sha, "max_side": 128})["result"]
@@ -161,7 +161,7 @@ def test_full_workflow(session: Session, case_dir: Path, tmp_path: Path) -> None
     assert error_code(call(session, "case.export", {"sha256": print_sha, "dest": "relative.png"})) == APPLICATION_ERROR
 
     assert call(session, "case.verify")["result"]["ok"] is True
-    assert len(call(session, "case.items")["result"]) == 4
+    assert len(call(session, "case.items")["result"]) == 5  # evidence, print, both exports, minutiae
 
     (listed,) = call(session, "case.jobs")["result"]
     assert (listed["job_id"], listed["result"]) == (job["job_id"], "ok")

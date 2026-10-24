@@ -27,7 +27,7 @@ export function scaleFrom(ppi: number | null, method: "file" | "examiner"): Scal
 
 export function ReferencesSection({ items, onFailure, onChanged, notify }: Props) {
   const references = items.filter((i) => i.role === "reference");
-  const exports = items.filter((i) => i.role === "export");
+  const exports = items.filter((i) => i.role === "export" || i.role === "export-gray");
   const [source, setSource] = useState("");
   const [busy, setBusy] = useState<"import" | "sheet" | null>(null);
   const [exportSha, setExportSha] = useState<string>("");
@@ -210,7 +210,7 @@ export function ReferencesSection({ items, onFailure, onChanged, notify }: Props
               }}
               label={(zoom) => (
                 <ExhibitLabel
-                  role="export"
+                  role={exportItem.role}
                   sha256={exportItem.sha256}
                   detail={`${exportItem.label}; scale method and uncertainty: see the job report`}
                   scale={exportScale}

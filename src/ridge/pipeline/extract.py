@@ -9,13 +9,14 @@ import cv2
 import numpy as np
 
 from ridge.arrays import FloatImage, ImageU8, Mask
-from ridge.errors import NoRidgePatternError, ParameterError, ResolutionTooLowError, WorkAreaTooLargeError
+from ridge.errors import ParameterError, ResolutionTooLowError, WorkAreaTooLargeError
 from ridge.pipeline.gabor import gabor_bank, oriented_filter, ridge_orientation
-from ridge.pipeline.imgutil import masked_blur, remove_specks
+from ridge.pipeline.imgutil import masked_blur
 from ridge.pipeline.location import PrintLocation, locate
 from ridge.pipeline.mask import finger_mask
 from ridge.pipeline.period import estimate_period
-from ridge.pipeline.quality import NO_RIDGES, print_region, ridge_quality
+from ridge.pipeline.quality import print_region, ridge_quality
+from ridge.pipeline.render import binarize, render_gray
 
 WORK_PERIOD = 12.0  # ridge spacing in pixels that the photo is rescaled to for filtering
 MIN_PERIOD = 3.0  # below this the ridges cannot be resolved
@@ -46,6 +47,10 @@ class ExtractionResult:
     output_scale: float = 1.0
     # Where the print came from, in the pixels of the photo passed in (None only when built by hand).
     location: PrintLocation | None = None
+    # The grayscale twin of `image` (PRD FR-37): the same window and size, with the filter output
+    # mapped through a soft contrast curve instead of a threshold (ridge.pipeline.render). None
+    # only when built by hand.
+    gray: ImageU8 | None = None
 
 
 def _check_arguments(bgr: object, period: float | None, min_quality: float) -> None:
@@ -113,11 +118,9 @@ def extract_fingerprint(
     area = _work_area(mask, period, h, w)
     enhanced = _enhance(*_rescale(gray, mask, area), min_quality)
     window, size, out_scale = _output_window(enhanced, area, period, crop=crop)
-    result = _binarize(enhanced, window, size, period * out_scale, flip=flip)
+    result, gray_print = _render(enhanced, window, size, period * out_scale, flip=flip)
     if not crop:  # paste the finger box back into a frame the size of the photo
-        full = np.zeros((h, w), np.uint8)
-        full[area.y0 : area.y1, area.x0 : area.x1] = result
-        result = full
+        result, gray_print = _framed(result, area, h, w), _framed(gray_print, area, h, w)
     location = locate(
         enhanced.region,
         window=window if crop else None,
@@ -133,6 +136,7 @@ def extract_fingerprint(
         debug=_debug_images(bgr, area, enhanced, period) if debug else None,
         output_scale=float(out_scale),
         location=location,
+        gray=gray_print,
     )
 
 
@@ -204,23 +208,30 @@ def _output_window(
     return (0, 0, enh.shape[1], enh.shape[0]), (area.x1 - area.x0, area.y1 - area.y0), 1.0
 
 
-def _binarize(
+def _render(
     enhanced: _Enhanced,
     window: tuple[int, int, int, int],
     size: tuple[int, int],
     p_out: float,
     *,
     flip: bool,
-) -> ImageU8:
-    """Threshold the filter output inside the print region at output size; `p_out` is the output ridge spacing."""
+) -> tuple[ImageU8, ImageU8]:
+    """Resize the filter output and the print region to output size; return the print and its grayscale twin.
+
+    `p_out` is the output ridge spacing. Both renderings come from the same two arrays
+    (ridge.pipeline.render), so the grayscale print shows nothing beyond the print's region.
+    """
     wx0, wy0, wx1, wy1 = window
-    enh_out = cv2.resize(enhanced.enh[wy0:wy1, wx0:wx1], size, interpolation=cv2.INTER_CUBIC)
-    region_out = cv2.resize(enhanced.region[wy0:wy1, wx0:wx1], size, interpolation=cv2.INTER_LINEAR) > 0.5
-    if not region_out.any():
-        raise NoRidgePatternError(NO_RIDGES)
-    ridges = (enh_out < 0) if flip else (enh_out > 0)  # ridges are the bright lines in a photo
-    kept = remove_specks(ridges & region_out, min_area=0.25 * p_out * p_out)
-    return kept.astype(np.uint8) * 255
+    enh_out = cast(FloatImage, cv2.resize(enhanced.enh[wy0:wy1, wx0:wx1], size, interpolation=cv2.INTER_CUBIC))
+    region_out = cast(FloatImage, cv2.resize(enhanced.region[wy0:wy1, wx0:wx1], size, interpolation=cv2.INTER_LINEAR))
+    return binarize(enh_out, region_out, p_out, flip=flip), render_gray(enh_out, region_out, flip=flip)
+
+
+def _framed(image: ImageU8, area: _WorkArea, h: int, w: int) -> ImageU8:
+    """Paste an output of the finger box back into a black frame the size of the photo (crop=False)."""
+    full = np.zeros((h, w), np.uint8)
+    full[area.y0 : area.y1, area.x0 : area.x1] = image
+    return cast(ImageU8, full)
 
 
 def _debug_images(bgr: ImageU8, area: _WorkArea, enhanced: _Enhanced, period: float) -> DebugImages:

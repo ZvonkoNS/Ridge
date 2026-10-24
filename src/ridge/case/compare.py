@@ -30,6 +30,7 @@ from ridge.image_io import ALLOWED_FORMATS, ReadLimits, decode_image
 
 SHEET_PPI: Final = 500.0
 PLAUSIBLE_PPI: Final = (250.0, 2000.0)  # fingerprint scans and AFIS images; outside this a value is a default
+EXPORT_ROLES: Final = ("export", "export-gray")  # either comparison export can go on a sheet
 MAX_SHEET_PIXELS: Final = 100_000_000
 GAP_MM, BAR_MM = 5.0, 10.0
 DISCLAIMER: Final = "View aid only. Ridge does not match, align or identify. Conclusions rest with the examiner."
@@ -73,7 +74,7 @@ def build_sheet(
 ) -> Sheet:
     """Render the sheet for one export and one reference (both reads are logged)."""
     export, reference = case.item(export_ref), case.item(reference_ref)
-    if export.role != "export":
+    if export.role not in EXPORT_ROLES:
         raise ParameterError(f"{export.sha256[:12]} is a {export.role} item, not a comparison export")
     if reference.role != "reference":
         raise ParameterError(f"{reference.sha256[:12]} is a {reference.role} item, not an imported reference")

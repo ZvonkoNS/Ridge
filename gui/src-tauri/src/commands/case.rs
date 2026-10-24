@@ -37,7 +37,14 @@ pub struct ExportAll {
 }
 
 /// Roles that can be exported all at once (the sidecar checks the same list).
-const EXPORT_ROLES: [&str; 5] = ["export", "print", "minutiae", "evidence", "reference"];
+const EXPORT_ROLES: [&str; 6] = [
+    "export",
+    "export-gray",
+    "print",
+    "minutiae",
+    "evidence",
+    "reference",
+];
 
 /// Export every item of one role into a new folder named in a native dialog (each export logged).
 #[tauri::command]

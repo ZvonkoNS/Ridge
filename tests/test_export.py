@@ -19,8 +19,11 @@ from ridge.export import (
     ASSUMED_RIDGE_PERIOD_MM,
     MAX_EXPORT_PIXELS,
     RIDGE_PERIOD_UNCERTAINTY_PCT,
+    TONE_GRAYSCALE,
+    TONES,
     ScaleEstimate,
     ScaleMethod,
+    Tone,
     encode_png,
     make_comparison_export,
     mirror,
@@ -336,3 +339,38 @@ def test_export_of_a_real_extraction_with_ridge_period_scale(whorl: ExtractionRe
     assert export.image.shape == (round(height * export.factor), round(width * export.factor))
     assert np.array_equal(whorl.image, before)
     assert np.mean(export.image) > 127  # mostly light background with dark ridges
+
+
+# ----------------------------------------------------------------------------- grayscale twin (FR-37)
+
+
+def test_grayscale_export_is_the_un_thresholded_twin(whorl: ExtractionResult) -> None:
+    scale = scale_from_ridge_period(whorl.period)
+    gray = make_comparison_export(whorl, scale, tone="grayscale")
+    binary = make_comparison_export(whorl, scale)
+    assert gray.transforms == (
+        "tone:grayscale",
+        "polarity:dark-ridges",
+        "mirror:horizontal",
+        "scale:500ppi:ridge-period",
+    )
+    assert TONE_GRAYSCALE == "tone:grayscale"
+    assert TONES == ("binary", "grayscale")
+    assert gray.image.shape == binary.image.shape
+    assert gray.factor == binary.factor
+    assert gray.ppi == binary.ppi == 500.0
+    assert whorl.gray is not None
+    expected, _ = to_ppi(mirror(to_comparison(whorl.gray)), photo_scale=scale, output_scale=whorl.output_scale)
+    assert np.array_equal(gray.image, expected)
+    assert len(np.unique(gray.image)) > 2
+    assert np.mean(gray.image) > 127  # light background, dark ridges
+    dark, light = binary.image < 128, binary.image >= 128
+    assert gray.image[dark].mean() < gray.image[light].mean()  # darkest where the binary export has ridges
+
+
+def test_grayscale_export_needs_a_gray_print_and_a_known_tone() -> None:
+    result = ExtractionResult(image=stripes(40, 60, 6), period=6.0, found_finger=True)
+    with pytest.raises(ParameterError, match="no grayscale print"):
+        make_comparison_export(result, manual(10.0), tone="grayscale")
+    with pytest.raises(ParameterError, match="tone must be"):
+        make_comparison_export(result, manual(10.0), tone=cast(Tone, "sepia"))
