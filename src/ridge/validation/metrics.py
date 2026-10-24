@@ -1,11 +1,14 @@
-"""Verification-performance metrics for the method validation study (PRD §12, ISO/IEC 19795-1).
+"""Verification and identification metrics for the method validation study (PRD §12, ISO/IEC 19795-1).
 
 Input is comparison scores from an external matcher (e.g. SourceAFIS or NIST NBIS) run by the
 lab on its consented validation set, outside the repository: genuine comparisons (same finger)
-and impostor comparisons (different fingers), higher score = more similar.
+and impostor comparisons (different fingers), higher score = more similar; and, for 1:N
+searches as an AFIS runs them, the rank at which each probe's mate was returned.
 
 * FMR(t)  = share of impostor scores >= t; FNMR(t) = share of genuine scores < t.
 * FNMR at a target FMR uses the lowest threshold whose FMR does not exceed the target.
+* Rank-k hit rate = share of probes whose mate was returned at rank k or better; the CMC curve
+  is that share for every rank up to a maximum (ISO/IEC 19795-1 identification metrics).
 * Confidence intervals are Wilson score intervals (95 %); they assume independent
   comparisons, which repeated use of the same finger violates, so treat them as optimistic.
 * "Rule of 30" (ISO/IEC 19795-1): an error rate is only supported when at least 30 errors
@@ -27,6 +30,17 @@ from numpy.typing import NDArray
 from ridge.errors import ParameterError
 
 Z95 = 1.959963984540054
+MAX_RANK = 1000  # candidate lists longer than this are not a search result an examiner reviews
+
+
+def wilson_interval(count: int, trials: int) -> tuple[float, float]:
+    """Wilson score interval (95 %) for `count` successes in `trials`, exact at the extremes."""
+    n, p = trials, count / trials
+    centre = (p + Z95**2 / (2 * n)) / (1 + Z95**2 / n)
+    half = Z95 * math.sqrt(p * (1 - p) / n + Z95**2 / (4 * n * n)) / (1 + Z95**2 / n)
+    low = 0.0 if count == 0 else max(0.0, centre - half)
+    high = 1.0 if count == n else min(1.0, centre + half)
+    return low, high
 
 
 @dataclass(frozen=True)
@@ -43,12 +57,7 @@ class Rate:
 
     def wilson(self) -> tuple[float, float]:
         """Wilson score interval (95 %)."""
-        n, p = self.trials, self.value
-        centre = (p + Z95**2 / (2 * n)) / (1 + Z95**2 / n)
-        half = Z95 * math.sqrt(p * (1 - p) / n + Z95**2 / (4 * n * n)) / (1 + Z95**2 / n)
-        low = 0.0 if self.errors == 0 else max(0.0, centre - half)  # exact bounds at the extremes
-        high = 1.0 if self.errors == n else min(1.0, centre + half)
-        return low, high
+        return wilson_interval(self.errors, self.trials)
 
     def to_json(self) -> dict[str, Any]:
         """JSON form."""
@@ -141,3 +150,65 @@ def failure_to_extract(attempts: int, failures: int) -> Rate:
     if attempts <= 0 or not 0 <= failures <= attempts:
         raise ParameterError("need attempts > 0 and 0 <= failures <= attempts")
     return Rate(failures, attempts)
+
+
+# ------------------------------------------------------------------ identification (1:N) metrics
+
+
+@dataclass(frozen=True)
+class HitRate:
+    """A rank-k hit rate: probes whose mate was returned at rank k or better, out of all probes."""
+
+    hits: int
+    trials: int
+
+    @property
+    def value(self) -> float:
+        """Return hits / trials."""
+        return self.hits / self.trials
+
+    def wilson(self) -> tuple[float, float]:
+        """Wilson score interval (95 %)."""
+        return wilson_interval(self.hits, self.trials)
+
+    def to_json(self) -> dict[str, Any]:
+        """JSON form."""
+        low, high = self.wilson()
+        return {"value": self.value, "hits": self.hits, "trials": self.trials, "ci95": [low, high]}
+
+
+def _ranks(ranks: list[int | None]) -> list[int | None]:
+    if not ranks:
+        raise ParameterError("rank lists must not be empty")
+    for rank in ranks:
+        value: object = rank  # callers that bypass the type checker still get a clear refusal
+        if value is not None and (isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_RANK):
+            raise ParameterError(
+                f"a rank is a whole number from 1 to {MAX_RANK}, or None when the mate was not returned"
+            )
+    return ranks
+
+
+def _rank_k(k: object) -> int:
+    if isinstance(k, bool) or not isinstance(k, int) or not 1 <= k <= MAX_RANK:
+        raise ParameterError(f"k must be a whole number from 1 to {MAX_RANK}")
+    return k
+
+
+def hit_rate(ranks: list[int | None], k: int) -> HitRate:
+    """Share of probes whose mate was returned at rank `k` or better (None: the mate was not returned)."""
+    checked, top = _ranks(ranks), _rank_k(k)
+    return HitRate(sum(1 for r in checked if r is not None and r <= top), len(checked))
+
+
+def cmc_curve(ranks: list[int | None], max_rank: int) -> list[tuple[int, float]]:
+    """(rank, cumulative hit rate) for every rank from 1 to `max_rank`: the CMC curve."""
+    checked, top = _ranks(ranks), _rank_k(max_rank)
+    returned = sorted(r for r in checked if r is not None)
+    n = len(checked)
+    return [(k, int(np.searchsorted(returned, k, side="right")) / n) for k in range(1, top + 1)]
+
+
+def not_returned(ranks: list[int | None]) -> int:
+    """Probes whose mate was not in the candidate list at all."""
+    return sum(1 for r in _ranks(ranks) if r is None)

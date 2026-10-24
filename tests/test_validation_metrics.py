@@ -4,14 +4,25 @@ from __future__ import annotations
 
 import json
 import time
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from ridge.errors import InputRejectedError, ParameterError
-from ridge.validation.metrics import Rate, det_curve, equal_error_rate, failure_to_extract, operating_point
-from ridge.validation.report import build_report, main, read_scores
+from ridge.validation.metrics import (
+    MAX_RANK,
+    Rate,
+    cmc_curve,
+    det_curve,
+    equal_error_rate,
+    failure_to_extract,
+    hit_rate,
+    not_returned,
+    operating_point,
+)
+from ridge.validation.report import build_report, main, read_ranks, read_scores
 
 GENUINE = [0.9, 0.8, 0.7, 0.6, 0.2]  # one weak genuine comparison
 IMPOSTOR = [0.1, 0.2, 0.3, 0.4, 0.65, 0.05, 0.15, 0.25, 0.35, 0.45]  # one strong impostor
@@ -156,3 +167,95 @@ def test_score_file_must_be_bounded_utf8(tmp_path: Path, monkeypatch: pytest.Mon
     monkeypatch.setattr(report, "MAX_FILE_BYTES", 8)
     with pytest.raises(InputRejectedError):
         read_scores(path)
+
+
+# ------------------------------------------------------------------ identification (1:N) metrics
+
+
+def test_rank_hit_rates_and_cmc_by_hand() -> None:
+    ranks: list[int | None] = [1, 3, None, 2, 25]
+    assert hit_rate(ranks, 1).to_json()["value"] == 0.2
+    assert hit_rate(ranks, 5).value == 0.6
+    assert hit_rate(ranks, 20).value == 0.6
+    assert hit_rate(ranks, 25).value == 0.8
+    low, high = hit_rate(ranks, 25).wilson()
+    miss_low, miss_high = Rate(1, 5).wilson()  # one miss out of five: the mirrored interval
+    assert low == pytest.approx(1 - miss_high)
+    assert high == pytest.approx(1 - miss_low)
+    assert not_returned(ranks) == 1
+    curve = cmc_curve(ranks, 5)
+    assert [k for k, _ in curve] == [1, 2, 3, 4, 5]
+    assert [v for _, v in curve] == [0.2, 0.4, 0.6, 0.6, 0.6]
+    assert all(a <= b for (_, a), (_, b) in pairwise(curve))
+    with pytest.raises(ParameterError):
+        hit_rate([], 1)
+    with pytest.raises(ParameterError):
+        hit_rate([0, 1], 1)
+    with pytest.raises(ParameterError):
+        hit_rate([1, 2], 0)
+    with pytest.raises(ParameterError):
+        cmc_curve([1], MAX_RANK + 1)
+    assert MAX_RANK == 1000
+
+
+def rank_rows(*rows: str) -> list[str]:
+    return ["probe,rank,group", *rows]
+
+
+def test_rank_file_with_groups_and_the_report(tmp_path: Path) -> None:
+    path = tmp_path / "ranks.csv"
+    path.write_text("\n".join(rank_rows("p1,1,a", "p2,,a", "p3,4,b", "p4,2,b", "p5,30,b")) + "\n", encoding="utf-8")
+    ranks = read_ranks(path)
+    assert ranks["all"] == [1, None, 4, 2, 30]
+    assert ranks["a"] == [1, None]
+    assert ranks["b"] == [4, 2, 30]
+    report = build_report(None, [0.001], None, ranks, (1, 10))
+    ident = report["identification"]
+    assert ident["probes"] == 5
+    assert ident["not_returned"] == 1
+    assert ident["hit_rates"]["1"]["hits"] == 1
+    assert ident["hit_rates"]["10"]["hits"] == 3
+    assert ident["cmc"][-1] == {"rank": 30, "hit_rate": 0.8}  # the curve runs to the highest returned rank
+    assert ident["groups"]["b"]["hit_rates"]["10"]["value"] == pytest.approx(2 / 3)
+    assert "overall" not in report
+    assert "identification" in report["method"].lower() or "rank" in report["method"]
+    with pytest.raises(ParameterError, match="scores, search ranks"):
+        build_report(None, [0.001], None)
+
+
+@pytest.mark.parametrize(
+    ("rows", "message"),
+    [
+        (["probe,rank", "p1,abc"], "whole number"),
+        (["probe,rank", "p1,0"], "whole number"),
+        (["probe,rank", ",3"], "probe is empty"),
+        (["probe", "p1"], "header"),
+        (["probe,rank,group", "p1,1,"], "group is empty"),
+        (["probe,rank,group", "p1,1,ALL"], "reserved"),
+        (["probe,rank"], "no searches"),
+    ],
+)
+def test_malformed_rank_files(tmp_path: Path, rows: list[str], message: str) -> None:
+    path = tmp_path / "ranks.csv"
+    path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    with pytest.raises(ParameterError, match=message):
+        read_ranks(path)
+
+
+def test_cli_with_ranks(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    ranks = tmp_path / "ranks.csv"
+    ranks.write_text("probe,rank\np1,1\np2,\np3,7\n", encoding="utf-8")
+    out = tmp_path / "ident.json"
+    assert main(["--ranks", str(ranks), "--rank", "1", "--rank", "5", "-o", str(out)]) == 0
+    report = json.loads(out.read_text(encoding="utf-8"))
+    assert list(report["identification"]["hit_rates"]) == ["1", "5"]
+    assert report["identification"]["hit_rates"]["5"]["value"] == pytest.approx(1 / 3)
+    assert "overall" not in report
+    scores = tmp_path / "scores.csv"
+    scores.write_text("genuine,score\n1,0.9\n0,0.1\n1,0.8\n0,0.2\n", encoding="utf-8")
+    assert main([str(scores), "--ranks", str(ranks)]) == 0
+    both = json.loads(capsys.readouterr().out)
+    assert {"overall", "identification", "det_curve"} <= set(both)
+    with pytest.raises(SystemExit):
+        main([])
+    assert main(["--ranks", str(tmp_path / "missing.csv")]) == 1
