@@ -2,6 +2,7 @@
 //! result or a typed error (desktop_gui_tauri_standards.md §3). The allow-list is in `list.rs`;
 //! `build.rs` generates permissions for exactly these, and the capability files grant them.
 
+pub mod annotations;
 pub mod case;
 pub mod check;
 pub mod jobs;

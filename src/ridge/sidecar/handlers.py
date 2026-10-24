@@ -91,6 +91,24 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
         },
     ),
     "notes.list": (case.notes, {"job_id": ((str, type(None)), False), "sha256": ((str, type(None)), False)}),
+    "annotation.add": (
+        case.annotation_add,
+        {
+            "job_id": (str_, True),
+            "sha256": (str_, True),
+            "marks": ((list,), True),
+            "note": ((str, type(None)), False),
+            "replaces": ((int, type(None)), False),
+        },
+    ),
+    "annotations.list": (
+        case.annotations_list,
+        {"job_id": ((str, type(None)), False), "sha256": ((str, type(None)), False)},
+    ),
+    "annotation.export": (
+        case.annotation_export,
+        {"seq": (int_, True), "dest": (str_, True), "overwrite": ((bool, type(None)), False)},
+    ),
     "case.import": (case.import_evidence, {"path": (str_, True), "source": ((str, type(None)), False)}),
     "case.verify": (case.verify, {}),
     "case.export": (case.export_item, {"sha256": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),

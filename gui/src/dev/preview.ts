@@ -323,7 +323,40 @@ function previewCheck(sha256: string, role: string | null) {
   };
 }
 
+const previewSets = [
+  {
+    seq: 41,
+    ts_utc: "2026-10-24T15:02:11Z",
+    actor: "examiner",
+    job_id: "7d444840-9dc0-41c3-a1e2-6b4ad9f0c9e1",
+    sha256: hex(3),
+    role: "print",
+    image: { width: 1180, height: 1500 },
+    marks: [
+      { n: 1, x: 410, y: 620, kind: "ending", label: "left of the core" },
+      { n: 2, x: 532, y: 701, kind: "bifurcation", label: null },
+      { n: 3, x: 600, y: 480, kind: "other", label: "crease" },
+    ],
+    note: "First pass; the lower third is too faint to chart.",
+    replaces: null,
+    signed_seq: 42,
+  },
+];
+
 const handlers: Record<string, Handler> = {
+  list_annotations: () => previewSets,
+  add_annotation: (r) => ({
+    ...previewSets[0],
+    seq: 57,
+    signed_seq: 58,
+    marks: (r.marks as { x: number; y: number; kind: string; label: string | null }[]).map((m, i) => ({
+      ...m,
+      n: i + 1,
+    })),
+    note: (r.note as string | null) ?? null,
+    replaces: (r.replaces as number | null) ?? null,
+  }),
+  export_annotated: (r) => ({ exported: "annotated.png", sha256: hex(9), seq: r.seq, marks: 3 }),
   check_photo: () => previewCheck(hex(5), null),
   check_evidence: (r) => previewCheck(String(r.sha256), "evidence"),
   app_info: () => ({ gui: "0.2.0", engine: { ridge: "0.2.0", protocol: "ridge.sidecar/1" } }),

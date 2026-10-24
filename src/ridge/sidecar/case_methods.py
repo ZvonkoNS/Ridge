@@ -13,6 +13,8 @@ from typing import cast
 import cv2
 
 from ridge.arrays import ImageU8
+from ridge.case.annotation_image import export_annotated
+from ridge.case.annotations import add_annotation, list_annotations
 from ridge.case.capture_check import check_stored_photo
 from ridge.case.case_model import StoredItem
 from ridge.case.case_status import case_status
@@ -123,6 +125,37 @@ def export_item(session: Session, params: dict[str, Json]) -> Json:
         case, params["sha256"], absolute(params["dest"], "dest"), overwrite=params.get("overwrite", False)
     )
     return {"exported": str(done.path), "format": done.format, "sha256": done.sha256}
+
+
+def annotation_add(session: Session, params: dict[str, Json]) -> Json:
+    """Record the examiner's marks on a job's output image (logged and signed; FR-55)."""
+    case, signer = session.require()
+    a = add_annotation(
+        case,
+        signer,
+        job_id=params["job_id"],
+        sha256=params["sha256"],
+        marks=params["marks"],
+        note=params.get("note"),
+        replaces=params.get("replaces"),
+    )
+    return a.to_json()
+
+
+def annotations_list(session: Session, params: dict[str, Json]) -> Json:
+    """List the annotation sets of the case, one job or one image."""
+    case, _ = session.require()
+    sets = list_annotations(case.entries, job_id=params.get("job_id"), sha256=params.get("sha256"))
+    return [a.to_json() for a in sets]
+
+
+def annotation_export(session: Session, params: dict[str, Json]) -> Json:
+    """Write one set's annotated image to a path chosen in a native save dialog (logged)."""
+    case, _ = session.require()
+    done = export_annotated(
+        case, params["seq"], absolute(params["dest"], "dest"), overwrite=params.get("overwrite", False)
+    )
+    return {"exported": str(done.path), "sha256": done.written_sha256, "seq": done.seq, "marks": done.marks}
 
 
 def evidence_check(session: Session, params: dict[str, Json]) -> Json:

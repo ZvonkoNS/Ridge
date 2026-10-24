@@ -32,6 +32,7 @@ from typing import Any
 import rfc8785
 
 import ridge
+from ridge.case.annotations import list_annotations
 from ridge.case.crypto import sha256_hex
 from ridge.case.custody import utc_now
 from ridge.case.identity import Signer, key_id_for, public_identity, verify_signature
@@ -80,7 +81,9 @@ def export_package(case: OpenCase, store: Path, signer: Signer, dest: Path) -> d
             signed = load_report(case, store, job_id, log=False)  # checked against the log and the identity
             publish(dest / "reports" / f"{job_id}.json", signed.canonical)
             publish(dest / "reports" / f"{job_id}.json.sig", base64.b64encode(signed.signature) + b"\n")
-            readable = render_report_html(signed, list_notes(case.entries, job_id=job_id))
+            readable = render_report_html(
+                signed, list_notes(case.entries, job_id=job_id), list_annotations(case.entries, job_id=job_id)
+            )
             publish(dest / "reports" / f"{job_id}.html", readable.encode("utf-8"))
         export_log(case, store, signer, dest / RECORD)
         write_record_html(dest / RECORD, dest / RECORD_HTML)  # verified first, like any reviewer would
