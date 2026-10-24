@@ -69,6 +69,7 @@ From the command line, `ridge-case metadata <case> <sha>` prints the same for on
    After the job, the original shows where the print was extracted. A solid line surrounds the area kept as the print, a dashed box marks the frame of the print image, and the rest of the photo is dimmed on screen only. The comparison export is usually mirrored, so it shows this area the other way round. **Show where the print was extracted** hides or shows the outline. The job summary and the report give the same area in photo pixels ("Print area").
 3. **Measure** shows the distance between two points in pixels and, on a scaled export, in millimetres with its uncertainty. It is for orientation and is not recorded.
 4. The minutiae overlay is off by default. It is unvalidated, for orientation only, and never used for matching.
+5. **Annotations** are your own charting of an output image: numbered marks (ending, bifurcation, other) with an optional label, and a note on the set. A set is recorded in the custody log with the image's hash and is signed at once; a later set replaces an earlier one without removing it. **Jobs** lists the sets under each job and **Save annotated image...** writes the image with the marks drawn on it, logged with its hash. Marks are your statements; Ridge never counts them as agreement or reads them as a match. From the command line: `ridge-case annotate`, `annotations`, `export-annotated`.
 
 Every job is logged, and a failed job is logged with its reason. Only a job that succeeds has a signed report. In **Jobs**:
 

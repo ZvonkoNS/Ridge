@@ -121,6 +121,9 @@ ridge-case workstation --store D:/ridge-store --register lab-keys.json --nfiq2 "
 ridge-case check-backup E:/backup-2026-10-18            # every file against the manifest
 ridge-case note D:/ridge-store/<case-id> "text" --job <job-id>   # examiner note in the custody log (--corrects SEQ)
 ridge-case notes D:/ridge-store/<case-id>               # every note, with time and examiner
+ridge-case annotate D:/ridge-store/<case-id> --job <job-id> --image <print-sha> --mark 410,620,ending,core --mark 532,701,bifurcation   # examiner's marks, logged and signed
+ridge-case annotations D:/ridge-store/<case-id> --job <job-id>   # the sets (--json)
+ridge-case export-annotated D:/ridge-store/<case-id> <seq> --to charted.png   # the image with the marks drawn (logged)
 ridge-case package D:/ridge-store/<case-id> --to D:/disclosure/KT-1   # signed records + manifest, no images
 ridge-case check-package D:/disclosure/KT-1 --key-id <key-id>          # verify the package offline
 ridge-case key-card --store D:/ridge-store --holder "Name" --to card.json   # your public key, self-signed, for the lab

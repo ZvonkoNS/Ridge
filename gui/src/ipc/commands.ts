@@ -6,7 +6,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { noteActivity } from "../lib/idle";
 
 import type {
+  AnnotatedExport,
+  Annotation,
   CaptureCheck,
+  NewMark,
   AppInfo,
   CaseCreated,
   CaseInfo,
@@ -150,6 +153,17 @@ export const ipc = {
   photoMetadata: (sha256: string) => call<PhotoMetadataView>("photo_metadata", { sha256 }),
   checkPhoto: () => call<CaptureCheck>("check_photo"),
   checkEvidence: (sha256: string) => call<CaptureCheck>("check_evidence", { sha256 }),
+  addAnnotation: (
+    jobId: string,
+    sha256: string,
+    marks: NewMark[],
+    note: string | null,
+    replaces: number | null,
+  ) => call<Annotation>("add_annotation", { job_id: jobId, sha256, marks, note, replaces }),
+  listAnnotations: (jobId: string | null, sha256: string | null = null) =>
+    call<Annotation[]>("list_annotations", { job_id: jobId, sha256 }),
+  exportAnnotated: (seq: number, suggestedName: string) =>
+    call<AnnotatedExport>("export_annotated", { seq, suggested_name: suggestedName }),
   runJob: (options: JobOptions) => call<JobResult>("run_job", { ...options }),
   listJobs: () => call<JobRecord[]>("list_jobs"),
   getReport: (jobId: string) => call<VerifiedReport>("get_report", { job_id: jobId }),

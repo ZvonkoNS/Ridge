@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from ridge.case import (
+    cli_annotations,
     cli_check,
     cli_compare,
     cli_extract,
@@ -190,6 +191,7 @@ def build_parser() -> argparse.ArgumentParser:
     cli_recovery.add_commands(sub)
     cli_sweep.add_commands(sub)
     cli_check.add_commands(sub)
+    cli_annotations.add_commands(sub)
     return ap
 
 

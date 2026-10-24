@@ -50,6 +50,9 @@
     "allow-export-recovery",
     "allow-import-recovery",
     "allow-check-photo",
-    "allow-check-evidence"
+    "allow-check-evidence",
+    "allow-add-annotation",
+    "allow-list-annotations",
+    "allow-export-annotated"
   ]
 }

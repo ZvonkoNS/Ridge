@@ -50,6 +50,9 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "import_recovery",
     "check_photo",
     "check_evidence",
+    "add_annotation",
+    "list_annotations",
+    "export_annotated",
 ];
 
 /// Commands of the passphrase window (capability `passphrase`).

@@ -14,6 +14,7 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
+from ridge.case.annotations import Annotation, list_annotations
 from ridge.case.case_model import publish_logged
 from ridge.case.crypto import sha256_hex
 from ridge.case.limits import render_lines as render_limits
@@ -113,7 +114,32 @@ def _notes(notes: list[Note]) -> str:
     )
 
 
-def render_report_html(signed: SignedReport, notes: list[Note] | None = None) -> str:
+def _annotations(sets: list[Annotation]) -> str:
+    if not sets:
+        return ""
+    items = []
+    for a in sets:
+        marks = ", ".join(
+            f"{m.n}: {_text(m.kind)} at ({m.x}, {m.y}){' ' + _text(m.label) if m.label else ''}" for m in a.marks
+        )
+        tail = f" · replaces #{a.replaces}" if a.replaces is not None else ""
+        tail += f" · signed by entry #{a.signed_seq}" if a.signed_seq is not None else " · not yet signed"
+        note = f"<br>{'<br>'.join(_text(line) for line in a.note.splitlines())}" if a.note else ""
+        items.append(
+            f"<li><code>#{a.seq}</code> {_text(a.ts_utc)} · {_text(a.actor)} · {_text(a.role)} image "
+            f"{_code(a.sha256[:12])} · {len(a.marks)} marks{tail}<br>{marks}{note}</li>"
+        )
+    return (
+        "<h2>Examiner annotations</h2><p>Features the examiner marked on an output image, from the custody log; "
+        "the chain head is signed right after each set. They are the examiner's statements, not part of the signed "
+        "report; a newer set names the set it replaces, which stays in the log. Marks are not a match, a count of "
+        f"agreement or an identification.</p><ol>{''.join(items)}</ol>"
+    )
+
+
+def render_report_html(
+    signed: SignedReport, notes: list[Note] | None = None, annotations: list[Annotation] | None = None
+) -> str:
     """Render a verified report as a self-contained HTML page (no scripts, no images).
 
     `notes` are the examiner notes on the job from the custody log; they are shown in their own
@@ -147,6 +173,7 @@ def render_report_html(signed: SignedReport, notes: list[Note] | None = None) ->
 {provenance_html(source.get("provenance"))}
 {_disclaimer(report.get("disclaimer"))}
 {_notes(notes or [])}
+{_annotations(annotations or [])}
 <footer>This page renders the signed report whose SHA-256 is {_code(canonical_sha)}, custody head
 {_code(report.get("custody_head"))}. The signed JSON report and its detached signature are authoritative;
 verify them with <code>ridge-case check-report</code>. This page is not signed.</footer>
@@ -203,7 +230,9 @@ def export_report_html(case: OpenCase, store: Path, ref: str, dest: Path, *, ove
     signed = load_report(case, store, ref, log=False)
     if not overwrite and dest.exists():
         raise OutputExistsError(f"{dest.name} already exists (use --overwrite to replace)")
-    page = render_report_html(signed, list_notes(case.entries, job_id=signed.job_id)).encode("utf-8")
+    page = render_report_html(
+        signed, list_notes(case.entries, job_id=signed.job_id), list_annotations(case.entries, job_id=signed.job_id)
+    ).encode("utf-8")
     publish_logged(
         [(dest, page)],
         lambda: case.entries.append(

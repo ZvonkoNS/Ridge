@@ -614,3 +614,44 @@ export interface CaptureCheck {
   role?: Role;
   label?: string;
 }
+
+/** One feature the examiner marked on an output image (FR-55): pixel position, kind, optional label. */
+export interface AnnotationMark {
+  n: number;
+  x: number;
+  y: number;
+  kind: "ending" | "bifurcation" | "other";
+  label: string | null;
+}
+
+/** An annotation set as recorded in the custody log and signed right after it. */
+export interface Annotation {
+  seq: number;
+  ts_utc: string;
+  actor: string;
+  job_id: string;
+  /** The output image the marks are on. */
+  sha256: string;
+  role: Role;
+  image: { width: number; height: number };
+  marks: AnnotationMark[];
+  note: string | null;
+  replaces: number | null;
+  /** The chain.sign entry that followed the set; null until the list is reloaded after signing. */
+  signed_seq: number | null;
+}
+
+/** A mark as the examiner sends it: the sidecar numbers the marks. */
+export interface NewMark {
+  x: number;
+  y: number;
+  kind: AnnotationMark["kind"];
+  label: string | null;
+}
+
+export interface AnnotatedExport {
+  exported: string;
+  sha256: string;
+  seq: number;
+  marks: number;
+}

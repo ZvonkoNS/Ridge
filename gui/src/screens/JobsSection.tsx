@@ -7,6 +7,7 @@ import { ExhibitLabel } from "../components/ExhibitLabel";
 import { ImageViewer } from "../components/ImageViewer";
 import { type KnownScale, MeasureReadout, MeasureToggle, useMeasure } from "../components/Measure";
 import { MinutiaeNote, MinutiaeToggle, useMinutiaeOverlay } from "../components/MinutiaeToggle";
+import { AnnotationsPanel } from "../components/AnnotationsPanel";
 import { NotesPanel } from "../components/NotesPanel";
 import { PhotoMetadataPanel } from "../components/PhotoMetadata";
 import { Button, Hash, Notice, StaggerItem, StaggerList, utc } from "../components/ui";
@@ -176,6 +177,7 @@ function ReportView({
       />
       <JobCompare report={report} jobs={jobs} onFailure={onFailure} />
       <NotesPanel jobId={report.job_id} onFailure={onFailure} onAdded={onNoteAdded} />
+      <AnnotationsPanel jobId={report.job_id} onFailure={onFailure} />
     </article>
   );
 }
