@@ -178,6 +178,8 @@ export type ExportInfo =
       scale: ScaleInfo;
       /** The grayscale twin of the export (FR-37); absent in reports made before it. */
       grayscale?: { sha256: string; transforms: string[] };
+      /** Present when the export was enlarged to reach its resolution (FR-32): no detail was gained. */
+      resolution_note?: string;
     }
   | { produced: false; reason: string };
 
@@ -366,7 +368,14 @@ export interface Verification {
 
 export interface Exported {
   exported: string;
+  /** The conversion applied on export (tiff, bmp), or null/absent for the stored bytes (FR-32). */
+  format?: string | null;
+  /** SHA-256 of the bytes written (the stored item's hash when no conversion applied). */
+  sha256?: string;
 }
+
+/** File formats a bulk export can convert image outputs to; "png" exports them as stored. */
+export type ExportFormat = "png" | "tiff" | "bmp";
 
 export interface ReportExported extends Exported {
   signature: string;

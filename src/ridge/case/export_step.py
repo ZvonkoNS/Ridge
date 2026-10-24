@@ -45,6 +45,12 @@ NFIQ2_LABEL = "indicative only: NFIQ 2 is defined for contact prints, this image
 MINUTIAE_LABEL = "unvalidated automatic minutiae for examiner review; not used for any matching"
 NFIQ2_PPI = 500.0
 GRAY_ROLE = "export-gray"  # stored role of the grayscale comparison export (FR-37)
+# Recorded when an export had to be enlarged to reach its resolution (FR-32): more pixels, no more detail.
+UPSAMPLING_TOLERANCE = 1.05  # rounding the output size to whole pixels can give factors just above 1
+RESOLUTION_NOTE = (
+    "The export was enlarged {factor:.2f} times to reach {ppi:g} ppi: the photo holds fewer pixels per millimetre "
+    "than that, so the export carries no detail beyond the photo's own resolution."
+)
 # Recorded with every export scaled without a reference object (FR-31; product owner, 2026-10-24).
 SCALE_NOTICE = (
     "No scale reference was given: the export scale is estimated from the ridge spacing and an assumed "
@@ -133,6 +139,8 @@ def export_and_score(
         "scale": _scale_info(scale),
         "grayscale": {"sha256": gray_item.sha256, "transforms": list(gray.transforms)},
     }
+    if binary.factor > UPSAMPLING_TOLERANCE:
+        export_info["resolution_note"] = RESOLUTION_NOTE.format(factor=binary.factor, ppi=binary.ppi)
     quality = {"nfiq2": nfiq2_score(case, gray_png, gray.ppi, nfiq2_command, image=GRAY_ROLE)}
     return [item, gray_item], {"export": export_info, "quality": quality}
 

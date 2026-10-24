@@ -1,9 +1,10 @@
 """Export every stored item of one role at once (FR-32).
 
 For example all comparison exports for the AFIS operator. Each file leaves the store through
-`OpenCase.export`, so each is logged as its own ``artefact.export``. The folder must be new, and an
-index (``EXPORTS.csv``) names every file's SHA-256, role, job and source label, so the receiver can
-match them to the signed reports.
+`export_file.export_item` (the stored bytes, or a TIFF/BMP conversion when a format is asked for),
+so each is logged as its own ``artefact.export``. The folder must be new, and an index
+(``EXPORTS.csv``) names every file's stored SHA-256, role, job, source label, format and the
+SHA-256 of the bytes written, so the receiver can match them to the signed reports.
 
 If an export fails part-way, the files already written stay (each is in the custody log), the index
 lists exactly those, and the error says how many of how many were exported.
@@ -14,11 +15,14 @@ from __future__ import annotations
 import csv
 import io
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from ridge.case.case_model import StoredItem
+from ridge.case.export_file import ExportedFile, converted_name, export_item
 from ridge.case.store import OpenCase
 from ridge.errors import OutputError, OutputExistsError, ParameterError, RidgeError
+from ridge.export.formats import FileFormat, check_format
 from ridge.image_io import publish
 
 ROLES = ("export", "export-gray", "print", "minutiae", "evidence", "reference")
@@ -62,10 +66,21 @@ def _cell(value: str) -> str:
     return "'" + value if value[:1] in ("=", "+", "-", "@") else value  # labels never hold control characters
 
 
-def export_role(case: OpenCase, role: str, dest: Path) -> list[tuple[StoredItem, str]]:
-    """Export every item of `role` into the new folder `dest`; return each item with its file name."""
+@dataclass(frozen=True, slots=True)
+class Written:
+    """One exported item: the stored item, its file name in the folder and what was written."""
+
+    item: StoredItem
+    name: str
+    file: ExportedFile
+
+
+def export_role(case: OpenCase, role: str, dest: Path, *, fmt: FileFormat | None = None) -> list[Written]:
+    """Export every item of `role` into the new folder `dest`, converted to `fmt` where that applies."""
     if role not in ROLES:
         raise ParameterError(f"the role must be one of {', '.join(ROLES)}")
+    if fmt is not None:
+        fmt = check_format(fmt)
     items = [i for i in case.items() if i.role == role]
     if not items:
         raise ParameterError(f"no {role} items are stored in this case")
@@ -73,11 +88,11 @@ def export_role(case: OpenCase, role: str, dest: Path) -> list[tuple[StoredItem,
         dest.mkdir(mode=0o700)  # private: file names carry labels and hash prefixes
     except FileExistsError:
         raise OutputExistsError(f"{dest.name} already exists: choose a new folder") from None
-    written: list[tuple[StoredItem, str]] = []
+    written: list[Written] = []
     try:
         for item, name in zip(items, file_names(items), strict=True):
-            case.export(item.sha256, dest / name)  # logged as artefact.export, never over a file
-            written.append((item, name))
+            target = converted_name(name, fmt, item.role)
+            written.append(Written(item, target, export_item(case, item.sha256, dest / target)))  # logged
     except (RidgeError, OSError) as exc:
         if not written:
             dest.rmdir()  # nothing left the store: leave nothing behind
@@ -91,9 +106,20 @@ def export_role(case: OpenCase, role: str, dest: Path) -> list[tuple[StoredItem,
     return written
 
 
-def _write_index(dest: Path, written: list[tuple[StoredItem, str]]) -> None:
+def _write_index(dest: Path, written: list[Written]) -> None:
     buffer = io.StringIO()
     rows = csv.writer(buffer, lineterminator="\n")
-    rows.writerow(["file", "sha256", "role", "job_id", "label"])
-    rows.writerows([_cell(name), i.sha256, i.role, i.job_id or "", _cell(i.label)] for i, name in written)
+    rows.writerow(["file", "sha256", "role", "job_id", "label", "format", "written_sha256"])
+    rows.writerows(
+        [
+            _cell(w.name),
+            w.item.sha256,
+            w.item.role,
+            w.item.job_id or "",
+            _cell(w.item.label),
+            w.file.format or "as stored",
+            w.file.sha256,
+        ]
+        for w in written
+    )
     publish(dest / INDEX, buffer.getvalue().encode("utf-8"))

@@ -16,6 +16,14 @@ const IMAGE_IO: Duration = Duration::from_secs(120);
 const VERIFY: Duration = Duration::from_secs(15 * 60);
 const PNG: (&str, &[&str]) = ("PNG image", &["png"]);
 const JSON_FILE: (&str, &[&str]) = ("JSON", &["json"]);
+/// Image outputs can leave as stored (PNG) or converted to an exchange format (FR-32).
+const IMAGE_EXPORT: [(&str, &[&str]); 3] = [
+    PNG,
+    ("TIFF image, uncompressed", &["tif", "tiff"]),
+    ("BMP image", &["bmp"]),
+];
+/// File formats the bulk export can convert image outputs to (the sidecar checks the same list).
+const EXPORT_FORMATS: [&str; 3] = ["png", "tiff", "bmp"];
 const ANY_IMAGE: (&str, &[&str]) = (
     "Image",
     &[
@@ -34,6 +42,7 @@ pub async fn case_info(app: AppHandle, window: WebviewWindow) -> Result<Value, I
 #[serde(deny_unknown_fields)]
 pub struct ExportAll {
     role: String,
+    format: Option<String>,
 }
 
 /// Roles that can be exported all at once (the sidecar checks the same list).
@@ -57,9 +66,14 @@ pub async fn export_all(
     if !EXPORT_ROLES.contains(&request.role.as_str()) {
         return Err(IpcError::invalid("not a kind of stored item"));
     }
+    if let Some(format) = request.format.as_deref() {
+        if !EXPORT_FORMATS.contains(&format) {
+            return Err(IpcError::invalid("not an export file format"));
+        }
+    }
     let suggested = format!("Ridge {} files", request.role);
     let dest = dialogs::new_folder(&app, "Name the new export folder", suggested).await?;
-    let params = json!({"role": request.role, "dest": path_text(&dest)?});
+    let params = json!({"role": request.role, "dest": path_text(&dest)?, "format": request.format});
     call(&app, "case.export_all", params, VERIFY).await
 }
 
@@ -202,15 +216,16 @@ pub async fn export_item(
         .as_deref()
         .unwrap_or_default()
         .to_ascii_lowercase();
-    let filter = if suggested.ends_with(".png") {
-        PNG
+    let filters = if suggested.ends_with(".png") {
+        IMAGE_EXPORT.to_vec() // as stored, or converted by the sidecar to the chosen type
     } else if suggested.ends_with(".json") {
-        JSON_FILE // minutiae artefacts
+        vec![JSON_FILE] // minutiae artefacts
     } else {
-        ANY_IMAGE
+        vec![ANY_IMAGE]
     };
-    let dest =
-        path_text(&dialogs::save_file(&app, "Export to", request.suggested_name, filter).await?)?;
+    let dest = path_text(
+        &dialogs::save_file_any(&app, "Export to", request.suggested_name, filters).await?,
+    )?;
     call(
         &app,
         "case.export",

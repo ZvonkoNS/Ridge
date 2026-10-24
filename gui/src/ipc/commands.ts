@@ -13,6 +13,7 @@ import type {
   CaseStatus,
   CustodyPage,
   ErrorKind,
+  ExportFormat,
   FileCheck,
   Exported,
   IdentityCreated,
@@ -108,8 +109,11 @@ export const ipc = {
   lockCase: () => call<{ locked: true }>("lock_case"),
   verifyStore: () => call<StoreCheck[]>("verify_store"),
   storeOverview: () => call<CaseOverview[]>("store_overview"),
-  exportAll: (role: string) =>
-    call<{ exported: string; files: number; index: string }>("export_all", { role }),
+  exportAll: (role: string, format: ExportFormat = "png") =>
+    call<{ exported: string; files: number; index: string; format: string | null }>("export_all", {
+      role,
+      format,
+    }),
   backupStore: () => call<{ exported: string; files: number; bytes: number }>("backup_store"),
   checkExported: (folder: boolean, withRegister: boolean) =>
     call<FileCheck>("check_exported", { folder, with_register: withRegister }),

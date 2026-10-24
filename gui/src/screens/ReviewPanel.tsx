@@ -166,7 +166,12 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
   const exportCurrent = async () => {
     if (current) {
       try {
-        await ipc.exportItem(current.sha256, current.label);
+        const done = await ipc.exportItem(current.sha256, current.label);
+        notify?.(
+          done.format
+            ? `Exported as ${done.format.toUpperCase()} (SHA-256 of the file ${done.sha256?.slice(0, 12) ?? ""}); the export is in the custody log.`
+            : "Exported as stored; the export is in the custody log.",
+        );
         onJobDone();
       } catch (error) {
         onFailure(error);

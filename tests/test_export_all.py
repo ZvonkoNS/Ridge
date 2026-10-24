@@ -51,10 +51,10 @@ def test_every_export_is_written_logged_and_listed(case_dir: tuple[Path, MemoryK
             export_role(case, "reference", tmp_path / "none")
     assert len(written) == 2
     assert len(logged) == 2
-    assert len({name for _, name in written}) == 2  # the same label, different hashes: unique names
+    assert len({w.name for w in written}) == 2  # the same label, different hashes: unique names
     with (tmp_path / "out" / INDEX).open(encoding="utf-8") as index:
         rows = list(csv.DictReader(index))
-    assert {r["sha256"] for r in rows} == {i.sha256 for i, _ in written}
+    assert {r["sha256"] for r in rows} == {w.item.sha256 for w in written}
     assert all((tmp_path / "out" / r["file"]).is_file() for r in rows)
 
 
@@ -85,11 +85,11 @@ def test_a_failed_export_part_way_is_reported_and_indexed(
         real = case.export
         calls: list[str] = []
 
-        def fail_second(sha256: str, path: Path) -> Any:
+        def fail_second(sha256: str, path: Path, *, overwrite: bool = False) -> Any:
             calls.append(sha256)
             if len(calls) == 2:
                 raise OutputError("the disk is full")
-            return real(sha256, path)
+            return real(sha256, path, overwrite=overwrite)
 
         monkeypatch.setattr(case, "export", fail_second)
         with pytest.raises(OutputError, match="stopped after 1 of 2 file"):

@@ -98,9 +98,12 @@ def _run_job(case: OpenCase, sha: str, signer: Signer, params: JobParams, args: 
     common.say(_job_summary(sha, outcome.job_id, outcome.report, len(outcome.outputs)))
     for warning in (outcome.report.get("limits_of_use") or {}).get("warnings", []):
         common.say(f"  outside the limits of use: {warning}")
-    notice = ((outcome.report.get("export") or {}).get("scale") or {}).get("notice")
+    export = outcome.report.get("export") or {}
+    notice = (export.get("scale") or {}).get("notice")
     if notice:
         common.say(f"  scale notice: {notice}")
+    if export.get("resolution_note"):
+        common.say(f"  resolution note: {export['resolution_note']}")
     return True
 
 

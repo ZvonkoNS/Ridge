@@ -97,6 +97,11 @@ export function JobSummary({ result }: Props) {
       </h3>
       <LimitsOutcome section={result.limits_of_use} />
       <ScaleNotice exp={result.export} />
+      {result.export?.produced && result.export.resolution_note ? (
+        <p className="muted" role="note">
+          {result.export.resolution_note}
+        </p>
+      ) : null}
       <dl>
         <dt>Ridge period</dt>
         <dd>{m ? `${m.ridge_period_px.toFixed(2)} px` : "-"}</dd>

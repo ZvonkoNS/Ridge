@@ -167,7 +167,7 @@ describe("stored items", () => {
       />,
     );
     await userEvent.click(screen.getByRole("button", { name: "Export all 2 comparison exports..." }));
-    expect(mocked).toHaveBeenCalledWith("export_all", { request: { role: "export" } });
+    expect(mocked).toHaveBeenCalledWith("export_all", { request: { role: "export", format: "png" } });
     expect(notify).toHaveBeenCalledWith(expect.stringContaining("listed in EXPORTS.csv"));
     expect(onExported).toHaveBeenCalled();
   });
