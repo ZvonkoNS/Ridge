@@ -17,7 +17,7 @@ from typing import Any
 from ridge.case.case_model import publish_logged
 from ridge.case.crypto import sha256_hex
 from ridge.case.limits import render_lines as render_limits
-from ridge.case.metadata_render import metadata_html
+from ridge.case.metadata_render import metadata_html, provenance_html
 from ridge.case.notes import Note, list_notes
 from ridge.case.report_lines import (
     export_line,
@@ -143,6 +143,7 @@ def render_report_html(signed: SignedReport, notes: list[Note] | None = None) ->
 <h2>Outputs</h2><table><tr><th scope="col">Role</th><th scope="col">File</th><th scope="col">SHA-256</th>
 <th scope="col">Bytes</th></tr>{outputs}</table>
 {metadata_html(source.get("metadata"))}
+{provenance_html(source.get("provenance"))}
 {_disclaimer(report.get("disclaimer"))}
 {_notes(notes or [])}
 <footer>This page renders the signed report whose SHA-256 is {_code(canonical_sha)}, custody head

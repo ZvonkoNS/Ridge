@@ -104,6 +104,15 @@ def _table(entries: list[dict[str, Any]], *, ids: bool) -> str:
     return f'<table class="meta">{head}{rows}</table>'
 
 
+def provenance_html(section: dict[str, Any] | None) -> str:
+    """Render the provenance hints (FR-42) as their own section; empty for reports made before them."""
+    if not isinstance(section, dict):
+        return ""
+    hints = section.get("hints") or []
+    items = "".join(f"<li>{escape(str(h.get('text')))}</li>" for h in hints) or "<li>none</li>"
+    return f"<h3>Provenance hints</h3><p>{escape(str(section.get('notice', '')))}</p><ul>{items}</ul>"
+
+
 def metadata_html(meta: dict[str, Any] | None) -> str:
     """Render the HTML section for the photo metadata: location with its map link, summary, every group."""
     if not isinstance(meta, dict):

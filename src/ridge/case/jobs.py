@@ -37,6 +37,7 @@ from ridge.case.submission import Submission, submission_record
 from ridge.errors import ExtractionError, ParameterError, RidgeError
 from ridge.image_io import ALLOWED_FORMATS, ReadLimits, decode_image, encode_image
 from ridge.metadata import read_metadata
+from ridge.metadata.provenance import provenance_hints
 from ridge.pipeline import ExtractionResult, extract_fingerprint
 
 REPORT_SCHEMA = "ridge.job-report/1"
@@ -138,11 +139,13 @@ def _probe(data: bytes, decoded: ImageU8) -> dict[str, Any]:
     """Format, size and metadata of the input; the size is after EXIF orientation, the space of `roi` and `ruler`.
 
     The metadata is read from the same verified bytes as the pixels and recorded as text only
-    (FR-36); the output images never carry any of it (FR-12).
+    (FR-36), with the provenance hints drawn from it and the encoding (FR-42); the output images
+    never carry any of it (FR-12).
     """
     with Image.open(io.BytesIO(data), formats=ALLOWED_FORMATS) as im:
         probed: dict[str, Any] = {"format": im.format, "size_px": [decoded.shape[1], decoded.shape[0]]}
-    return {**probed, "metadata": read_metadata(data)}
+    metadata = read_metadata(data)
+    return {**probed, "metadata": metadata, "provenance": provenance_hints(data, metadata)}
 
 
 def run_extraction_job(

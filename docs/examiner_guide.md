@@ -51,6 +51,8 @@ Under the photos, **Photo metadata** shows what the photo's file records about i
 
 Metadata is shown exactly as the file records it. Anyone can edit or remove it, so it does not by itself show where, when or with what a photo was taken: Ridge never checks it. Characters that could hide or reorder text are shown as `<U+XXXX>`. Reference images get the same panel in **References**.
 
+Under the metadata, **Provenance hints** lists signs that the photo may be a copy or an edit rather than the camera's original: no EXIF block, no camera named, the software that saved the file, a size typical of messaging-app or web copies, an edit history, an approximate JPEG quality, or a format phones do not save photos in. They are hints only: Ridge does not verify them and none proves how the photo was handled. A forwarded copy has lost detail that no extraction recovers, so when a copy is suspected ask for the original file from the device extraction. The same hints are recorded in every job report.
+
 Every job report records the photo's metadata, and **Jobs** shows it under the report. The readable copy lists every entry, with the Google Maps link as an ordinary link and the same warning that opening it sends the position to Google. Reports made before Ridge recorded metadata say so. The output images never carry any metadata.
 
 From the command line, `ridge-case metadata <case> <sha>` prints the same for one evidence photo or reference image without running a job, and `--json` prints the record a job report holds. As with the panel, the read is written to the custody log.

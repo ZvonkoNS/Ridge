@@ -169,7 +169,11 @@ function ReportView({
           />
         </>
       ) : null}
-      <PhotoMetadataPanel metadata={report.input.metadata} from="report" />
+      <PhotoMetadataPanel
+        metadata={report.input.metadata}
+        provenance={report.input.provenance}
+        from="report"
+      />
       <JobCompare report={report} jobs={jobs} onFailure={onFailure} />
       <NotesPanel jobId={report.job_id} onFailure={onFailure} onAdded={onNoteAdded} />
     </article>

@@ -3,15 +3,16 @@
 import { useEffect, useState } from "react";
 
 import { ipc } from "../ipc/commands";
-import type { PhotoMetadata } from "../ipc/types";
+import type { PhotoMetadata, ProvenanceHints } from "../ipc/types";
 
 export interface LoadedMetadata {
   metadata: PhotoMetadata | null;
+  provenance: ProvenanceHints | null;
   loading: boolean;
   failed: boolean;
 }
 
-const IDLE: LoadedMetadata = { metadata: null, loading: false, failed: false };
+const IDLE: LoadedMetadata = { metadata: null, provenance: null, loading: false, failed: false };
 
 export function usePhotoMetadata(sha256: string | null, onError?: (error: unknown) => void): LoadedMetadata {
   const [state, setState] = useState<LoadedMetadata & { sha256: string | null }>({ ...IDLE, sha256: null });
@@ -23,7 +24,13 @@ export function usePhotoMetadata(sha256: string | null, onError?: (error: unknow
     ipc.photoMetadata(sha256).then(
       (view) => {
         if (!cancelled) {
-          setState({ metadata: view.metadata, loading: false, failed: false, sha256 });
+          setState({
+            metadata: view.metadata,
+            provenance: view.provenance ?? null,
+            loading: false,
+            failed: false,
+            sha256,
+          });
         }
       },
       (error: unknown) => {
