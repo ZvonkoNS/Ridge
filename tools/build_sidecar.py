@@ -52,8 +52,19 @@ DECODERS = frozenset(
 # extensions, pillow-heif's extension and libheif. The archive can hold the Python modules without
 # them; ridge.image_io would then drop HEIF from its allow-list without an error, so the smoke test
 # also asks the frozen engine itself whether it reads HEIF.
-NATIVE = ("_imaging.*", "_webp.*", "_pillow_heif.*", "libheif*")
+NATIVE = (
+    "_imaging.*",
+    "_webp.*",
+    "_pillow_heif.*",
+    "libheif*",
+    "_imagingft.*",
+)  # _imagingft: FreeType for the annotated image's mark numbers
 HEIF_READABLE = "HEIF/HEIC photos can be read"  # the workstation check's wording (ridge.case.workstation)
+# Modules of the 2026-10-24 follow-up that the GUI reaches through the sidecar: the capture check (FR-54) and the
+# examiner annotations with their drawn export (FR-55), which needs Pillow's drawing and font modules.
+FEATURES = frozenset(
+    {"ridge.capture", "ridge.case.annotations", "ridge.case.annotation_image", "PIL.ImageDraw", "PIL.ImageFont"}
+)
 
 
 def stamp(work: Path) -> Path:
@@ -120,10 +131,13 @@ def check_bundle() -> None:
     )
 
     names = set(ZlibArchiveReader(str(BUILD / "pyinstaller" / NAME / "PYZ-00.pyz")).toc)
-    missing = {KEYSTORE_BACKEND, "ridge.sidecar.handlers", "ridge.case.limits", *DECODERS} - names
+    missing = {KEYSTORE_BACKEND, "ridge.sidecar.handlers", "ridge.case.limits", *DECODERS, *FEATURES} - names
     if missing:
         raise SystemExit(f"frozen sidecar lacks {sorted(missing)}")
-    print(f"frozen archive ok: {len(names)} modules, keystore backend {KEYSTORE_BACKEND}, {len(DECODERS)} decoders")
+    print(
+        f"frozen archive ok: {len(names)} modules, keystore backend {KEYSTORE_BACKEND}, {len(DECODERS)} decoders, "
+        f"{len(FEATURES)} feature modules"
+    )
 
 
 def check_native(folder: Path) -> None:
@@ -144,11 +158,13 @@ def smoke(exe: Path) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         store = Path(tmp) / "store"
         store.mkdir()
+        photo = synthetic_photo(Path(tmp) / "finger.png")
         requests = [
             {"jsonrpc": "2.0", "id": 1, "method": "ridge.version"},
             {"jsonrpc": "2.0", "id": 2, "method": "store.identity", "params": {"store": str(store)}},
             {"jsonrpc": "2.0", "id": 3, "method": "store.cases", "params": {"store": str(store)}},
             {"jsonrpc": "2.0", "id": 4, "method": "store.workstation", "params": {"store": str(store)}},
+            {"jsonrpc": "2.0", "id": 5, "method": "photo.check", "params": {"path": str(photo)}},
         ]
         stdin = "".join(json.dumps(r) + "\n" for r in requests)
         done = subprocess.run([str(exe)], input=stdin.encode(), capture_output=True, timeout=120, check=False)  # nosec B603
@@ -165,8 +181,22 @@ def smoke(exe: Path) -> None:
     libraries = next((f.get("text", "") for f in results[3] or [] if f.get("topic") == "Libraries"), "")
     if HEIF_READABLE not in libraries:
         raise SystemExit(f"the frozen sidecar does not read HEIF/HEIC: {libraries!r}")
+    check = results[4] or {}
+    if check.get("verdict") != "ok" or not check.get("finger_located"):  # the pipeline's finger and ridge measures run
+        raise SystemExit(f"the frozen sidecar's capture check did not pass a synthetic finger: {check}")
     version = f"Ridge {results[0].get('ridge')} {results[0].get('commit')}"
-    print(f"frozen sidecar ok: {version}, protocol {PROTOCOL}, reads HEIF")
+    print(f"frozen sidecar ok: {version}, protocol {PROTOCOL}, reads HEIF, checks a synthetic photo")
+
+
+def synthetic_photo(path: Path) -> Path:
+    """Write the test suite's synthetic finger photo (no real data) for the frozen engine's capture check."""
+    sys.path.insert(0, str(ROOT))
+    from PIL import Image  # noqa: PLC0415  # build tool only
+    from tests.synthetic import finger_photo, whorl_pattern  # noqa: PLC0415  # build tool only
+
+    bgr = finger_photo(whorl_pattern(480, 360, 9.0))
+    Image.fromarray(bgr[:, :, ::-1]).save(path, format="PNG")
+    return path
 
 
 def main() -> int:
