@@ -126,6 +126,18 @@ def check_marks(raw: object, width: int, height: int) -> tuple[Mark, ...]:
     return tuple(marks)
 
 
+def _written_by(entries: Iterable[Entry], item: Any, job_id: str) -> bool:
+    """Return True when `job_id` wrote this output (identical reruns log a duplicate write under their own id)."""
+    return any(
+        e.get("action") == "artefact.write"
+        and e.get("job_id") == job_id
+        and e.get("sha256") == item.sha256
+        and e.get("role") == item.role
+        and e.get("result") in ("ok", "duplicate")
+        for e in entries
+    )
+
+
 def _annotation(entry: Entry, signed_seq: int | None) -> Annotation:
     marks = tuple(
         Mark(int(m["n"]), int(m["x"]), int(m["y"]), cast(Kind, m["kind"]), m.get("label")) for m in entry["marks"]
@@ -182,7 +194,7 @@ def add_annotation(
 ) -> Annotation:
     """Record an annotation set on one output image of `job_id` and sign the chain head right after it."""
     item = case.item(sha256)  # refuses an unknown or ambiguous item
-    if item.role not in IMAGE_ROLES or item.job_id != job_id:
+    if item.role not in IMAGE_ROLES or not _written_by(case.entries, item, job_id):
         raise ParameterError("annotations go on a print or comparison export image of the same job")
     width, height = _png_size(case.read(item.sha256, job_id=job_id))  # a logged read of the output
     checked = check_marks(marks, width, height)

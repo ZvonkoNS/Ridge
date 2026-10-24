@@ -67,6 +67,7 @@ fn label(value: Option<&str>) -> Result<Option<String>, IpcError> {
     Ok(Some(clean))
 }
 
+/// The marks as the sidecar takes them: a bounded list, each of an allow-listed kind with a clean label.
 fn marks(items: &[MarkRequest]) -> Result<Vec<Value>, IpcError> {
     if items.is_empty() || items.len() > MAX_MARKS {
         return Err(IpcError::invalid(&format!(

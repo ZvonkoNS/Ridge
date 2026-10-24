@@ -32,6 +32,11 @@ describe("job options", () => {
     });
   });
 
+  it("falls back to the estimated scale when a card kind has no points", () => {
+    const options = toOptions(SHA, { ...DEFAULT_PARAMS, reference: "id1-long", ruler: [] });
+    expect(options).toMatchObject({ ruler: null, reference: "ruler" });
+  });
+
   it("sends the method variants the examiner turned on", () => {
     const options = toOptions(SHA, {
       ...DEFAULT_PARAMS,

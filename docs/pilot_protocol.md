@@ -89,23 +89,23 @@ Failures to extract (Ridge refuses the photograph or finds no ridge pattern) are
 
 ## 7. Recording
 
-The ranks file is a CSV with one row per submission:
+The ranks file is a CSV with one row per submission. The validation tool needs the columns `probe` and `rank`, groups by the optional column `group`, and ignores every other column, which is there for the pilot's own record:
 
 ```text
-submission_id,photo_sha256,job_id,arm,condition,scale_method,export_sha256,list_length,rank
-P-001,<sha256>,<job id>,default,A,ruler,<sha256>,20,1
-P-002,<sha256>,<job id>,default,B,none,<sha256>,20,not returned
+probe,rank,group,photo_sha256,job_id,scale_method,export_sha256,list_length
+P-001,1,default/A,<sha256>,<job id>,ruler,<sha256>,20
+P-002,,default/B,<sha256>,<job id>,none,<sha256>,20
 ```
 
-`rank` is a positive whole number or the text `not returned`. Any other columns are grouping columns. The file carries identifiers and hashes only; the mapping from identifiers to persons stays with the FQM.
+`rank` is a positive whole number (1 to 1000); an **empty** rank means the mate was not returned. `group` carries the breakdown the analysis needs, for example `arm/condition`, in one column; a row must have exactly the header's fields. The file carries identifiers and hashes only; the mapping from identifiers to persons stays with the FQM.
 
 Ridge's validation tool reads this file and computes the hit rates and the CMC curve:
 
 ```bash
-ridge-validate --ranks ranks.csv --rank 1 5 10 20 --group arm --group condition
+ridge-validate --ranks ranks.csv --rank 1 --rank 5 --rank 10 --rank 20 -o pilot.json
 ```
 
-It prints, per group, the number of submissions, the rank-k hit rate for each k with its 95 % Wilson interval, the share not returned, and the CMC curve up to the list length (PRD FR-43). It makes no claim beyond those numbers.
+It prints, for all rows and per `group`, the number of submissions, the rank-k hit rate for each k with its 95 % Wilson interval, the share not returned, and the CMC curve up to the list length (PRD FR-43). It makes no claim beyond those numbers.
 
 ## 8. Analysis and acceptance
 

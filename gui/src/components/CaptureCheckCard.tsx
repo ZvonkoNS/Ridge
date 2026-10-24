@@ -38,6 +38,7 @@ export function measuredLine(check: CaptureCheck): string {
   return parts.join(" · ");
 }
 
+/** The verdict, the findings with their levels, the measured values and the notice of one capture check. */
 export function CaptureFindings({ check }: { check: CaptureCheck }) {
   const verdict =
     check.verdict === "retake"
@@ -67,6 +68,7 @@ interface Props {
   onFailure: (error: unknown) => void;
 }
 
+/** A card with the button that runs the check (a file dialog before import, or a stored photo) and its findings. */
 export function CaptureCheckCard({ sha256, onFailure }: Props) {
   const [check, setCheck] = useState<CaptureCheck | null>(null);
   const [busy, setBusy] = useState(false);

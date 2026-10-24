@@ -49,6 +49,7 @@ def render_annotated(data: bytes, annotation: Annotation) -> bytes:
             raise ParameterError("the stored image is too large to annotate")
         if (im.width, im.height) != (annotation.width, annotation.height):
             raise ParameterError("the stored image no longer has the size the annotation set was made on")
+        dpi = im.info.get("dpi")  # a comparison export carries its resolution (pHYs); a print carries none
         canvas = im.convert("RGB")
     draw = ImageDraw.Draw(canvas)
     r = _radius(canvas.width, canvas.height)
@@ -61,10 +62,33 @@ def render_annotated(data: bytes, annotation: Annotation) -> bytes:
             draw.rectangle([x - r, y - r, x + r, y + r], outline=COLOUR, width=2)
         else:
             draw.polygon([(x, y - r), (x + r, y + r), (x - r, y + r)], outline=COLOUR, width=2)
-        draw.text((x + r + 2, y - r), str(mark.n), fill=COLOUR, font=font)
+        draw.text(
+            _label_origin(draw, str(mark.n), font, x=x, y=y, r=r, size=canvas.size), str(mark.n), fill=COLOUR, font=font
+        )
     out = BytesIO()
-    canvas.save(out, format="PNG", optimize=False)
+    canvas.save(out, format="PNG", optimize=False, **({"dpi": dpi} if dpi else {}))
     return out.getvalue()
+
+
+def _label_origin(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+    *,
+    x: int,
+    y: int,
+    r: int,
+    size: tuple[int, int],
+) -> tuple[int, int]:
+    """Where to draw a mark's number so that it stays inside the image: right of the mark, else left, and clamped."""
+    left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
+    width, height = right - left, bottom - top
+    tx: float = x + r + 2
+    ty: float = y - r
+    if tx + width > size[0] - 1:
+        tx = max(0.0, x - r - 2 - width)
+    ty = max(0.0, min(ty, size[1] - 1 - height))
+    return round(tx - left), round(ty - top)
 
 
 def export_annotated(case: OpenCase, seq: int, dest: Path, *, overwrite: bool = False) -> ExportedAnnotation:

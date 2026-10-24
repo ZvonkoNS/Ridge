@@ -43,7 +43,12 @@ def sweep_factors(uncertainty_pct: float, steps: int = DEFAULT_STEPS) -> tuple[f
     if isinstance(count, bool) or not isinstance(count, int) or not MIN_STEPS <= count <= MAX_STEPS or count % 2 == 0:
         raise ParameterError(f"steps must be an odd number from {MIN_STEPS} to {MAX_STEPS}")
     half = (steps - 1) // 2
-    return tuple(round(1.0 + (i / half) * uncertainty / 100.0, 4) for i in range(-half, half + 1))
+    factors = tuple(round(1.0 + (i / half) * uncertainty / 100.0, 4) for i in range(-half, half + 1))
+    if len(set(factors)) != len(factors):  # two steps would get the same factor and the same file name
+        raise ParameterError(
+            f"a scale uncertainty of {uncertainty:g} % is too small to tell {steps} steps apart; use fewer steps"
+        )
+    return factors
 
 
 def rescaled(image: ImageU8, factor: float) -> ImageU8:

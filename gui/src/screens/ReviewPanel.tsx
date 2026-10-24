@@ -116,7 +116,8 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
   // Linked views (FR-56): one shared view in photo pixels drives both viewers.
   const [link, setLink] = useState(false);
   const [view, setView] = useState<LinkedView | null>(null);
-  const linkInfo = outputLink(printArea.area, output.source, printArea.mirrored);
+  const mirroredOutput = current?.role === "export" || current?.role === "export-gray";
+  const linkInfo = outputLink(printArea.area, output.source, printArea.mirrored && mirroredOutput);
   const linkedView = link && linkInfo && view ? view : null;
   const rightView = linkedView && linkInfo ? outputView(linkedView, linkInfo) : null;
   const toggleLink = (on: boolean) => {
@@ -389,7 +390,7 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
         <input
           type="checkbox"
           checked={research}
-          disabled={running}
+          disabled={running || batch !== null}
           onChange={(e) => {
             const on = e.target.checked;
             setResearch(on);

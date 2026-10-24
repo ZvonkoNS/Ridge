@@ -7,6 +7,7 @@ import { IpcError, ipc } from "../ipc/commands";
 import type { Annotation } from "../ipc/types";
 import { Button, Hash } from "./ui";
 
+/** Shown wherever marks appear: they are statements, never a result. */
 export const ANNOTATIONS_NOTE =
   "Marks are the examiner's own charting of an output image, recorded and signed in the custody log. They are not a match, a count of agreement or an identification.";
 
@@ -39,6 +40,7 @@ interface Props {
   version?: number;
 }
 
+/** The annotation sets of one job, read from the custody log, with a button to save each set's annotated image. */
 export function AnnotationsPanel({ jobId, onFailure, notify, version = 0 }: Props) {
   const [sets, setSets] = useState<Annotation[] | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
