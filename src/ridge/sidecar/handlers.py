@@ -155,6 +155,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
             "roi": ((list, type(None)), False),
             "finger_position": (int_, False),
             "source_agency": ((str, type(None)), False),
+            "options": ((dict, type(None)), False),
         },
     ),
 }

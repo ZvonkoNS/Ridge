@@ -68,3 +68,18 @@ def print_area_line(area: dict[str, Any] | None) -> str:
     parts = area.get("parts")
     kept = f"{parts} kept area" + ("" if parts == 1 else "s")
     return f"Print area    x {x}, y {y}, {w}x{h} px of the photo (the print image's frame; {kept})"
+
+
+def variants_line(params: dict[str, Any], meas: dict[str, Any]) -> str:
+    """Describe the opt-in method variants a job used (ADR-014); empty when none was on or the report predates them."""
+    options = params.get("options") or {}
+    parts = []
+    if options.get("channel", "green") != "green":
+        parts.append(f"channel {options['channel']} (used: {meas.get('channel_used')})")
+    if options.get("specular_mask"):
+        fraction = meas.get("specular_fraction")
+        removed = f"{100 * fraction:.1f} % of the finger removed" if isinstance(fraction, int | float) else "on"
+        parts.append(f"specular mask ({removed})")
+    if not parts:
+        return ""
+    return f"Variants      {', '.join(parts)}; unvalidated method variants (ADR-014), not covered by the validation"

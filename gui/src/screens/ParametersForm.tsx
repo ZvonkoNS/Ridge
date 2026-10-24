@@ -3,7 +3,7 @@
 // WCAG 2.2 SC 2.5.7).
 import type { ChangeEvent, ReactNode } from "react";
 
-import type { JobOptions, ReferenceKind } from "../ipc/types";
+import type { Channel, JobOptions, ReferenceKind } from "../ipc/types";
 import { distance, type Point, type Rect, type Size } from "../lib/viewport";
 
 /** Edge lengths of an ISO/IEC 7810 ID-1 card (bank, ID and driving-licence cards), as ridge.export.transforms. */
@@ -39,6 +39,17 @@ export const FINGER_POSITIONS: readonly string[] = [
   "left little",
 ];
 
+export const CHANNELS: Record<Channel, string> = {
+  green: "green (default)",
+  red: "red",
+  blue: "blue",
+  luma: "luminance",
+  auto: "auto: the plane with the strongest ridge signal",
+};
+
+export const VARIANTS_NOTE =
+  "Method variants change the output pixels and are not covered by the validation (ADR-014). Off by default; every report records them.";
+
 export interface Params {
   period: string;
   minQuality: number;
@@ -55,6 +66,8 @@ export interface Params {
   reference: ReferenceKind;
   fingerPosition: number;
   sourceAgency: string;
+  channel: Channel;
+  specularMask: boolean;
 }
 
 /** The distance the form sends: the typed millimetres for a ruler, the standard edge length for a card. */
@@ -78,6 +91,8 @@ export const DEFAULT_PARAMS: Params = {
   reference: "ruler",
   fingerPosition: 0,
   sourceAgency: "",
+  channel: "green",
+  specularMask: false,
 };
 
 /** Turn the form into job options, or explain what to fix. */
@@ -130,6 +145,7 @@ export function toOptions(evidence: string, p: Params, photo?: Size | null): Job
     roi: p.roi ? [p.roi.x, p.roi.y, p.roi.width, p.roi.height] : null,
     finger_position: p.fingerPosition,
     source_agency: agency === "" ? null : agency,
+    options: { channel: p.channel, specular_mask: p.specularMask },
   };
 }
 
@@ -271,6 +287,36 @@ export function ParametersForm({ value: p, onChange, disabled, children }: Props
           }}
         />
       </div>
+      <fieldset className="subset">
+        <legend>Method variants (unvalidated, off by default)</legend>
+        <p className="muted">{VARIANTS_NOTE}</p>
+        <label className="field">
+          <span>Colour plane</span>
+          <select
+            value={p.channel}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value in CHANNELS) {
+                set({ channel: value as Channel });
+              }
+            }}
+          >
+            {(Object.keys(CHANNELS) as Channel[]).map((c) => (
+              <option key={c} value={c}>
+                {CHANNELS[c]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Check
+          label="Specular-highlight mask"
+          checked={p.specularMask}
+          onChange={(v) => {
+            set({ specularMask: v });
+          }}
+          hint="exclude glare from the finger area"
+        />
+      </fieldset>
       <fieldset className="subset">
         <legend>Submission record (your statements, recorded in the report)</legend>
         <label className="field">

@@ -26,6 +26,7 @@ from ridge.case.report_lines import (
     print_area_line,
     resolution_note_line,
     scale_notice_line,
+    variants_line,
 )
 from ridge.case.reports import (
     MAX_REPORT_BYTES,
@@ -183,6 +184,7 @@ def _result_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
         ("Ridge spacing", _text(f"{meas.get('ridge_period_px', 0):.2f} px") if meas else ""),
         ("Finger located", _text("yes" if meas.get("found_finger") else "no") if meas else ""),
         ("Print area", _text(_value(print_area_line(meas.get("print_area"))))),
+        ("Variants", _text(_value(variants_line(report.get("parameters") or {}, meas)))),
         ("Submission", _text(_value(submission_line(report.get("submission"))))),
         ("Export", _text(_value(export_line(report.get("export"))).replace("+-", "±"))),
         ("Scale notice", _text(_value(scale_notice_line(report.get("export"))).replace("+-", "±"))),

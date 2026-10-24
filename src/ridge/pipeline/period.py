@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import cast
+from typing import Any, cast
 
 import cv2
 import numpy as np
@@ -35,8 +35,10 @@ def _patch_origins(height: int, width: int) -> tuple[NDArray[np.intp], NDArray[n
     return ys.ravel(), xs.ravel()
 
 
-def estimate_period(gray: FloatImage, mask: Mask) -> float:
-    """Dominant ridge spacing in pixels, from the spectra of small patches on the finger."""
+def _trusted_patches(
+    gray: FloatImage, mask: Mask
+) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]], float]:
+    """Return (periods, sharpness) of the sharpest quarter of the finger's patches, and the rescale factor."""
     # Rescale so the finger is ~640 px wide; a finger is roughly 25-60 ridges wide,
     # so one patch size and one search band then fit photos of any resolution.
     dist = cv2.distanceTransform(np.pad(mask, 1).astype(np.uint8), cv2.DIST_L2, 5)
@@ -87,8 +89,22 @@ def estimate_period(gray: FloatImage, mask: Mask) -> float:
         good[:] = True
     p, wt = periods[good], sharpness[good]
     best = wt >= np.quantile(wt, 0.75)
-    p, wt = p[best], wt[best]
+    return p[best], wt[best], s
+
+
+def estimate_period(gray: FloatImage, mask: Mask) -> float:
+    """Dominant ridge spacing in pixels, from the spectra of small patches on the finger."""
+    p, wt, s = _trusted_patches(gray, mask)
     order = np.argsort(p)
     cum = np.cumsum(wt[order])
     period = p[order][np.searchsorted(cum, cum[-1] / 2)]
     return float(period) / s
+
+
+def ridge_signal_strength(gray: FloatImage, mask: Mask) -> float:
+    """How clearly the finger's patches show one ridge wave: the median peak share of the trusted patches (0..1).
+
+    Used to compare colour planes (ADR-014 ``channel: auto``); it is not a quality score of the print.
+    """
+    _, wt, _ = _trusted_patches(gray, mask)
+    return float(np.median(wt))

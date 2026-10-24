@@ -21,6 +21,7 @@ from ridge.errors import ParameterError
 from ridge.export import REFERENCE_OBJECTS, ReferenceKind
 from ridge.export.formats import check_format
 from ridge.export.sweep import DEFAULT_STEPS
+from ridge.pipeline import MethodOptions
 from ridge.sidecar.protocol import Json
 from ridge.sidecar.session import Session, absolute, item_json
 
@@ -71,6 +72,7 @@ def run_job(session: Session, params: dict[str, Json]) -> Json:
         roi=_roi(params.get("roi")),
         finger_position=params.get("finger_position", 0),
         source_agency=params.get("source_agency"),
+        options=MethodOptions.from_json(params.get("options")),
     )
     outcome = run_extraction_job(case, params["evidence"], signer, job)
     report = outcome.report

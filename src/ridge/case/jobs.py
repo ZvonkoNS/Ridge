@@ -38,7 +38,7 @@ from ridge.errors import ExtractionError, ParameterError, RidgeError
 from ridge.image_io import ALLOWED_FORMATS, ReadLimits, decode_image, encode_image
 from ridge.metadata import read_metadata
 from ridge.metadata.provenance import provenance_hints
-from ridge.pipeline import ExtractionResult, extract_fingerprint
+from ridge.pipeline import ExtractionResult, MethodOptions, extract_fingerprint
 
 REPORT_SCHEMA = "ridge.job-report/1"
 MIN_ROI_SIDE = 32  # the smallest photo Ridge accepts (FR-9)
@@ -59,10 +59,16 @@ class JobParams:
     roi: tuple[int, int, int, int] | None = None  # x, y, width, height in the EXIF-oriented photo
     finger_position: int = 0  # ANSI/NIST-ITL finger code stated by the examiner, 0 = unknown (FR-38)
     source_agency: str | None = None  # submitting agency as stated by the examiner (FR-38)
+    options: MethodOptions = field(default_factory=MethodOptions)  # opt-in method variants (ADR-014)
 
     def to_json(self) -> dict[str, Any]:
         """JSON-friendly form for the custody log and the report."""
-        return {**asdict(self), "export": self.export.to_json(), "roi": None if self.roi is None else list(self.roi)}
+        return {
+            **asdict(self),
+            "export": self.export.to_json(),
+            "roi": None if self.roi is None else list(self.roi),
+            "options": self.options.to_json(),
+        }
 
     def submission(self) -> Submission:
         """Return the validated submission statements (raises ParameterError for a bad code or text)."""
@@ -219,6 +225,7 @@ def _execute(
         flip=params.flip,
         crop=params.crop,
         debug=params.debug,
+        options=params.options,
     )
     stem = evidence.label.rsplit(".", 1)[0]
     outputs, export_fields = _store_outputs(
@@ -229,6 +236,8 @@ def _execute(
         "found_finger": result.found_finger,
         "output_scale": result.output_scale,
         "print_area": print_area(result, params.roi),
+        "channel_used": result.channel_used,
+        "specular_fraction": result.specular_fraction,
     }
     source: dict[str, Any] = {
         "sha256": evidence.sha256,

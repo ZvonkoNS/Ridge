@@ -165,6 +165,10 @@ export interface Measurements {
   output_scale: number;
   /** Absent in reports made before Ridge recorded it. */
   print_area?: PrintArea | null;
+  /** The colour plane used (ADR-014); absent in reports made before it. */
+  channel_used?: string;
+  /** Share of the finger area removed as highlights when the specular mask was on; null when off. */
+  specular_fraction?: number | null;
 }
 
 export type ScaleMethod = "ruler" | "card" | "ridge-period" | "manual";
@@ -292,6 +296,15 @@ export interface MinutiaeView {
   export: MinutiaeSpace | null;
 }
 
+/** Colour plane the ridge signal is taken from (ADR-014); "auto" picks the strongest. */
+export type Channel = "green" | "red" | "blue" | "luma" | "auto";
+
+/** Opt-in method variants (ADR-014): off by default, unvalidated, recorded in every report. */
+export interface MethodOptions {
+  channel: Channel;
+  specular_mask: boolean;
+}
+
 /** Options sent with `run_job`; every field is explicit, nothing is defaulted on the way. */
 export interface JobOptions {
   evidence: string;
@@ -310,6 +323,7 @@ export interface JobOptions {
   /** ANSI/NIST-ITL finger code stated by the examiner, 0 = unknown (FR-38). */
   finger_position: number;
   source_agency: string | null;
+  options: MethodOptions;
 }
 
 /** The submission record of a job (FR-38): the examiner's statements and the unverified camera. */

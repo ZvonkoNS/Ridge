@@ -125,6 +125,20 @@ export function JobSummary({ result }: Props) {
         <dd>{m ? `${m.ridge_period_px.toFixed(2)} px` : "-"}</dd>
         <dt>Finger located</dt>
         <dd>{m ? (m.found_finger ? "yes, by skin colour" : "no: the whole frame was used") : "-"}</dd>
+        {m && (m.channel_used !== undefined || m.specular_fraction != null) ? (
+          <>
+            <dt>Variants</dt>
+            <dd>
+              {m.channel_used !== undefined ? `plane ${m.channel_used}` : ""}
+              {m.specular_fraction != null
+                ? `${m.channel_used !== undefined ? "; " : ""}specular mask removed ${(100 * m.specular_fraction).toFixed(1)} % of the finger`
+                : ""}
+              {m.channel_used !== "green" || m.specular_fraction != null
+                ? " (unvalidated variant, ADR-014)"
+                : ""}
+            </dd>
+          </>
+        ) : null}
         <dt>Print area</dt>
         <dd>{m ? areaLine(m.print_area) : "-"}</dd>
         {result.submission ? (
