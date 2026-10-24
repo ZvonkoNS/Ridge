@@ -394,6 +394,22 @@ export interface Exported {
 /** File formats a bulk export can convert image outputs to; "png" exports them as stored. */
 export type ExportFormat = "png" | "tiff" | "bmp";
 
+/** A scale sweep written to a new folder (FR-39): rescaled copies of one export over its uncertainty. */
+export interface SweepExported extends Exported {
+  files: number;
+  factors: number[];
+  index: string;
+  uncertainty_pct: number | null;
+}
+
+/** A scale sweep written to a new folder (FR-39): rescaled copies of one export over its uncertainty. */
+export interface SweepExported extends Exported {
+  files: number;
+  factors: number[];
+  index: string;
+  uncertainty_pct: number | null;
+}
+
 export interface ReportExported extends Exported {
   signature: string;
   key_id: string;

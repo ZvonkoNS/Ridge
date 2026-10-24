@@ -237,6 +237,36 @@ pub async fn export_item(
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct SweepRequest {
+    sha256: String,
+    steps: u8,
+    format: String,
+}
+
+/// Write rescaled copies of a comparison export over its scale uncertainty into a new folder (FR-39).
+#[tauri::command]
+pub async fn export_sweep(
+    app: AppHandle,
+    window: WebviewWindow,
+    request: SweepRequest,
+) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    let sha256 = validate::sha256(&request.sha256)?;
+    if !(3..=9).contains(&request.steps) || request.steps % 2 == 0 {
+        return Err(IpcError::invalid("steps must be an odd number from 3 to 9"));
+    }
+    if !EXPORT_FORMATS.contains(&request.format.as_str()) {
+        return Err(IpcError::invalid("not an export file format"));
+    }
+    let dest = dialogs::new_folder(&app, "Name the new sweep folder", "Ridge scale sweep".into()).await?;
+    let params = json!({
+        "sha256": sha256, "dest": path_text(&dest)?, "steps": request.steps, "format": request.format
+    });
+    call(&app, "sweep.export", params, VERIFY).await
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Preview {
     sha256: String,
     max_side: u32,

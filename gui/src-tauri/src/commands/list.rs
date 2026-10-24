@@ -40,6 +40,7 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "custody_log",
     "export_report_html",
     "export_cover",
+    "export_sweep",
     "export_key_card",
     "check_exported",
     "backup_store",

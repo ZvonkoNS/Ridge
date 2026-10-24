@@ -163,6 +163,26 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
     }
   };
 
+  const sweepable =
+    current !== null &&
+    (current.role === "export" || current.role === "export-gray") &&
+    result?.export?.produced === true &&
+    result.export.scale.uncertainty_pct > 0;
+
+  const exportSweep = async () => {
+    if (current && sweepable) {
+      try {
+        const done = await ipc.exportSweep(current.sha256);
+        notify?.(
+          `${String(done.files)} rescaled copies written (factors ${done.factors.map((f) => f.toFixed(4)).join(", ")}), listed in ${done.index}; each is in the custody log. Submit them as separate searches.`,
+        );
+        onJobDone();
+      } catch (error) {
+        onFailure(error);
+      }
+    }
+  };
+
   const exportCurrent = async () => {
     if (current) {
       try {
@@ -307,6 +327,15 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
           <Button onClick={() => void exportCurrent()} disabled={!current || running}>
             Export shown image
           </Button>
+          {sweepable ? (
+            <Button
+              onClick={() => void exportSweep()}
+              disabled={running}
+              title="Rescaled copies over the export's scale uncertainty, for searches at several scales"
+            >
+              Export scale sweep...
+            </Button>
+          ) : null}
         </div>
       </ParametersForm>
       {result ? <JobSummary result={result} /> : null}
