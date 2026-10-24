@@ -31,6 +31,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     "store.identity": (store.identity_status, {"store": (str_, True)}),
     "store.limits": (store.limits_of_use, {"store": (str_, True)}),
     "files.check": (store.files_check, {"path": (str_, True), "register": ((str, type(None)), False)}),
+    "photo.check": (store.photo_check, {"path": (str_, True)}),
     "store.backup": (store.backup, {"store": (str_, True), "dest": (str_, True)}),
     "store.workstation": (store.workstation, {"store": (str_, True), "register": ((str, type(None)), False)}),
     "store.verify": (store.verify_all, {"store": (str_, True), "passphrase": (str_, True)}),
@@ -132,6 +133,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
     ),
     "preview.get": (case.preview, {"sha256": (str_, True), "max_side": (int_, False)}),
     "metadata.get": (case.photo_metadata, {"sha256": (str_, True)}),
+    "evidence.check": (case.evidence_check, {"sha256": (str_, True)}),
     "minutiae.get": (case.minutiae, {"sha256": (str_, True)}),
     "preview.region": (
         case.preview_region,

@@ -13,6 +13,7 @@ from typing import cast
 import cv2
 
 from ridge.arrays import ImageU8
+from ridge.case.capture_check import check_stored_photo
 from ridge.case.case_model import StoredItem
 from ridge.case.case_status import case_status
 from ridge.case.compare import PLAUSIBLE_PPI, file_ppi
@@ -122,6 +123,13 @@ def export_item(session: Session, params: dict[str, Json]) -> Json:
         case, params["sha256"], absolute(params["dest"], "dest"), overwrite=params.get("overwrite", False)
     )
     return {"exported": str(done.path), "format": done.format, "sha256": done.sha256}
+
+
+def evidence_check(session: Session, params: dict[str, Json]) -> Json:
+    """Run the capture check (FR-54) on a stored evidence or reference image (one logged read)."""
+    case, _ = session.require()
+    item, check = check_stored_photo(case, params["sha256"])
+    return {"role": item.role, "label": item.label, **check.to_json()}
 
 
 def photo_metadata(session: Session, params: dict[str, Json]) -> Json:

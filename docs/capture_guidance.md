@@ -80,6 +80,8 @@ The note goes with the item; Ridge's submission record (finger position, source 
 
 ## 9. What Ridge does with the photograph
 
+Before import, Ridge's capture check can tell you whether to photograph again while the finger is still in front of you: it reports whether a finger was located and how much of the frame it fills, the pixels per ridge, the clarity of the ridge pattern, glare, and whether the file looks like the camera's original. It cannot see a ruler or a card, so it always reminds you of the scale reference. It is a hint about the photograph, not a quality score of a print.
+
 Ridge records the file's hash, reads the camera metadata as stored (never verified), lists provenance hints, locates the finger, measures the ridge spacing and the scale from the reference, enhances the ridges, and writes a signed report with every parameter and measurement. It says plainly when no scale reference was given, when an export had to be enlarged to reach a resolution, when a method variant was used, and that nothing in its output is an identification. The examiner reviews the enhanced print against the original with the kept area outlined.
 
 ---

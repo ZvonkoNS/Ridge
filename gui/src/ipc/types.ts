@@ -587,3 +587,30 @@ export interface PromptContext {
   min_chars: number;
   attempts_left: number;
 }
+
+/** One finding of the capture check (FR-54): fine, a reason to photograph again, or a note. */
+export interface CaptureFinding {
+  id: string;
+  level: "ok" | "retake" | "note";
+  text: string;
+}
+
+/** The capture check of a photo: indicative only, never a quality score of a print. */
+export interface CaptureCheck {
+  schema: string;
+  sha256: string;
+  width: number;
+  height: number;
+  finger_located: boolean;
+  /** Share of the frame covered by the located finger (the whole frame when not located). */
+  finger_share: number;
+  ridge_spacing_px: number | null;
+  clarity: number | null;
+  glare_share: number | null;
+  verdict: "retake" | "ok";
+  findings: CaptureFinding[];
+  notice: string;
+  /** Present when a stored photo was checked. */
+  role?: Role;
+  label?: string;
+}

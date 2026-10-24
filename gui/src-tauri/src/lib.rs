@@ -124,6 +124,8 @@ pub fn run() {
             commands::store::workstation_check,
             commands::recovery::export_recovery,
             commands::recovery::import_recovery,
+            commands::check::check_photo,
+            commands::check::check_evidence,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

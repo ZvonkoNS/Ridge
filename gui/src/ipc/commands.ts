@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { noteActivity } from "../lib/idle";
 
 import type {
+  CaptureCheck,
   AppInfo,
   CaseCreated,
   CaseInfo,
@@ -147,6 +148,8 @@ export const ipc = {
   previewRegion: (sha256: string, x: number, y: number, width: number, height: number) =>
     call<RegionPreview>("preview_region", { sha256, x, y, width, height }),
   photoMetadata: (sha256: string) => call<PhotoMetadataView>("photo_metadata", { sha256 }),
+  checkPhoto: () => call<CaptureCheck>("check_photo"),
+  checkEvidence: (sha256: string) => call<CaptureCheck>("check_evidence", { sha256 }),
   runJob: (options: JobOptions) => call<JobResult>("run_job", { ...options }),
   listJobs: () => call<JobRecord[]>("list_jobs"),
   getReport: (jobId: string) => call<VerifiedReport>("get_report", { job_id: jobId }),

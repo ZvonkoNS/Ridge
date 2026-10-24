@@ -112,6 +112,7 @@ src/ridge/
   cli.py               Argument parsing and the per-file loop (thin)
   errors.py            Typed error hierarchy (RidgeError → InputError, ParameterError, OutputError, ExtractionError, …)
   image_io.py          Allow-listed, size-bounded decoding; atomic, no-overwrite encoding
+  capture.py           Capture check (FR-54): finger located and its share of the frame, pixels per ridge, clarity, glare, provenance; indicative only
   terminal.py          Display-safe text: hidden and control characters as <U+XXXX> (CWE-150, CVE-2021-42574)
   debug.py             Writing of debug images (intermediate arrays → files)
   pipeline/
@@ -213,6 +214,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `case.export_all` | `role` (export, export-gray, print, minutiae, evidence, reference), `dest` (absolute, a new folder named in a native dialog), `format` (png, tiff, bmp; optional) | Every item of that role exported through the single export path (one `artefact.export` each) under safe unique names, with `EXPORTS.csv` (file, SHA-256, role, job, label; labels kept from being read as spreadsheet formulas). The folder is private (0700 on POSIX); a name taken without regard to case falls back to the full SHA-256. A failure part-way keeps the exported files (each logged), indexes exactly those and says how many of how many left; a failure on the first file leaves no folder |
 | `store.backup` | `store` (absolute), `dest` (absolute, a new folder named in a native dialog) | Encrypted byte copy of the store with `BACKUP-MANIFEST.json`; nothing decrypted, no passphrase; refused while a case is open |
 | `files.check` | `path` (absolute, from a native dialog; a folder is a store backup when it holds `BACKUP-MANIFEST.json`, otherwise a package), `register` (optional) | Verifies an exported report, processing record, custody head, key card, key register, limits file, disclosure package or store backup with the CLI's verifiers; names the signer from a key register. No store needed, nothing written |
+| `photo.check` | `path` (absolute, from a native dialog) | The capture check (FR-54, `ridge.capture-check/1`) of a photo before import: read once, read-only, nothing written, no case needed. The CLI equivalent is `ridge-case check-photo FILE` |
 | `identity.card` | `store` (absolute), `passphrase`, `holder`, `dest` (absolute, from a native dialog) | Writes a self-signed key card (`ridge.key-card/1`) for the laboratory's key register. **Rust core only**, from the prompt window |
 | `case.create` | `store`, `reference`, `legal_basis`, `retention_until` (YYYY-MM-DD), `passphrase` | New case id; the passphrase must unlock the identity. **Rust core only** |
 | `store.identity` | `store` (absolute) | Whether the store has an examiner identity, and its key id and public key (nothing unlocked); first-run detection |
@@ -235,6 +237,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `preview.get` | `sha256`, `max_side` 16–2048 | Bounded PNG (base64) for display, with the full image's size after EXIF orientation (`source_width`, `source_height`: the space of `roi` and `ruler`); the read is logged |
 | `preview.region` | `sha256`, `x`, `y`, `width`, `height` (1–2048 px per side) | A full-resolution rectangle, unscaled and clipped to the image, for pixel inspection; the read is logged |
 | `metadata.get` | `sha256` (an evidence or reference item) | The photo's metadata (`ridge.photo-metadata/1`, §8.3) and its provenance hints (`ridge.provenance-hints/1`, FR-42, 2026-10-24), read from the verified stored bytes in one logged read; outputs and minutiae are refused (FR-36, added 2026-10-20). The CLI equivalent is `ridge-case metadata` (§8.3) |
+| `evidence.check` | `sha256` (an evidence or reference item) | The capture check (FR-54) of a stored photo, read from the verified stored bytes in one logged read; outputs are refused. Returns the record with the item's `role` and `label`. The CLI equivalent is `ridge-case check-photo --case CASE SHA` |
 | `minutiae.get` | `sha256` (a minutiae item) | The job's minutiae in print and export pixels, with the "unvalidated" label, for the GUI overlay; the read is logged |
 | `case.export` | `sha256`, `dest` (absolute), `overwrite` | Logged plaintext export; a `.tif`/`.tiff` or `.bmp` destination converts an image output (FR-32), and the result names the format and the written file's SHA-256 |
 | `case.jobs` | – | Jobs from the custody log: id, evidence, start and end time, result, whether a signed report exists |

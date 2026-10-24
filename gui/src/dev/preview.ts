@@ -290,7 +290,42 @@ const session = {
   legal_hold: false,
 };
 
+function previewCheck(sha256: string, role: string | null) {
+  return {
+    schema: "ridge.capture-check/1",
+    sha256,
+    width: 3024,
+    height: 4032,
+    finger_located: true,
+    finger_share: 0.31,
+    ridge_spacing_px: 11.4,
+    clarity: 0.047,
+    glare_share: 0.08,
+    verdict: "retake",
+    findings: [
+      { id: "located", level: "ok", text: "The finger fills 31 % of the frame." },
+      { id: "spacing", level: "ok", text: "About 11.4 px per ridge." },
+      { id: "clarity", level: "ok", text: "The ridge pattern is clear (peak share 0.05)." },
+      {
+        id: "glare",
+        level: "retake",
+        text: "Glare covers 8 % of the finger: move the light, switch off the flash or diffuse it.",
+      },
+      {
+        id: "scale",
+        level: "note",
+        text: "Ridge cannot see whether a ruler or an ISO/IEC 7810 ID-1 card lies in the plane of the finger pad; with one, the scale is measured instead of estimated.",
+      },
+    ],
+    notice:
+      "This check only says whether photographing the finger again would help. It is not a quality score of a print and says nothing about identification.",
+    ...(role === null ? {} : { role, label: "IMG_0412.jpg" }),
+  };
+}
+
 const handlers: Record<string, Handler> = {
+  check_photo: () => previewCheck(hex(5), null),
+  check_evidence: (r) => previewCheck(String(r.sha256), "evidence"),
   app_info: () => ({ gui: "0.2.0", engine: { ridge: "0.2.0", protocol: "ridge.sidecar/1" } }),
   refresh_store: () => store,
   choose_store: () => store,

@@ -11,6 +11,7 @@ from datetime import date
 
 import ridge
 from ridge.build_info import source_commit
+from ridge.capture import check_file
 from ridge.case.backup import backup_store
 from ridge.case.file_check import check_exported
 from ridge.case.identity import IDENTITY_FILE, create_identity, public_identity, unlock_identity
@@ -105,6 +106,11 @@ def backup(session: Session, params: dict[str, Json]) -> Json:
         "files": len(manifest["files"]),
         "bytes": sum(f["size"] for f in manifest["files"]),
     }
+
+
+def photo_check(session: Session, params: dict[str, Json]) -> Json:
+    """Run the capture check (FR-54) on a photo chosen in a native dialog: read once, read-only, no case needed."""
+    return check_file(absolute(params["path"], "path")).to_json()
 
 
 def files_check(session: Session, params: dict[str, Json]) -> Json:
