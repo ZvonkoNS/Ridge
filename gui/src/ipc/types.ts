@@ -174,6 +174,8 @@ export interface Measurements {
   specular_fraction?: number | null;
   /** Rotation applied to put the finger upright when that variant was on; null when off or not located. */
   upright_rotation_deg?: number | null;
+  /** Ridge spacing used inside the print (photo pixels) when the local-frequency variant was on; null when off. */
+  local_period_px?: { min: number; median: number; max: number } | null;
 }
 
 export type ScaleMethod = "ruler" | "card" | "ridge-period" | "manual";
@@ -309,6 +311,7 @@ export interface MethodOptions {
   channel: Channel;
   specular_mask: boolean;
   upright: boolean;
+  local_frequency: boolean;
 }
 
 /** Options sent with `run_job`; every field is explicit, nothing is defaulted on the way. */

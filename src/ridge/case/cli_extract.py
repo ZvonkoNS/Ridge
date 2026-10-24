@@ -87,7 +87,12 @@ def _job_params(args: argparse.Namespace) -> JobParams:
         tuple(args.roi) if args.roi else None,
         finger_position=args.finger_position,
         source_agency=args.source_agency,
-        options=MethodOptions(channel=args.channel, specular_mask=args.specular_mask, upright=args.upright),
+        options=MethodOptions(
+            channel=args.channel,
+            specular_mask=args.specular_mask,
+            upright=args.upright,
+            local_frequency=args.local_frequency,
+        ),
     )
 
 
@@ -196,6 +201,12 @@ def add_commands(sub: Any) -> None:
         "--upright",
         action="store_true",
         help="rotate the finger upright (axis vertical, tip up) before extraction (unvalidated variant, ADR-014)",
+    )
+    p.add_argument(
+        "--local-frequency",
+        action="store_true",
+        help="filter with a Gabor bank tuned to the local ridge spacing instead of one global spacing "
+        "(unvalidated variant, ADR-014)",
     )
     p.add_argument("--nfiq2", type=Path, help="absolute path of the NIST NFIQ 2 executable (indicative score)")
     p.add_argument("--nfiq2-arg", action="append", default=[], help="extra argument for the NFIQ 2 command")

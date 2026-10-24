@@ -258,7 +258,12 @@ pub async fn export_sweep(
     if !EXPORT_FORMATS.contains(&request.format.as_str()) {
         return Err(IpcError::invalid("not an export file format"));
     }
-    let dest = dialogs::new_folder(&app, "Name the new sweep folder", "Ridge scale sweep".into()).await?;
+    let dest = dialogs::new_folder(
+        &app,
+        "Name the new sweep folder",
+        "Ridge scale sweep".into(),
+    )
+    .await?;
     let params = json!({
         "sha256": sha256, "dest": path_text(&dest)?, "steps": request.steps, "format": request.format
     });

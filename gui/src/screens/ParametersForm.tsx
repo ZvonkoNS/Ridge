@@ -4,6 +4,8 @@
 import type { ChangeEvent, ReactNode } from "react";
 
 import type { Channel, JobOptions, ReferenceKind } from "../ipc/types";
+import { Check } from "../components/Check";
+import { MethodVariants } from "./MethodVariants";
 import { distance, type Point, type Rect, type Size } from "../lib/viewport";
 
 /** Edge lengths of an ISO/IEC 7810 ID-1 card (bank, ID and driving-licence cards), as ridge.export.transforms. */
@@ -39,17 +41,6 @@ export const FINGER_POSITIONS: readonly string[] = [
   "left little",
 ];
 
-export const CHANNELS: Record<Channel, string> = {
-  green: "green (default)",
-  red: "red",
-  blue: "blue",
-  luma: "luminance",
-  auto: "auto: the plane with the strongest ridge signal",
-};
-
-export const VARIANTS_NOTE =
-  "Method variants change the output pixels and are not covered by the validation (ADR-014). Off by default; every report records them.";
-
 export interface Params {
   period: string;
   minQuality: number;
@@ -69,6 +60,7 @@ export interface Params {
   channel: Channel;
   specularMask: boolean;
   upright: boolean;
+  localFrequency: boolean;
 }
 
 /** The distance the form sends: the typed millimetres for a ruler, the standard edge length for a card. */
@@ -95,6 +87,7 @@ export const DEFAULT_PARAMS: Params = {
   channel: "green",
   specularMask: false,
   upright: false,
+  localFrequency: false,
 };
 
 /** Turn the form into job options, or explain what to fix. */
@@ -147,7 +140,12 @@ export function toOptions(evidence: string, p: Params, photo?: Size | null): Job
     roi: p.roi ? [p.roi.x, p.roi.y, p.roi.width, p.roi.height] : null,
     finger_position: p.fingerPosition,
     source_agency: agency === "" ? null : agency,
-    options: { channel: p.channel, specular_mask: p.specularMask, upright: p.upright },
+    options: {
+      channel: p.channel,
+      specular_mask: p.specularMask,
+      upright: p.upright,
+      local_frequency: p.localFrequency,
+    },
   };
 }
 
@@ -156,32 +154,6 @@ interface Props {
   onChange: (next: Params) => void;
   disabled: boolean;
   children?: ReactNode;
-}
-
-function Check({
-  label,
-  checked,
-  onChange,
-  hint,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  hint?: string;
-}) {
-  return (
-    <label className="check">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => {
-          onChange(e.target.checked);
-        }}
-      />
-      <span>{label}</span>
-      {hint ? <small>{hint}</small> : null}
-    </label>
-  );
 }
 
 const whole = (e: ChangeEvent<HTMLInputElement>): number =>
@@ -289,44 +261,7 @@ export function ParametersForm({ value: p, onChange, disabled, children }: Props
           }}
         />
       </div>
-      <fieldset className="subset">
-        <legend>Method variants (unvalidated, off by default)</legend>
-        <p className="muted">{VARIANTS_NOTE}</p>
-        <label className="field">
-          <span>Colour plane</span>
-          <select
-            value={p.channel}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value in CHANNELS) {
-                set({ channel: value as Channel });
-              }
-            }}
-          >
-            {(Object.keys(CHANNELS) as Channel[]).map((c) => (
-              <option key={c} value={c}>
-                {CHANNELS[c]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Check
-          label="Specular-highlight mask"
-          checked={p.specularMask}
-          onChange={(v) => {
-            set({ specularMask: v });
-          }}
-          hint="exclude glare from the finger area"
-        />
-        <Check
-          label="Rotate to upright"
-          checked={p.upright}
-          onChange={(v) => {
-            set({ upright: v });
-          }}
-          hint="finger axis vertical, tip up, before extraction"
-        />
-      </fieldset>
+      <MethodVariants value={p} onChange={set} />
       <fieldset className="subset">
         <legend>Submission record (your statements, recorded in the report)</legend>
         <label className="field">

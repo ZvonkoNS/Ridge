@@ -239,6 +239,9 @@ def _execute(
         "channel_used": result.channel_used,
         "specular_fraction": result.specular_fraction,
         "upright_rotation_deg": result.rotation_deg,
+        "local_period_px": None
+        if result.local_period_px is None
+        else dict(zip(("min", "median", "max"), result.local_period_px, strict=True)),
     }
     source: dict[str, Any] = {
         "sha256": evidence.sha256,
