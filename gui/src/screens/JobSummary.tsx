@@ -119,6 +119,10 @@ export function variantsLine(m: Measurements | null): string | null {
   if (m.upright_rotation_deg != null) {
     parts.push(`rotated ${m.upright_rotation_deg.toFixed(1)}° to upright`);
   }
+  if (m.local_period_px) {
+    const s = m.local_period_px;
+    parts.push(`local spacing ${s.min.toFixed(1)} to ${s.max.toFixed(1)} px (median ${s.median.toFixed(1)})`);
+  }
   return parts.length > 0 ? `${parts.join("; ")} (unvalidated variants, ADR-014)` : null;
 }
 

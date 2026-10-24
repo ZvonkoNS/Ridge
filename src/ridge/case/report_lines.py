@@ -84,6 +84,15 @@ def variants_line(params: dict[str, Any], meas: dict[str, Any]) -> str:
         degrees = meas.get("upright_rotation_deg")
         turned = f"rotated {degrees:.1f} deg" if isinstance(degrees, int | float) else "finger not located: not rotated"
         parts.append(f"upright ({turned})")
+    if options.get("local_frequency"):
+        spacing = meas.get("local_period_px") or {}
+        if isinstance(spacing.get("min"), int | float):
+            parts.append(
+                f"local frequency (spacing {spacing['min']:.1f} to {spacing['max']:.1f} px, "
+                f"median {spacing['median']:.1f})"
+            )
+        else:
+            parts.append("local frequency")
     if not parts:
         return ""
     return f"Variants      {', '.join(parts)}; unvalidated method variants (ADR-014), not covered by the validation"

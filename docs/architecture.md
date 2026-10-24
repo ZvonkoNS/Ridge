@@ -124,6 +124,8 @@ src/ridge/
     options.py         MethodOptions: opt-in variants, off by default (ADR-014)
     channel.py         colour plane choice, including the measured "auto" choice (ADR-014)
     upright.py         rotation of the finger to upright and the mapping back to the photo (ADR-014)
+    frequency.py       local ridge-spacing map and the interpolated multi-frequency Gabor bank (ADR-014)
+    enhance.py         contrast normalisation, Gabor filtering, ridge quality and the print region at working scale
     extract.py         extract_fingerprint orchestration → ExtractionResult
 fingerprint_extract.py Backward-compatible shim (legacy CLI and legacy function signature)
 tests/                 pytest; synthetic data generator; golden characterization arrays

@@ -11,17 +11,14 @@ import numpy as np
 from ridge.arrays import FloatImage, ImageU8, Mask
 from ridge.errors import ParameterError, ResolutionTooLowError, WorkAreaTooLargeError
 from ridge.pipeline.channel import gray_channel
-from ridge.pipeline.gabor import gabor_bank, oriented_filter, ridge_orientation
-from ridge.pipeline.imgutil import masked_blur
+from ridge.pipeline.enhance import WORK_PERIOD, Enhanced, enhance, spacing_range
 from ridge.pipeline.location import PrintLocation, locate
 from ridge.pipeline.mask import finger_mask, without_specular
 from ridge.pipeline.options import MethodOptions
 from ridge.pipeline.period import estimate_period
-from ridge.pipeline.quality import print_region, ridge_quality
 from ridge.pipeline.render import binarize, render_gray
 from ridge.pipeline.upright import Rotation, rotate_bgr, rotate_mask, upright_rotation
 
-WORK_PERIOD = 12.0  # ridge spacing in pixels that the photo is rescaled to for filtering
 MIN_PERIOD = 3.0  # below this the ridges cannot be resolved
 MAX_WORK_PIXELS = 40_000_000  # memory bound for the rescaled finger area (CWE-789)
 
@@ -59,6 +56,8 @@ class ExtractionResult:
     channel_used: str = "green"
     specular_fraction: float | None = None  # share of the finger area removed as highlights, when the mask was on
     rotation_deg: float | None = None  # rotation applied to put the finger upright, when that variant was on
+    # (min, median, max) ridge spacing in photo pixels used inside the print, when the local-frequency variant was on
+    local_period_px: tuple[float, float, float] | None = None
 
 
 def _check_arguments(bgr: object, period: float | None, min_quality: float) -> None:
@@ -84,16 +83,6 @@ class _WorkArea:
     x0: int
     x1: int
     scale: float
-
-
-@dataclass(frozen=True)
-class _Enhanced:
-    """Working-scale images: contrast-normalised photo, Gabor output, ridge quality and the print region."""
-
-    norm: FloatImage
-    enh: FloatImage
-    quality: FloatImage
-    region: FloatImage
 
 
 def _check_resolution(period: float) -> None:
@@ -144,7 +133,7 @@ def extract_fingerprint(
             _check_resolution(measured)
     period = measured
     area = _work_area(mask, period, h, w)
-    enhanced = _enhance(*_rescale(gray, mask, area), min_quality)
+    enhanced = enhance(*_rescale(gray, mask, area), min_quality, local=options.local_frequency)
     window, size, out_scale = _output_window(enhanced, area, period, crop=crop)
     result, gray_print = _render(enhanced, window, size, period * out_scale, flip=flip)
     if not crop:  # paste the finger box back into a frame the size of the photo
@@ -171,6 +160,7 @@ def extract_fingerprint(
         channel_used=channel_used,
         specular_fraction=specular_fraction,
         rotation_deg=None if rotation is None else rotation.angle_deg,
+        local_period_px=spacing_range(enhanced, area.scale),
     )
 
 
@@ -202,28 +192,8 @@ def _rescale(gray: FloatImage, mask: Mask, area: _WorkArea) -> tuple[FloatImage,
     return g, cast(FloatImage, (m_resized > 0.5).astype(np.float32))
 
 
-def _enhance(g: FloatImage, m: FloatImage, min_quality: float) -> _Enhanced:
-    """Normalise, filter and rate the ridges at working scale; keep the single compact print region."""
-    p = WORK_PERIOD
-    # 1. Flatten lighting and equalize contrast.
-    hp = (g - masked_blur(g, m, 0.7 * p)) * m
-    std = np.sqrt(masked_blur(hp * hp, m, 2 * p))
-    norm = cast(FloatImage, hp / (std + 0.05 * float(np.median(std[m > 0])) + 1e-6) * m)
-
-    # 2. Ridge direction + orientation-adaptive Gabor filtering, twice: the second
-    #    pass takes its directions from the cleaner first-pass result.
-    kernels, bank_power = gabor_bank(p)
-    enh, _ = oriented_filter(norm, ridge_orientation(norm, m, p), kernels)
-    phi = ridge_orientation(enh, m, 0.6 * p)
-    enh, power = oriented_filter(norm, phi, kernels)
-
-    # 3. Ridge quality and the single compact area kept as the print.
-    quality = ridge_quality(enh, power, phi, m, period=p, bank_power=bank_power)
-    return _Enhanced(norm, enh, quality, print_region(quality, m, p, min_quality))
-
-
 def _output_window(
-    enhanced: _Enhanced, area: _WorkArea, period: float, *, crop: bool
+    enhanced: Enhanced, area: _WorkArea, period: float, *, crop: bool
 ) -> tuple[tuple[int, int, int, int], tuple[int, int], float]:
     """Working-scale window (x0, y0, x1, y1) to output, the output size and output pixels per photo pixel.
 
@@ -243,7 +213,7 @@ def _output_window(
 
 
 def _render(
-    enhanced: _Enhanced,
+    enhanced: Enhanced,
     window: tuple[int, int, int, int],
     size: tuple[int, int],
     p_out: float,
@@ -268,7 +238,7 @@ def _framed(image: ImageU8, area: _WorkArea, h: int, w: int) -> ImageU8:
     return cast(ImageU8, full)
 
 
-def _debug_images(bgr: ImageU8, area: _WorkArea, enhanced: _Enhanced, period: float) -> DebugImages:
+def _debug_images(bgr: ImageU8, area: _WorkArea, enhanced: Enhanced, period: float) -> DebugImages:
     """Return what the pipeline saw at each step, for review (written only on request: class E data)."""
     overlay = bgr[area.y0 : area.y1, area.x0 : area.x1].copy()
     size = (area.x1 - area.x0, area.y1 - area.y0)
