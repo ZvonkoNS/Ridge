@@ -326,6 +326,7 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
               >
                 <input
                   type="checkbox"
+                  aria-label="Link views"
                   checked={link}
                   disabled={!linkInfo}
                   onChange={(e) => {
