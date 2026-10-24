@@ -40,6 +40,7 @@ from ridge.case import (
     cli_recovery,
     cli_register,
     cli_store,
+    cli_sweep,
 )
 from ridge.case.dispose import REASONS, dispose_case
 from ridge.case.export_all import INDEX, ROLES, export_role
@@ -186,6 +187,7 @@ def build_parser() -> argparse.ArgumentParser:
     cli_package.add_commands(sub)
     cli_register.add_commands(sub)
     cli_recovery.add_commands(sub)
+    cli_sweep.add_commands(sub)
     return ap
 
 

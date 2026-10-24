@@ -41,6 +41,7 @@
     "allow-custody-log",
     "allow-export-report-html",
     "allow-export-cover",
+    "allow-export-sweep",
     "allow-export-key-card",
     "allow-check-exported",
     "allow-backup-store",

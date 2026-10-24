@@ -116,6 +116,7 @@ pub fn run() {
             commands::records::custody_log,
             commands::records::export_report_html,
             commands::records::export_cover,
+            commands::case::export_sweep,
             commands::store::export_key_card,
             commands::records::check_exported,
             commands::store::backup_store,

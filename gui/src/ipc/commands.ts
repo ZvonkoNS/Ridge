@@ -38,6 +38,7 @@ import type {
   SheetExported,
   StoreCheck,
   StoreView,
+  SweepExported,
   VerifiedReport,
   Verification,
   RecoveryFileInfo,
@@ -135,6 +136,8 @@ export const ipc = {
     call<{ exported: string; job_id: string }>("export_report_html", { job_id: jobId }),
   exportCover: (jobId: string) =>
     call<{ exported: string; job_id: string }>("export_cover", { job_id: jobId }),
+  exportSweep: (sha256: string, steps = 3, format: ExportFormat = "png") =>
+    call<SweepExported>("export_sweep", { sha256, steps, format }),
   importEvidence: (source: string | null) => call<ImportBatch>("import_evidence", { source }),
   importReference: (source: string) => call<Item>("import_reference", { source }),
   verifyCase: () => call<Verification>("verify_case"),

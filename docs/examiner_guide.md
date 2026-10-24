@@ -84,6 +84,7 @@ Decrypted files leave the case only through the export buttons, and every export
 - **Export shown image** saves the image on screen. For a comparison export the save dialog offers PNG (as stored), uncompressed TIFF and BMP; TIFF and BMP carry the same pixels and the recorded resolution and nothing else, for AFIS import tools that do not take PNG. The custody log records the format and the SHA-256 of the file written.
 - **Export all N grayscale exports...** / **comparison exports...** / **processed prints...** write every item of that kind into a new folder, with an `EXPORTS.csv` index of names, hashes, jobs, labels, the format and the written file's hash. **File format for image exports** chooses PNG, TIFF or BMP for the whole folder. Prints have no recorded resolution and always stay PNG.
 - A job summary or report line "Resolution" means the export was enlarged to reach its resolution (for example 1000 ppi from a modest photo): more pixels, no more detail.
+- **Export scale sweep...** appears for a comparison export whose scale is only estimated. It writes rescaled copies over the export's scale uncertainty (three by default: smaller, as is, larger), each declared at the export's resolution, into a new folder with a `SWEEP.csv` index. Submit them as separate searches; every file is logged with its factor and the export it came from.
 
 ## Records
 

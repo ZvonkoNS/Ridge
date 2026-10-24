@@ -15,8 +15,12 @@ from ridge.case.processing_record import export_log
 from ridge.case.report_html import export_report_html
 from ridge.case.reports import export_report, list_jobs, load_report, signature_path
 from ridge.case.reproduce import reproduce_job
+from ridge.case.sweep import INDEX as SWEEP_INDEX
+from ridge.case.sweep import export_sweep
 from ridge.errors import ParameterError
 from ridge.export import REFERENCE_OBJECTS, ReferenceKind
+from ridge.export.formats import check_format
+from ridge.export.sweep import DEFAULT_STEPS
 from ridge.sidecar.protocol import Json
 from ridge.sidecar.session import Session, absolute, item_json
 
@@ -132,6 +136,27 @@ def cover_export(session: Session, params: dict[str, Json]) -> Json:
         case, session.require_store(), params["job_id"], dest, overwrite=params.get("overwrite", False)
     )
     return {"exported": str(dest), "job_id": signed.job_id}
+
+
+def sweep_export(session: Session, params: dict[str, Json]) -> Json:
+    """Write a scale sweep of an export into a new native-dialog folder (every file logged)."""
+    case, _ = session.require()
+    fmt = params.get("format")
+    sweep = export_sweep(
+        case,
+        session.require_store(),
+        params["sha256"],
+        absolute(params["dest"], "dest"),
+        steps=params.get("steps", DEFAULT_STEPS),
+        fmt=None if fmt is None else check_format(fmt),
+    )
+    return {
+        "exported": params["dest"],
+        "files": len(sweep.files),
+        "factors": [f.factor for f in sweep.files],
+        "index": SWEEP_INDEX,
+        "uncertainty_pct": sweep.scale.get("uncertainty_pct"),
+    }
 
 
 def log_entries(session: Session, params: dict[str, Json]) -> Json:

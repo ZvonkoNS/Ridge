@@ -437,6 +437,13 @@ const handlers: Record<string, Handler> = {
   }),
   export_report_html: (r) => ({ exported: "D:\\Exports\\ridge_job_report.html", job_id: r.job_id }),
   export_cover: (r) => ({ exported: "D:\\Exports\\ridge_submission_cover.html", job_id: r.job_id }),
+  export_sweep: () => ({
+    exported: "D:\\Exports\\Ridge scale sweep",
+    files: 3,
+    factors: [0.85, 1, 1.15],
+    index: "SWEEP.csv",
+    uncertainty_pct: 15,
+  }),
   import_evidence: () => ({
     imported: [],
     refused: [{ name: "IMG_0099.gif", message: "the preview imports nothing (synthetic data only)" }],

@@ -102,6 +102,10 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
         {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)},
     ),
     "cover.export": (job.cover_export, {"job_id": (str_, True), "dest": (str_, True), "overwrite": (bool_, False)}),
+    "sweep.export": (
+        job.sweep_export,
+        {"sha256": (str_, True), "dest": (str_, True), "steps": (int_, False), "format": ((str, type(None)), False)},
+    ),
     "log.export": (job.log_export, {"dest": (str_, True), "overwrite": (bool_, False)}),
     "log.entries": (
         job.log_entries,
