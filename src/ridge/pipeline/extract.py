@@ -19,6 +19,7 @@ from ridge.pipeline.options import MethodOptions
 from ridge.pipeline.period import estimate_period
 from ridge.pipeline.quality import print_region, ridge_quality
 from ridge.pipeline.render import binarize, render_gray
+from ridge.pipeline.upright import Rotation, rotate_bgr, rotate_mask, upright_rotation
 
 WORK_PERIOD = 12.0  # ridge spacing in pixels that the photo is rescaled to for filtering
 MIN_PERIOD = 3.0  # below this the ridges cannot be resolved
@@ -57,6 +58,7 @@ class ExtractionResult:
     options: MethodOptions = field(default_factory=MethodOptions)
     channel_used: str = "green"
     specular_fraction: float | None = None  # share of the finger area removed as highlights, when the mask was on
+    rotation_deg: float | None = None  # rotation applied to put the finger upright, when that variant was on
 
 
 def _check_arguments(bgr: object, period: float | None, min_quality: float) -> None:
@@ -124,8 +126,13 @@ def extract_fingerprint(
     if not isinstance(options, MethodOptions):
         raise ParameterError("options must be a MethodOptions")
     h, w = bgr.shape[:2]
+    photo_size = (w, h)
     detected = finger_mask(bgr)
     mask: Mask = detected if detected is not None else np.ones((h, w), bool)
+    rotation: Rotation | None = upright_rotation(mask) if options.upright and detected is not None else None
+    if rotation is not None:  # the pipeline then runs on the upright canvas; the location is mapped back below
+        bgr, mask = rotate_bgr(bgr, rotation), rotate_mask(mask, rotation)
+        h, w = bgr.shape[:2]
     gray, channel_used = gray_channel(bgr, options.channel, mask)  # the default is the green plane
     measured = estimate_period(gray, mask) if period is None else period
     _check_resolution(measured)
@@ -150,6 +157,8 @@ def extract_fingerprint(
         size=(w, h),
         period=WORK_PERIOD,
     )
+    if rotation is not None:
+        location = location.in_photo(rotation, photo_size)
     return ExtractionResult(
         image=result,
         period=period,
@@ -161,6 +170,7 @@ def extract_fingerprint(
         options=options,
         channel_used=channel_used,
         specular_fraction=specular_fraction,
+        rotation_deg=None if rotation is None else rotation.angle_deg,
     )
 
 

@@ -68,6 +68,7 @@ export interface Params {
   sourceAgency: string;
   channel: Channel;
   specularMask: boolean;
+  upright: boolean;
 }
 
 /** The distance the form sends: the typed millimetres for a ruler, the standard edge length for a card. */
@@ -93,6 +94,7 @@ export const DEFAULT_PARAMS: Params = {
   sourceAgency: "",
   channel: "green",
   specularMask: false,
+  upright: false,
 };
 
 /** Turn the form into job options, or explain what to fix. */
@@ -145,7 +147,7 @@ export function toOptions(evidence: string, p: Params, photo?: Size | null): Job
     roi: p.roi ? [p.roi.x, p.roi.y, p.roi.width, p.roi.height] : null,
     finger_position: p.fingerPosition,
     source_agency: agency === "" ? null : agency,
-    options: { channel: p.channel, specular_mask: p.specularMask },
+    options: { channel: p.channel, specular_mask: p.specularMask, upright: p.upright },
   };
 }
 
@@ -315,6 +317,14 @@ export function ParametersForm({ value: p, onChange, disabled, children }: Props
             set({ specularMask: v });
           }}
           hint="exclude glare from the finger area"
+        />
+        <Check
+          label="Rotate to upright"
+          checked={p.upright}
+          onChange={(v) => {
+            set({ upright: v });
+          }}
+          hint="finger axis vertical, tip up, before extraction"
         />
       </fieldset>
       <fieldset className="subset">

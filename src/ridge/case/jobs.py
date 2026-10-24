@@ -238,6 +238,7 @@ def _execute(
         "print_area": print_area(result, params.roi),
         "channel_used": result.channel_used,
         "specular_fraction": result.specular_fraction,
+        "upright_rotation_deg": result.rotation_deg,
     }
     source: dict[str, Any] = {
         "sha256": evidence.sha256,

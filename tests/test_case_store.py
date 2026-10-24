@@ -218,7 +218,7 @@ def test_job_is_reproducible_signed_and_complete(case_dir: Path, keystore: Memor
         "roi": None,
         "finger_position": 0,
         "source_agency": None,
-        "options": {"channel": "green", "specular_mask": False},
+        "options": {"channel": "green", "specular_mask": False, "upright": False},
     }
     assert {o["role"] for o in report["outputs"]} == {"print", "debug", "export", "export-gray"}
     assert len(report["outputs"]) == 7

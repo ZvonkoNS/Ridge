@@ -80,6 +80,10 @@ def variants_line(params: dict[str, Any], meas: dict[str, Any]) -> str:
         fraction = meas.get("specular_fraction")
         removed = f"{100 * fraction:.1f} % of the finger removed" if isinstance(fraction, int | float) else "on"
         parts.append(f"specular mask ({removed})")
+    if options.get("upright"):
+        degrees = meas.get("upright_rotation_deg")
+        turned = f"rotated {degrees:.1f} deg" if isinstance(degrees, int | float) else "finger not located: not rotated"
+        parts.append(f"upright ({turned})")
     if not parts:
         return ""
     return f"Variants      {', '.join(parts)}; unvalidated method variants (ADR-014), not covered by the validation"

@@ -87,7 +87,7 @@ def _job_params(args: argparse.Namespace) -> JobParams:
         tuple(args.roi) if args.roi else None,
         finger_position=args.finger_position,
         source_agency=args.source_agency,
-        options=MethodOptions(channel=args.channel, specular_mask=args.specular_mask),
+        options=MethodOptions(channel=args.channel, specular_mask=args.specular_mask, upright=args.upright),
     )
 
 
@@ -191,6 +191,11 @@ def add_commands(sub: Any) -> None:
         "--specular-mask",
         action="store_true",
         help="exclude specular highlights from the finger area (unvalidated variant, ADR-014)",
+    )
+    p.add_argument(
+        "--upright",
+        action="store_true",
+        help="rotate the finger upright (axis vertical, tip up) before extraction (unvalidated variant, ADR-014)",
     )
     p.add_argument("--nfiq2", type=Path, help="absolute path of the NIST NFIQ 2 executable (indicative score)")
     p.add_argument("--nfiq2-arg", action="append", default=[], help="extra argument for the NFIQ 2 command")
