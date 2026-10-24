@@ -206,7 +206,7 @@ def test_job_is_reproducible_signed_and_complete(case_dir: Path, keystore: Memor
     assert verify_signature(unb64(report["signer"]["public_key"]), signature, canonical)
     assert report["input"]["sha256"] == evidence.sha256
     assert report["input"]["format"] == "PNG"
-    export_params = {"enabled": True, "mirror": True, "target_ppi": 500, "ruler": None}
+    export_params = {"enabled": True, "mirror": True, "target_ppi": 500, "ruler": None, "reference": "ruler"}
     assert report["parameters"] == {
         "period": None,
         "min_quality": 0.25,
