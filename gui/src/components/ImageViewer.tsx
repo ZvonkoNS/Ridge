@@ -24,7 +24,7 @@ import type { Marks } from "../lib/minutiae";
 import { ViewerOverlay } from "./ViewerOverlay";
 import { ViewerZoomBar } from "./ViewerZoomBar";
 
-export type Tool = "pan" | "roi" | "ruler";
+export type Tool = "pan" | "roi" | "ruler" | "mark";
 
 export interface Detail {
   url: string;
@@ -49,6 +49,13 @@ interface Props {
   /** Controlled zoom (screen pixels per image pixel), for viewers linked at equal scale. */
   zoom?: number | undefined;
   onZoom?: ((zoom: number) => void) | undefined;
+  /** The image pixel at the viewer's centre, set by the parent (linked viewers); with it the pan is controlled. */
+  focus?: Point | undefined;
+  onFocus?: ((focus: Point) => void) | undefined;
+  /** With tool "mark": a click on the image, in whole image pixels. */
+  onMark?: ((point: Point) => void) | undefined;
+  /** The examiner's marks, drawn over the automatic ones. */
+  examinerMarks?: Marks | null | undefined;
   label: (zoom: number) => ReactNode;
 }
 
@@ -108,26 +115,44 @@ export function ImageViewer(props: Props) {
   const controlled = props.zoom !== undefined;
   const zoom = controlled ? clampZoom(props.zoom ?? fitted) : (manual?.zoom ?? fitted);
   const middle = { x: viewer.width / 2, y: viewer.height / 2 };
+  // With `focus`/`onFocus` the pan is controlled too: the given image pixel sits at the viewer's centre.
+  const focus = props.focus;
   const [seenZoom, setSeenZoom] = useState(zoom);
   if (zoom !== seenZoom) {
     // a zoom set from outside keeps the point in the middle of the viewer in place
     setSeenZoom(zoom);
-    if (controlled && manual) {
+    if (controlled && manual && focus === undefined) {
       setManual({ zoom, pan: zoomAround(manual.pan, seenZoom, zoom, middle) });
     }
   }
-  const pan = manual?.pan ?? (source ? centre(source, viewer, zoom) : { x: 0, y: 0 });
+  const pan =
+    focus !== undefined
+      ? { x: middle.x - focus.x * zoom, y: middle.y - focus.y * zoom }
+      : (manual?.pan ?? (source ? centre(source, viewer, zoom) : { x: 0, y: 0 }));
   const setPan = (next: Point) => {
-    setManual({ zoom, pan: next });
+    if (focus !== undefined) {
+      props.onFocus?.(toSource(middle, next, zoom));
+    } else {
+      setManual({ zoom, pan: next });
+    }
   };
   const fit = () => {
     setManual(null);
     props.onZoom?.(fitted);
+    if (focus !== undefined && source) {
+      props.onFocus?.({ x: source.width / 2, y: source.height / 2 });
+    }
   };
 
   const zoomTo = (next: number, anchor: Point = middle) => {
     const z = clampZoom(next);
-    setManual({ zoom: z, pan: zoomAround(pan, zoom, z, anchor) });
+    const nextPan = zoomAround(pan, zoom, z, anchor);
+    if (focus !== undefined) {
+      props.onZoom?.(z);
+      props.onFocus?.(toSource(middle, nextPan, z));
+      return;
+    }
+    setManual({ zoom: z, pan: nextPan });
     setSeenZoom(z);
     props.onZoom?.(z);
   };
@@ -201,6 +226,12 @@ export function ImageViewer(props: Props) {
       } else if (tool === "ruler" && !drag.moved && insideImage(point, source)) {
         // a click on the grey margin is not a point of the photo: it would calibrate the export wrongly
         props.onRulerPoint?.({ x: Math.round(point.x * 10) / 10, y: Math.round(point.y * 10) / 10 });
+      } else if (tool === "mark" && !drag.moved && insideImage(point, source)) {
+        // a mark names one pixel of the output image
+        props.onMark?.({
+          x: Math.min(source.width - 1, Math.floor(point.x)),
+          y: Math.min(source.height - 1, Math.floor(point.y)),
+        });
       }
     }
     setDrag(null);
@@ -284,6 +315,7 @@ export function ImageViewer(props: Props) {
               region={shown}
               ruler={ruler}
               marks={props.marks}
+              examiner={props.examinerMarks}
             />
           </div>
         ) : (

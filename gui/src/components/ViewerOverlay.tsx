@@ -6,19 +6,41 @@ import type { ReactNode } from "react";
 import type { Marks } from "../lib/minutiae";
 import type { Point, Rect, Size } from "../lib/viewport";
 
-/** One minutia: a circle (ending) or a square (bifurcation) with a tick in its direction. */
-function MarkShape({ mark, size }: { mark: Marks["items"][number]; size: number }) {
-  const angle = (mark.angle * Math.PI) / 180; // counter-clockwise from +x; image y grows downwards
-  const x2 = mark.x + Math.cos(angle) * size * 2.2;
-  const y2 = mark.y - Math.sin(angle) * size * 2.2;
+/** One mark: a circle (ending), a square (bifurcation) or a triangle (other), a tick in its direction when it has one, and its label. */
+function MarkShape({
+  mark,
+  size,
+  examiner = false,
+}: {
+  mark: Marks["items"][number];
+  size: number;
+  examiner?: boolean;
+}) {
+  const angle = mark.angle === null ? null : (mark.angle * Math.PI) / 180; // counter-clockwise from +x; image y grows downwards
   return (
-    <g className={`ov-mark ov-${mark.kind}`}>
+    <g className={`ov-mark ov-${mark.kind}${examiner ? " ov-examiner" : ""}`}>
       {mark.kind === "ending" ? (
         <circle cx={mark.x} cy={mark.y} r={size} />
-      ) : (
+      ) : mark.kind === "bifurcation" ? (
         <rect x={mark.x - size} y={mark.y - size} width={size * 2} height={size * 2} />
+      ) : (
+        <polygon
+          points={`${mark.x},${mark.y - size} ${mark.x + size},${mark.y + size} ${mark.x - size},${mark.y + size}`}
+        />
       )}
-      <line x1={mark.x} y1={mark.y} x2={x2} y2={y2} />
+      {angle === null ? null : (
+        <line
+          x1={mark.x}
+          y1={mark.y}
+          x2={mark.x + Math.cos(angle) * size * 2.2}
+          y2={mark.y - Math.sin(angle) * size * 2.2}
+        />
+      )}
+      {mark.label ? (
+        <text x={mark.x + size * 1.3} y={mark.y - size * 0.6} fontSize={size * 2.2}>
+          {mark.label}
+        </text>
+      ) : null}
     </g>
   );
 }
@@ -31,9 +53,11 @@ interface Props {
   region: Rect | null;
   ruler: Point[];
   marks: Marks | null | undefined;
+  /** The examiner's marks (saved and unsaved), drawn over the automatic ones. */
+  examiner?: Marks | null | undefined;
 }
 
-export function ViewerOverlay({ source, zoom, overlay, region, ruler, marks }: Props) {
+export function ViewerOverlay({ source, zoom, overlay, region, ruler, marks, examiner }: Props) {
   const markSize = marks?.size ?? 4;
   return (
     <svg className="viewer-overlay" viewBox={`0 0 ${source.width} ${source.height}`} aria-hidden="true">
@@ -46,6 +70,9 @@ export function ViewerOverlay({ source, zoom, overlay, region, ruler, marks }: P
       ) : null}
       {marks?.items.map((m, i) => (
         <MarkShape key={i} mark={m} size={markSize} />
+      ))}
+      {examiner?.items.map((m, i) => (
+        <MarkShape key={`e${i}`} mark={m} size={examiner.size} examiner />
       ))}
       {ruler.map((p, i) => (
         <circle key={i} className="ov-point" cx={p.x} cy={p.y} r={6 / zoom} />

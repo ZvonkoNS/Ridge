@@ -18,6 +18,8 @@ import { pngUrl } from "../ipc/images";
 import type { Item, JobResult } from "../ipc/types";
 import { usePreview } from "../lib/usePreview";
 import { distance, type Rect } from "../lib/viewport";
+import { MarkingPanel, useMarking } from "../components/MarkingPanel";
+import { initialView, outputLink, outputView, toPhotoPoint, type LinkedView } from "../lib/link";
 import { RESEARCH_NOTE } from "./MethodVariants";
 import {
   DEFAULT_PARAMS,
@@ -104,6 +106,25 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
   const minutiaeSha = result?.outputs.find((o) => o.role === "minutiae")?.sha256 ?? null;
   const overlay = useMinutiaeOverlay(minutiaeSha, current?.role ?? null, output.source, onFailure);
   const printArea = usePrintArea(result);
+  const marking = useMarking(
+    result?.job_id ?? null,
+    current ? { sha256: current.sha256, role: current.role } : null,
+    output.source,
+    onFailure,
+    notify,
+  );
+  // Linked views (FR-56): one shared view in photo pixels drives both viewers.
+  const [link, setLink] = useState(false);
+  const [view, setView] = useState<LinkedView | null>(null);
+  const linkInfo = outputLink(printArea.area, output.source, printArea.mirrored);
+  const linkedView = link && linkInfo && view ? view : null;
+  const rightView = linkedView && linkInfo ? outputView(linkedView, linkInfo) : null;
+  const toggleLink = (on: boolean) => {
+    setLink(on);
+    if (on && linkInfo) {
+      setView(initialView(linkInfo));
+    }
+  };
 
   const loadDetail = async (rect: Rect): Promise<Detail> => {
     const region = await ipc.previewRegion(evidence.sha256, rect.x, rect.y, rect.width, rect.height);
@@ -250,6 +271,22 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
               setParams((p) => ({ ...p, ruler: p.ruler.length >= 2 ? [pt] : [...p.ruler, pt] }));
             }}
             loadDetail={loadDetail}
+            zoom={linkedView?.zoom}
+            focus={linkedView?.focus}
+            onZoom={
+              linkedView
+                ? (z) => {
+                    setView((v) => (v ? { ...v, zoom: z } : v));
+                  }
+                : undefined
+            }
+            onFocus={
+              linkedView
+                ? (f) => {
+                    setView((v) => (v ? { ...v, focus: f } : v));
+                  }
+                : undefined
+            }
             label={(zoom) => (
               <ExhibitLabel
                 role="evidence"
@@ -282,6 +319,22 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
             ))}
             <MinutiaeToggle overlay={overlay} />
             {current ? <MeasureToggle measuring={measure.measuring} onToggle={measure.toggle} /> : null}
+            {current ? (
+              <label
+                className="overlay-toggle"
+                title="Zoom and pan both viewers together, through the print area"
+              >
+                <input
+                  type="checkbox"
+                  checked={link}
+                  disabled={!linkInfo}
+                  onChange={(e) => {
+                    toggleLink(e.target.checked);
+                  }}
+                />
+                Link views{linkInfo?.approximate ? " (approximate: the finger was rotated or unrolled)" : ""}
+              </label>
+            ) : null}
           </div>
           <MinutiaeNote overlay={overlay} />
           {measure.measuring && current && result ? (
@@ -295,6 +348,25 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
               source={output.source}
               marks={overlay.marks}
               {...measure.viewer}
+              tool={marking.marking ? "mark" : measure.viewer.tool}
+              onMark={marking.addAt}
+              examinerMarks={marking.examinerMarks}
+              zoom={rightView?.zoom}
+              focus={rightView?.focus}
+              onZoom={
+                rightView && linkInfo
+                  ? (z) => {
+                      setView((v) => (v ? { ...v, zoom: z * linkInfo.k } : v));
+                    }
+                  : undefined
+              }
+              onFocus={
+                rightView && linkInfo
+                  ? (f) => {
+                      setView((v) => (v ? { ...v, focus: toPhotoPoint(f, linkInfo) } : v));
+                    }
+                  : undefined
+              }
               label={(zoom) => (
                 <ExhibitLabel
                   role={current.role}
@@ -308,6 +380,7 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
           ) : (
             <div className="viewer-placeholder">No output yet</div>
           )}
+          {current && result ? <MarkingPanel m={marking} /> : null}
         </div>
       </div>
       <StoredPhotoMetadata sha256={evidence.sha256} onFailure={onFailure} />
