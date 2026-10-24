@@ -15,7 +15,7 @@ from ridge.errors import ParameterError
 
 type Channel = Literal["green", "red", "blue", "luma", "auto"]
 CHANNELS: Final[tuple[Channel, ...]] = ("green", "red", "blue", "luma", "auto")
-_FLAGS: Final = ("specular_mask", "upright", "local_frequency")
+_FLAGS: Final = ("specular_mask", "upright", "local_frequency", "rectify")
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,13 +27,15 @@ class MethodOptions:
     order). ``specular_mask`` excludes specular highlights from the finger area. ``upright``
     rotates the finger so that its axis is vertical with the tip up before extraction.
     ``local_frequency`` filters each pixel with a Gabor bank tuned to its own measured ridge
-    spacing instead of one global spacing.
+    spacing instead of one global spacing. ``rectify`` unrolls the pad's curvature before
+    extraction (which rotates the finger upright first, as ``upright`` does).
     """
 
     channel: Channel = "green"
     specular_mask: bool = False
     upright: bool = False
     local_frequency: bool = False
+    rectify: bool = False
 
     def __post_init__(self) -> None:
         if self.channel not in CHANNELS:

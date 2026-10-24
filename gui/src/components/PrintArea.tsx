@@ -44,16 +44,14 @@ export function PrintAreaShape({ area, size }: { area: PrintArea; size: Size | n
   const [x, y, width, height] = area.box_px;
   const polys = area.outline_px.filter((p) => p.length >= 2).map(svgPoints);
   const holes = polys.map((p) => `M${p.join("L")}Z`).join("");
+  const frame = area.frame_px ?? [];
   return (
     <g className="ov-area">
       {size ? (
         <path className="ov-area-dim" fillRule="evenodd" d={`M0 0H${size.width}V${size.height}H0Z${holes}`} />
       ) : null}
-      {area.frame_px?.length === 4 ? (
-        <polygon
-          className="ov-area-frame"
-          points={area.frame_px.map(([fx, fy]) => `${fx},${fy}`).join(" ")}
-        />
+      {frame.length >= 3 ? (
+        <polygon className="ov-area-frame" points={frame.map(([fx, fy]) => `${fx},${fy}`).join(" ")} />
       ) : (
         <rect className="ov-area-frame" x={x} y={y} width={width} height={height} />
       )}
@@ -87,7 +85,7 @@ export function PrintAreaNote({ overlay }: { overlay: AreaOverlay }) {
       {overlay.on ? (
         <span className="area-legend">
           Solid line: the area kept as the print. Dashed box: the frame of the print image
-          {overlay.area.frame_px ? " (tilted: the job rotated the finger upright)" : ""}.
+          {overlay.area.frame_px ? " (warped: the job rotated the finger upright or unrolled its pad)" : ""}.
           {overlay.mirrored ? " The comparison export shows this area mirrored." : ""}
         </span>
       ) : null}

@@ -25,6 +25,7 @@ pub struct MethodOptionsRequest {
     specular_mask: bool,
     upright: bool,
     local_frequency: bool,
+    rectify: bool,
 }
 
 const CHANNELS: [&str; 5] = ["green", "red", "blue", "luma", "auto"];
@@ -112,7 +113,8 @@ impl JobRequest {
                 "channel": self.options.channel,
                 "specular_mask": self.options.specular_mask,
                 "upright": self.options.upright,
-                "local_frequency": self.options.local_frequency
+                "local_frequency": self.options.local_frequency,
+                "rectify": self.options.rectify
             }),
         );
         params.insert(
@@ -332,7 +334,7 @@ mod tests {
             "evidence": "a".repeat(64), "period": null, "min_quality": 0.25, "flip": false, "crop": true,
             "debug": false, "export": true, "mirror": true, "ppi": 500.0, "ruler": null, "reference": "ruler",
             "minutiae": false, "roi": null, "finger_position": 0, "source_agency": null,
-            "options": {"channel": "green", "specular_mask": false, "upright": false, "local_frequency": false}
+            "options": {"channel": "green", "specular_mask": false, "upright": false, "local_frequency": false, "rectify": false}
         });
         if let (Some(base), Some(extra)) = (base.as_object_mut(), extra.as_object()) {
             base.extend(extra.clone());
@@ -365,7 +367,7 @@ mod tests {
         assert_eq!(params["source_agency"], json!(null));
         assert_eq!(
             params["options"],
-            json!({"channel": "green", "specular_mask": false, "upright": false, "local_frequency": false})
+            json!({"channel": "green", "specular_mask": false, "upright": false, "local_frequency": false, "rectify": false})
         );
     }
 
@@ -390,7 +392,7 @@ mod tests {
             json!({"reference": "coin"}),
             json!({"finger_position": 11}),
             json!({"source_agency": "x".repeat(201)}),
-            json!({"options": {"channel": "cyan", "specular_mask": false, "upright": false, "local_frequency": false}}),
+            json!({"options": {"channel": "cyan", "specular_mask": false, "upright": false, "local_frequency": false, "rectify": false}}),
         ] {
             assert!(request(extra.clone()).unwrap().params().is_err(), "{extra}");
         }

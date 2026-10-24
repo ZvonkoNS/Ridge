@@ -61,6 +61,7 @@ export interface Params {
   specularMask: boolean;
   upright: boolean;
   localFrequency: boolean;
+  rectify: boolean;
 }
 
 /** The distance the form sends: the typed millimetres for a ruler, the standard edge length for a card. */
@@ -88,6 +89,7 @@ export const DEFAULT_PARAMS: Params = {
   specularMask: false,
   upright: false,
   localFrequency: false,
+  rectify: false,
 };
 
 /** Turn the form into job options, or explain what to fix. */
@@ -145,6 +147,7 @@ export function toOptions(evidence: string, p: Params, photo?: Size | null): Job
       specular_mask: p.specularMask,
       upright: p.upright,
       local_frequency: p.localFrequency,
+      rectify: p.rectify,
     },
   };
 }

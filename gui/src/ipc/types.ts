@@ -176,6 +176,8 @@ export interface Measurements {
   upright_rotation_deg?: number | null;
   /** Ridge spacing used inside the print (photo pixels) when the local-frequency variant was on; null when off. */
   local_period_px?: { min: number; median: number; max: number } | null;
+  /** The pad's median half-width and the unrolled angle when the rectify variant unrolled it; null when off. */
+  rectification?: { half_width_px: number; max_angle_deg: number } | null;
 }
 
 export type ScaleMethod = "ruler" | "card" | "ridge-period" | "manual";
@@ -312,6 +314,7 @@ export interface MethodOptions {
   specular_mask: boolean;
   upright: boolean;
   local_frequency: boolean;
+  rectify: boolean;
 }
 
 /** Options sent with `run_job`; every field is explicit, nothing is defaulted on the way. */

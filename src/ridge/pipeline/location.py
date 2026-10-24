@@ -16,10 +16,12 @@ import cv2
 import numpy as np
 
 from ridge.arrays import FloatImage
+from ridge.pipeline.rectify import Rectification, to_source
 from ridge.pipeline.upright import Rotation, to_photo
 
 MAX_OUTLINE_POINTS = 256  # bounds the report; the outline is smooth at the scale of a ridge spacing anyway
 MAX_SIMPLIFY_STEPS = 12  # each step doubles the tolerance
+FRAME_STEPS = 16  # points along each side of the frame when the frame's edges curve (rectified finger)
 
 type Box = tuple[int, int, int, int]  # x, y, width, height in photo pixels
 type Polygon = tuple[tuple[int, int], ...]
@@ -32,10 +34,18 @@ class PrintLocation:
     box: Box
     outline: tuple[Polygon, ...]  # largest area first, at most MAX_OUTLINE_POINTS points in all
     parts: int  # separate kept areas; more than len(outline) only if the smallest did not fit
-    # When the job rotated the finger upright (ADR-014): the print image's frame as a tilted polygon in
-    # photo pixels (`box` is then its axis-aligned bounds) and the rotation applied, in degrees.
+    # When the job rotated the finger upright or unrolled its curvature (ADR-014): the print image's
+    # frame as a polygon in photo pixels (`box` is then its axis-aligned bounds) and the rotation
+    # applied, in degrees.
     frame: Polygon | None = None
     rotation_deg: float | None = None
+
+    def _corners(self) -> np.ndarray:
+        """Return the frame's points, or the box's four corners when the frame is still a rectangle."""
+        if self.frame is not None:
+            return np.array(self.frame, dtype=np.float64)
+        x, y, w, h = self.box
+        return np.array([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], dtype=np.float64)
 
     def shifted(self, dx: int, dy: int) -> PrintLocation:
         """Return this location in the photo it was cut from at (dx, dy), e.g. by a region of interest."""
@@ -44,16 +54,36 @@ class PrintLocation:
         frame = None if self.frame is None else tuple((px + dx, py + dy) for px, py in self.frame)
         return PrintLocation((x + dx, y + dy, w, h), outline, self.parts, frame, self.rotation_deg)
 
+    def from_rectified(self, rectification: Rectification) -> PrintLocation:
+        """Return this location, computed on the unrolled canvas, in the upright canvas it was unrolled from.
+
+        The frame's vertical edges curve, so the frame becomes a polygon with FRAME_STEPS points per side.
+        """
+        x, y, w, h = self.box
+        steps = np.linspace(0.0, 1.0, FRAME_STEPS + 1)
+        left = np.column_stack([np.full_like(steps, x), y + h * steps])
+        right = np.column_stack([np.full_like(steps, x + w), y + h * steps[::-1]])
+        frame = np.rint(to_source(np.vstack([left, right]), rectification))
+        points = tuple((int(px), int(py)) for px, py in frame.tolist())
+        xs, ys = [p[0] for p in points], [p[1] for p in points]
+        box = (min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
+        outline = tuple(
+            tuple(
+                (int(px), int(py))
+                for px, py in np.rint(to_source(np.array(poly, dtype=np.float64), rectification)).tolist()
+            )
+            for poly in self.outline
+        )
+        return PrintLocation(box, outline, self.parts, points, self.rotation_deg)
+
     def in_photo(self, rotation: Rotation, size: tuple[int, int]) -> PrintLocation:
         """Return this location, computed on the upright canvas, in the pixels of the photo it was rotated from.
 
-        `size` is the photo's (width, height). Outline points (pixel centres) and the frame's corners are
+        `size` is the photo's (width, height). Outline points (pixel centres) and the frame's points are
         mapped through the inverse affine, rounded to whole pixels and clipped to the photo.
         """
         width, height = size
-        x, y, w, h = self.box
-        corners = np.array([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], dtype=np.float64)
-        mapped = np.rint(to_photo(corners, rotation))
+        mapped = np.rint(to_photo(self._corners(), rotation))
         frame = tuple((int(min(max(px, 0), width)), int(min(max(py, 0), height))) for px, py in mapped.tolist())
         xs, ys = [p[0] for p in frame], [p[1] for p in frame]
         box = (min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
@@ -69,7 +99,7 @@ class PrintLocation:
     def to_json(self) -> dict[str, Any]:
         """Report form: `box_px` [x, y, width, height], `outline_px` polygons of [x, y] points.
 
-        After an upright rotation also `frame_px` (the tilted frame's corners) and `rotation_deg`.
+        After an upright rotation or a rectification also `frame_px` (the frame's polygon) and `rotation_deg`.
         """
         area: dict[str, Any] = {
             "box_px": list(self.box),

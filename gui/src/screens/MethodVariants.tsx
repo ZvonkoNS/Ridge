@@ -13,7 +13,7 @@ export const CHANNELS: Record<Channel, string> = {
 export const VARIANTS_NOTE =
   "Method variants change the output pixels and are not covered by the validation (ADR-014). Off by default; every report records them.";
 
-type VariantParams = Pick<Params, "channel" | "specularMask" | "upright" | "localFrequency">;
+type VariantParams = Pick<Params, "channel" | "specularMask" | "upright" | "localFrequency" | "rectify">;
 
 /** The opt-in method variants of ADR-014: off by default, recorded in every report. */
 export function MethodVariants({
@@ -68,6 +68,14 @@ export function MethodVariants({
           set({ localFrequency: v });
         }}
         hint="a Gabor bank tuned to the local spacing, not one global spacing; slower"
+      />
+      <Check
+        label="Rectify pad curvature"
+        checked={p.rectify}
+        onChange={(v) => {
+          set({ rectify: v });
+        }}
+        hint="unroll the pad so the side ridges keep their spacing; rotates upright first"
       />
     </fieldset>
   );

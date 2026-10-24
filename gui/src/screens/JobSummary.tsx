@@ -123,6 +123,12 @@ export function variantsLine(m: Measurements | null): string | null {
     const s = m.local_period_px;
     parts.push(`local spacing ${s.min.toFixed(1)} to ${s.max.toFixed(1)} px (median ${s.median.toFixed(1)})`);
   }
+  if (m.rectification) {
+    const r = m.rectification;
+    parts.push(
+      `rectified (pad half-width ${r.half_width_px.toFixed(0)} px, unrolled to ${r.max_angle_deg.toFixed(0)}°; the scale holds on the centre line)`,
+    );
+  }
   return parts.length > 0 ? `${parts.join("; ")} (unvalidated variants, ADR-014)` : null;
 }
 
