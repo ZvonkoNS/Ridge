@@ -40,6 +40,10 @@ Tick the key-register box to also check that your signing key is registered. The
 - An optional source note (exhibit number, device) is kept with the photo and repeated in every report on it.
 - Notes on a photo stay with that photo (see [Notes](#notes)).
 
+## Capture check
+
+Before importing, or for any imported photo, **Check a photo** says whether photographing the finger again would help: whether a finger was located and how much of the frame it fills, how many pixels the camera spent on each ridge, how clear the ridge pattern is, how much of the finger is under glare, and whether the file looks like the camera's original. Each line is OK, Retake or Note, and the check always notes that it cannot see a ruler or card. It is indicative only: it is not a quality score of a print, a clean check does not promise a usable print, and its thresholds were set on synthetic fingers until the pilot adjusts them. Checking a file before import reads it once and never changes it; checking a stored photo is a logged read. The CLI is `ridge-case check-photo`.
+
 ## Photo metadata
 
 Under the photos, **Photo metadata** shows what the photo's file records about itself, read from the copy in the case store:

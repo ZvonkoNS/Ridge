@@ -95,6 +95,8 @@ ridge-case extract D:/ridge-store/<case-id> --all --nfiq2 "C:/Program Files/NFIQ
 ridge-case extract D:/ridge-store/<case-id> --all --minutiae   # + automatic minutiae (unvalidated)
 ridge-case list D:/ridge-store/<case-id>                # evidence, outputs, jobs
 ridge-case metadata D:/ridge-store/<case-id> <sha>      # a photo's metadata without a job (--json; the read is logged)
+ridge-case check-photo IMG_0412.jpg                      # should the finger be photographed again? (indicative; read-only, no case)
+ridge-case check-photo --case D:/ridge-store/<case-id> <sha>   # the same on a stored photo (the read is logged)
 ridge-case import-reference D:/ridge-store/<case-id> candidate.png --source "NAFIS candidate 3"
 ridge-case compare D:/ridge-store/<case-id> <export-sha> <reference-sha> --to sheet.png   # equal scale, view only
 ridge-case export D:/ridge-store/<case-id> <sha> --to print.png   # the only way plaintext leaves the store (logged)

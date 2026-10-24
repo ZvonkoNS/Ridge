@@ -28,8 +28,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from ridge.case import cli_common as common
 from ridge.case import (
+    cli_check,
     cli_compare,
     cli_extract,
     cli_limits,
@@ -42,6 +42,7 @@ from ridge.case import (
     cli_store,
     cli_sweep,
 )
+from ridge.case import cli_common as common
 from ridge.case.dispose import REASONS, dispose_case
 from ridge.case.export_all import INDEX, ROLES, export_role
 from ridge.case.export_file import export_item
@@ -188,6 +189,7 @@ def build_parser() -> argparse.ArgumentParser:
     cli_register.add_commands(sub)
     cli_recovery.add_commands(sub)
     cli_sweep.add_commands(sub)
+    cli_check.add_commands(sub)
     return ap
 
 

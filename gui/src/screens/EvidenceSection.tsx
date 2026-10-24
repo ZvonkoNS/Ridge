@@ -1,6 +1,7 @@
 // Evidence photos of the case: import with a source note (FR-21), choose one to review.
 import { useState } from "react";
 
+import { CaptureCheckCard } from "../components/CaptureCheckCard";
 import { NotesPanel } from "../components/NotesPanel";
 import { Button, Hash, StaggerItem, StaggerList } from "../components/ui";
 import { ipc } from "../ipc/commands";
@@ -122,9 +123,13 @@ export function EvidenceSection({ items, onFailure, onChanged, notify }: Props) 
               sha256={chosen.sha256}
               onFailure={onFailure}
             />
+            <CaptureCheckCard key={`check-${chosen.sha256}`} sha256={chosen.sha256} onFailure={onFailure} />
           </>
         ) : (
-          <p className="empty empty-main">Choose an evidence photo to review it and run extraction jobs.</p>
+          <div className="empty-main">
+            <p className="empty">Choose an evidence photo to review it and run extraction jobs.</p>
+            <CaptureCheckCard sha256={null} onFailure={onFailure} />
+          </div>
         )}
       </div>
     </div>

@@ -3,6 +3,7 @@
 //! `build.rs` generates permissions for exactly these, and the capability files grant them.
 
 pub mod case;
+pub mod check;
 pub mod jobs;
 pub mod metadata;
 pub mod notes;

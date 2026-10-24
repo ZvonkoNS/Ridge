@@ -48,6 +48,8 @@
     "allow-export-all",
     "allow-workstation-check",
     "allow-export-recovery",
-    "allow-import-recovery"
+    "allow-import-recovery",
+    "allow-check-photo",
+    "allow-check-evidence"
   ]
 }
