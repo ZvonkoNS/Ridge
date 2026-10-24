@@ -1,7 +1,7 @@
 # Installers
 
-Engineering builds of the Ridge desktop application for Windows, built from the commit named in
-`Instruction_documentation/Handoff/Handoff_56.md`. They are **unsigned** and **not for casework**:
+Engineering builds of the Ridge desktop application for Windows, built from `main` at the commit named in
+`Instruction_documentation/Handoff/Handoff_59.md`. They are **unsigned** and **not for casework**:
 an operational release needs code signing with the laboratory's certificate and the approvals of the
 release checklist (`Instruction_documentation/release_readiness_checklist.md`).
 
