@@ -28,8 +28,23 @@ from ridge.errors import ExportTooLargeError, ParameterError
 from ridge.export.validate import finite, gray_u8, positive, ppi_value
 from ridge.pipeline.extract import ExtractionResult
 
-type ScaleMethod = Literal["ruler", "ridge-period", "manual"]
-SCALE_METHODS: Final[tuple[ScaleMethod, ...]] = ("ruler", "ridge-period", "manual")
+type ScaleMethod = Literal["ruler", "card", "ridge-period", "manual"]
+SCALE_METHODS: Final[tuple[ScaleMethod, ...]] = ("ruler", "card", "ridge-period", "manual")
+# What the two calibration points lie on (FR-31 a): a ruler with a typed distance, or an edge of an
+# ISO/IEC 7810 ID-1 card (bank, ID and driving-licence cards), whose length the standard fixes.
+type ReferenceKind = Literal["ruler", "id1-long", "id1-short"]
+ID1_LONG_MM: Final = 85.60
+ID1_SHORT_MM: Final = 53.98
+REFERENCE_OBJECTS: Final[dict[ReferenceKind, tuple[str, float | None]]] = {
+    "ruler": ("ruler", None),
+    "id1-long": ("ISO/IEC 7810 ID-1 card, long edge", ID1_LONG_MM),
+    "id1-short": ("ISO/IEC 7810 ID-1 card, short edge", ID1_SHORT_MM),
+}
+# ID-1 size tolerance (ISO/IEC 7810: 85.47-85.72 mm on the long edge) as a relative bound, and an
+# ENGINEERING ASSUMPTION for the two points not lying exactly across the card (rounded corners,
+# tilt), to be confirmed or replaced by the validation study (PRD section 12).
+CARD_EDGE_TOLERANCE_PCT: Final = 0.15
+CARD_ALIGNMENT_PCT: Final = 2.0
 type Tone = Literal["binary", "grayscale"]  # which print an export is made from (FR-30, FR-37)
 TONES: Final[tuple[Tone, ...]] = ("binary", "grayscale")
 
@@ -65,6 +80,7 @@ class ScaleEstimate:
     px_per_mm: float
     method: ScaleMethod
     uncertainty_pct: float
+    reference: str | None = None  # the object the points lay on, in words for the report (ruler, card)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "px_per_mm", positive(self.px_per_mm, "px_per_mm"))
@@ -74,6 +90,9 @@ class ScaleEstimate:
         if uncertainty < 0:
             raise ParameterError("uncertainty_pct must not be negative")
         object.__setattr__(self, "uncertainty_pct", uncertainty)
+        reference: object = self.reference  # callers that bypass the type checker still get a clear refusal
+        if reference is not None and not (isinstance(reference, str) and 0 < len(reference) <= 200):
+            raise ParameterError("reference must be a short description or None")
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,7 +150,38 @@ def scale_from_ruler(p1: tuple[float, float], p2: tuple[float, float], distance_
     pixels = math.hypot(x2 - x1, y2 - y1)
     if pixels == 0:
         raise ParameterError("p1 and p2 must be different points")
-    return ScaleEstimate(px_per_mm=pixels / mm, method="ruler", uncertainty_pct=100.0 * 2 * CLICK_ERROR_PX / pixels)
+    return ScaleEstimate(
+        px_per_mm=pixels / mm,
+        method="ruler",
+        uncertainty_pct=100.0 * 2 * CLICK_ERROR_PX / pixels,
+        reference=f"ruler, {mm:g} mm between the points",
+    )
+
+
+def scale_from_reference(
+    p1: tuple[float, float], p2: tuple[float, float], distance_mm: float, kind: ReferenceKind = "ruler"
+) -> ScaleEstimate:
+    """Scale from two points on a known object: a ruler (FR-31 a) or an ISO/IEC 7810 ID-1 card edge.
+
+    For a card edge `distance_mm` must be the standard edge length (ID1_LONG_MM or ID1_SHORT_MM), so
+    the recorded parameters stay self-consistent and nothing is silently replaced. The card's
+    uncertainty adds its size tolerance and the alignment allowance to the click error (all worst
+    case, added). An unknown `kind` is refused.
+    """
+    if kind not in REFERENCE_OBJECTS:
+        raise ParameterError(f"the scale reference must be one of {', '.join(REFERENCE_OBJECTS)}")
+    ruler = scale_from_ruler(p1, p2, distance_mm)
+    name, standard = REFERENCE_OBJECTS[kind]
+    if standard is None:
+        return ruler
+    if abs(float(distance_mm) - standard) > 0.005:
+        raise ParameterError(f"the {name} measures {standard:.2f} mm; the distance given was {distance_mm:g} mm")
+    return ScaleEstimate(
+        px_per_mm=ruler.px_per_mm,
+        method="card",
+        uncertainty_pct=ruler.uncertainty_pct + CARD_EDGE_TOLERANCE_PCT + CARD_ALIGNMENT_PCT,
+        reference=f"{name} ({standard:.2f} mm)",
+    )
 
 
 def scale_from_ridge_period(

@@ -17,16 +17,23 @@ from ridge import ExtractionResult, ParameterError, extract_fingerprint
 from ridge.errors import ExportTooLargeError
 from ridge.export import (
     ASSUMED_RIDGE_PERIOD_MM,
+    CARD_ALIGNMENT_PCT,
+    CARD_EDGE_TOLERANCE_PCT,
+    ID1_LONG_MM,
+    ID1_SHORT_MM,
     MAX_EXPORT_PIXELS,
+    REFERENCE_OBJECTS,
     RIDGE_PERIOD_UNCERTAINTY_PCT,
     TONE_GRAYSCALE,
     TONES,
+    ReferenceKind,
     ScaleEstimate,
     ScaleMethod,
     Tone,
     encode_png,
     make_comparison_export,
     mirror,
+    scale_from_reference,
     scale_from_ridge_period,
     scale_from_ruler,
     to_comparison,
@@ -374,3 +381,39 @@ def test_grayscale_export_needs_a_gray_print_and_a_known_tone() -> None:
         make_comparison_export(result, manual(10.0), tone="grayscale")
     with pytest.raises(ParameterError, match="tone must be"):
         make_comparison_export(result, manual(10.0), tone=cast(Tone, "sepia"))
+
+
+# ----------------------------------------------------------------------------- reference objects (FR-31 a)
+
+
+def test_scale_from_a_card_edge_adds_tolerance_and_alignment_allowance() -> None:
+    scale = scale_from_reference((100.0, 0.0), (956.0, 0.0), 85.6, "id1-long")  # 856 px across 85.60 mm
+    assert scale.method == "card"
+    assert scale.px_per_mm == pytest.approx(856.0 / 85.6)
+    assert scale.uncertainty_pct == pytest.approx(100.0 * 2 / 856.0 + CARD_EDGE_TOLERANCE_PCT + CARD_ALIGNMENT_PCT)
+    assert scale.reference == "ISO/IEC 7810 ID-1 card, long edge (85.60 mm)"
+    short = scale_from_reference((0.0, 0.0), (0.0, 539.8), ID1_SHORT_MM, "id1-short")
+    assert short.method == "card"
+    assert short.px_per_mm == pytest.approx(10.0)
+    assert short.reference == "ISO/IEC 7810 ID-1 card, short edge (53.98 mm)"
+    assert (ID1_LONG_MM, ID1_SHORT_MM) == (85.6, 53.98)
+    assert set(REFERENCE_OBJECTS) == {"ruler", "id1-long", "id1-short"}
+    assert (CARD_EDGE_TOLERANCE_PCT, CARD_ALIGNMENT_PCT) == (0.15, 2.0)
+
+
+def test_scale_from_reference_with_a_ruler_is_the_ruler_scale() -> None:
+    ruler = scale_from_ruler((0.0, 0.0), (200.0, 0.0), 10.0)
+    assert scale_from_reference((0.0, 0.0), (200.0, 0.0), 10.0) == ruler
+    assert ruler.reference == "ruler, 10 mm between the points"
+    assert scale_from_ridge_period(9.0).reference is None
+
+
+def test_card_distance_must_be_the_standard_edge_and_kinds_are_checked() -> None:
+    with pytest.raises(ParameterError, match=r"85\.60 mm"):
+        scale_from_reference((0.0, 0.0), (856.0, 0.0), 80.0, "id1-long")
+    with pytest.raises(ParameterError, match="one of"):
+        scale_from_reference((0.0, 0.0), (856.0, 0.0), 85.6, cast(ReferenceKind, "coin"))
+    with pytest.raises(ParameterError, match="reference"):
+        ScaleEstimate(px_per_mm=10.0, method="card", uncertainty_pct=1.0, reference=cast(str, 5))
+    with pytest.raises(ParameterError, match="reference"):
+        ScaleEstimate(px_per_mm=10.0, method="card", uncertainty_pct=1.0, reference="")

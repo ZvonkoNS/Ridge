@@ -165,7 +165,14 @@ function runJob(request: Record<string, unknown>): JobResult {
       ],
       scale: ruler
         ? { method: "ruler", px_per_mm: 20.0, uncertainty_pct: 0.25 }
-        : { method: "ridge-period", px_per_mm: 38.1, uncertainty_pct: 15, assumed_ridge_period_mm: 0.47 },
+        : {
+            method: "ridge-period",
+            px_per_mm: 38.1,
+            uncertainty_pct: 15,
+            assumed_ridge_period_mm: 0.47,
+            notice:
+              "No scale reference was given: the export scale is estimated from the ridge spacing (synthetic preview).",
+          },
       grayscale: {
         sha256: hex(70 + n),
         transforms: [

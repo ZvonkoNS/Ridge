@@ -142,6 +142,7 @@ METHODS: dict[str, tuple[Handler, Schema]] = {
             "mirror": (bool_, False),
             "ppi": (NUMBER, False),
             "ruler": ((list, type(None)), False),
+            "reference": (str_, False),
             "minutiae": (bool_, False),
             "roi": ((list, type(None)), False),
         },

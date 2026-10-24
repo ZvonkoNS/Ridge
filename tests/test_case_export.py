@@ -6,7 +6,7 @@ import getpass
 import io
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pytest
@@ -20,7 +20,7 @@ from ridge.case.identity import create_identity, unlock_identity
 from ridge.case.jobs import JobOutcome, JobParams, run_extraction_job
 from ridge.case.store import open_case
 from ridge.errors import ParameterError
-from ridge.export import make_comparison_export, scale_from_ridge_period
+from ridge.export import ReferenceKind, make_comparison_export, scale_from_ridge_period
 from ridge.image_io import load_image
 from tests.case_helpers import FAST_KDF, PASSPHRASE, MemoryKeyStore, new_case, photo_file
 
@@ -241,3 +241,60 @@ def test_grayscale_export_is_stored_and_scored(case_dir: Path, keystore: MemoryK
     nfiq2 = outcome.report["quality"]["nfiq2"]
     assert (nfiq2["computed"], nfiq2["score"], nfiq2["image"]) == (True, 61, "export-gray")
     assert seen.read_text(encoding="utf-8").strip() == item.sha256  # the tool scored the grayscale export
+
+
+def test_card_reference_scale_and_the_no_reference_notice(
+    case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path
+) -> None:
+    photo = photo_file(tmp_path / "in")
+    card = ExportOptions(ruler=(10.0, 10.0, 352.4, 10.0, 85.6), reference="id1-long")  # 342.4 px across the card
+    outcome, _ = run_job(case_dir, keystore, photo, export=card)
+    scale = outcome.report["export"]["scale"]
+    assert (scale["method"], scale["reference"]) == ("card", "ISO/IEC 7810 ID-1 card, long edge (85.60 mm)")
+    assert scale["px_per_mm"] == pytest.approx(4.0)
+    assert "notice" not in scale
+    assert outcome.report["parameters"]["export"]["reference"] == "id1-long"
+    assert outcome.report["export"]["transforms"][-1] == "scale:500ppi:card"
+
+    estimated, _ = run_job(case_dir, keystore, photo_file(tmp_path / "in2", "arch_default", "arch.png"))
+    scale = estimated.report["export"]["scale"]
+    assert scale["method"] == "ridge-period"
+    assert "ruler or an ISO/IEC 7810 ID-1 card" in scale["notice"]
+    assert "Otherwise proceed" in scale["notice"]
+    assert "reference" not in scale
+
+
+@pytest.mark.parametrize(
+    "export",
+    [
+        ExportOptions(ruler=(0.0, 0.0, 856.0, 0.0, 80.0), reference="id1-long"),  # not the standard edge length
+        ExportOptions(reference="id1-short"),  # a card kind without its points
+        ExportOptions(ruler=(0.0, 0.0, 856.0, 0.0, 85.6), reference=cast(ReferenceKind, "coin")),
+    ],
+)
+def test_bad_scale_references_are_refused_before_the_job_starts(
+    case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path, export: ExportOptions
+) -> None:
+    signer = unlock_identity(case_dir.parent, PASSPHRASE, keystore)
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        evidence = case.import_evidence(photo_file(tmp_path / "in"))
+        before = len(case.entries)
+        with pytest.raises(ParameterError):
+            run_extraction_job(case, evidence.sha256, signer, JobParams(export=export))
+        assert len(case.entries) == before  # nothing started, nothing logged
+
+
+def test_cli_card_reference_and_scale_notice(cli_case: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    with open_case(cli_case, PASSPHRASE, cli_common.KEYSTORE_FACTORY()) as case:
+        sha = case.items()[0].sha256
+    card = ["extract", str(cli_case), "--evidence", sha, "--card", "long", "0", "0", "342.4", "0"]
+    assert main(card) == 0
+    out = capsys.readouterr().out
+    assert "export 500 ppi (scale: card" in out
+    assert "scale notice" not in out
+    assert main(["extract", str(cli_case), "--evidence", sha]) == 0
+    assert "scale notice: No scale reference was given" in capsys.readouterr().out
+    assert main(["extract", str(cli_case), "--evidence", sha, "--card", "wide", "0", "0", "342.4", "0"]) == 1
+    assert "long or short" in capsys.readouterr().err
+    assert main([*card, "--ruler", "0", "0", "1", "0", "1"]) == 1
+    assert "not both" in capsys.readouterr().err

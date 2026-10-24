@@ -18,6 +18,7 @@ from ridge.case.identity import Signer, unlock_identity
 from ridge.case.jobs import JobParams, run_extraction_job
 from ridge.case.store import OpenCase, open_case
 from ridge.errors import ExtractionError, InputError, ParameterError
+from ridge.export import REFERENCE_OBJECTS, ReferenceKind
 
 # What --keep-going may skip: problems with one photo or its settings. Case-store, integrity, key,
 # custody and output errors are not about one photo and always stop the batch.
@@ -41,15 +42,37 @@ def cmd_extract(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+def _scale_reference(args: argparse.Namespace) -> tuple[tuple[float, float, float, float, float] | None, ReferenceKind]:
+    """Return the two reference points and what they lie on: --ruler with its distance, or --card with its edge."""
+    if args.ruler and args.card:
+        raise ParameterError("give --ruler or --card, not both")
+    if args.ruler:
+        return tuple(args.ruler), "ruler"
+    if not args.card:
+        return None, "ruler"
+    edge, *points = args.card
+    if edge not in ("long", "short"):
+        raise ParameterError("--card EDGE must be long or short")
+    kind: ReferenceKind = "id1-long" if edge == "long" else "id1-short"
+    try:
+        x1, y1, x2, y2 = (float(v) for v in points)
+    except ValueError:
+        raise ParameterError("--card points must be numbers (photo pixels)") from None
+    _, mm = REFERENCE_OBJECTS[kind]
+    return (x1, y1, x2, y2, mm or 0.0), kind
+
+
 def _job_params(args: argparse.Namespace) -> JobParams:
-    """Build the job parameters from the command line; --ruler and --roi need exactly one photo."""
-    if (args.ruler or args.roi) and (args.all or len(args.evidence) != 1):
-        raise ParameterError("--ruler and --roi describe one photo: use them with exactly one --evidence SHA")
+    """Build the job parameters from the command line; --ruler, --card and --roi need exactly one photo."""
+    if (args.ruler or args.card or args.roi) and (args.all or len(args.evidence) != 1):
+        raise ParameterError("--ruler, --card and --roi describe one photo: use them with exactly one --evidence SHA")
+    ruler, reference = _scale_reference(args)
     export = ExportOptions(
         enabled=not args.no_export,
         mirror=not args.no_mirror,
         target_ppi=args.ppi,
-        ruler=tuple(args.ruler) if args.ruler else None,
+        ruler=ruler,
+        reference=reference,
     )
     return JobParams(
         args.period,
@@ -75,6 +98,9 @@ def _run_job(case: OpenCase, sha: str, signer: Signer, params: JobParams, args: 
     common.say(_job_summary(sha, outcome.job_id, outcome.report, len(outcome.outputs)))
     for warning in (outcome.report.get("limits_of_use") or {}).get("warnings", []):
         common.say(f"  outside the limits of use: {warning}")
+    notice = ((outcome.report.get("export") or {}).get("scale") or {}).get("notice")
+    if notice:
+        common.say(f"  scale notice: {notice}")
     return True
 
 
@@ -120,6 +146,13 @@ def add_commands(sub: Any) -> None:
         nargs=5,
         metavar=("X1", "Y1", "X2", "Y2", "MM"),
         help="scale from two ruler points in the photo (pixels) MM millimetres apart",
+    )
+    p.add_argument(
+        "--card",
+        nargs=5,
+        metavar=("EDGE", "X1", "Y1", "X2", "Y2"),
+        help="scale from two points across an ISO/IEC 7810 ID-1 card (bank-card size) in the photo: "
+        "EDGE is long (85.60 mm) or short (53.98 mm)",
     )
     p.add_argument(
         "--roi",

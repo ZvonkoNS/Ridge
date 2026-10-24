@@ -17,9 +17,26 @@ describe("job options", () => {
       mirror: true,
       ppi: 500,
       ruler: null,
+      reference: "ruler",
       minutiae: false,
       roi: null,
     });
+  });
+
+  it("sends the standard edge length for a card reference", () => {
+    const options = toOptions(SHA, {
+      ...DEFAULT_PARAMS,
+      reference: "id1-long",
+      rulerMm: "",
+      ruler: [
+        { x: 0, y: 0 },
+        { x: 856, y: 0 },
+      ],
+    });
+    expect(options).toMatchObject({ ruler: [0, 0, 856, 0, 85.6], reference: "id1-long" });
+    expect(toOptions(SHA, { ...DEFAULT_PARAMS, reference: "id1-short", ruler: [{ x: 0, y: 0 }] })).toMatch(
+      /both/,
+    );
   });
 
   it("maps the region and the ruler to photo pixels", () => {

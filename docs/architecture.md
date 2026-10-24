@@ -223,7 +223,7 @@ Implemented in `src/ridge/sidecar/` (`ridge-sidecar`, protocol `ridge.sidecar/1`
 | `case.items` / `case.verify` | – | Stored items / verification result |
 | `note.add` / `notes.list` | `text`, `job_id`, `sha256`, `corrects` / `job_id` | Appends an examiner note (custody action `examiner.note`; FR-29) / the notes of the case or one job. A note never changes; a correction names the note it corrects |
 | `case.import` | `path` (absolute, from a native file dialog) | Evidence item |
-| `job.run` | `evidence`, extraction options, `export`, `mirror`, `ppi`, `ruler`, `minutiae` | Outputs, measurements, export, quality, minutiae summary |
+| `job.run` | `evidence`, extraction options, `export`, `mirror`, `ppi`, `ruler`, `reference` (ruler, id1-long, id1-short), `minutiae` | Outputs, measurements, export (with the scale notice when no reference object was given), quality, minutiae summary |
 | `preview.get` | `sha256`, `max_side` 16–2048 | Bounded PNG (base64) for display, with the full image's size after EXIF orientation (`source_width`, `source_height`: the space of `roi` and `ruler`); the read is logged |
 | `preview.region` | `sha256`, `x`, `y`, `width`, `height` (1–2048 px per side) | A full-resolution rectangle, unscaled and clipped to the image, for pixel inspection; the read is logged |
 | `metadata.get` | `sha256` (an evidence or reference item) | The photo's metadata (`ridge.photo-metadata/1`, §8.3), read from the verified stored bytes; outputs and minutiae are refused; the read is logged (FR-36, added 2026-10-20). The CLI equivalent is `ridge-case metadata` (§8.3) |
@@ -372,13 +372,15 @@ There is no custom cryptography: only library AEAD, KDF and signature primitives
                          "warnings": [], "entries": 142, "truncated": false}},
   "parameters": {"period": null, "min_quality": 0.25, "flip": false, "crop": true, "debug": false,
                  "minutiae": false, "roi": [900, 400, 700, 1100],
-                 "export": {"enabled": true, "mirror": true, "target_ppi": 500, "ruler": [12, 40, 812, 44, 40]}},
+                 "export": {"enabled": true, "mirror": true, "target_ppi": 500, "ruler": [12, 40, 812, 44, 40],
+                            "reference": "ruler"}},
   "measurements": {"ridge_period_px": 17.9, "found_finger": true, "output_scale": 1.0,
                    "print_area": {"box_px": [1010, 520, 420, 560], "parts": 1,
                                   "outline_px": [[[1040, 545], [1400, 550], …]]}},
   "export": {"produced": true, "sha256": "…", "ppi": 500, "factor": 0.98,
              "transforms": ["polarity:dark-ridges", "mirror:horizontal", "scale:500ppi:ruler"],
-             "scale": {"method": "ruler", "px_per_mm": 20.0, "uncertainty_pct": 0.25},
+             "scale": {"method": "ruler", "px_per_mm": 20.0, "uncertainty_pct": 0.25,
+                       "reference": "ruler, 40 mm between the points"},
              "grayscale": {"sha256": "…", "transforms": ["tone:grayscale", "polarity:dark-ridges",
                                                           "mirror:horizontal", "scale:500ppi:ruler"]}},
   "quality": {"nfiq2": {"computed": true, "score": 54, "version": "…", "label": "indicative only: …",
@@ -400,7 +402,7 @@ Without a job, `ridge-case metadata CASE SHA [--json]` (`src/ridge/case/cli_meta
 
 `export.grayscale` (added 2026-10-24, PRD FR-37, `src/ridge/pipeline/render.py`, `src/ridge/export/transforms.py`) names the grayscale twin of the comparison export, stored as role `export-gray`. The pipeline resizes one window of the Gabor output and of the print-region map to output size and renders it twice: thresholded (the print, as v0 made it) and through the algebraic sigmoid x / sqrt(1 + x²) with gain 0.5, faded to zero at the print's edge (the region map's 0.5 level), so the grayscale print is zero wherever the print is zero-region and keeps ridge strength inside. The curve uses only IEEE 754 arithmetic (no libm), so it is reproducible per CPU architecture like the rest of the pipeline. The export transforms are the same as for the binary export, with `tone:grayscale` first; both exports have identical geometry, so the export-space minutiae overlay fits either. NFIQ 2 is computed on the grayscale export and `quality.nfiq2.image` names it; reports signed before it have neither field. `ridge-case compare` accepts either export on a sheet, and `export-all --role export-gray` exports the grayscale ones. The print and the binary export are unchanged (goldens identical).
 
-All timestamps are ISO 8601 UTC with a `Z` suffix. The report is canonicalised with RFC 8785 before signing. Without a ruler the scale is `ridge-period` (assumed 0.47 mm ridge distance, ±15 %, both to be validated, `assumed_ridge_period_mm` recorded). An impossible scale gives `"export": {"produced": false, "reason": …}` without failing the job; `--no-export` gives `null`. NFIQ 2 that is not configured or fails gives `{"computed": false, "reason": …}`.
+All timestamps are ISO 8601 UTC with a `Z` suffix. The report is canonicalised with RFC 8785 before signing. Without a ruler the scale is `ridge-period` (assumed 0.47 mm ridge distance, ±15 %, both to be validated, `assumed_ridge_period_mm` recorded) and `scale.notice` carries the no-reference notice of FR-31 (added 2026-10-24: the job proceeds; the CLI and the GUI show the notice too). The two points may also lie across an ISO/IEC 7810 ID-1 card (`parameters.export.reference` is `id1-long` or `id1-short`; `ruler` then still holds the five numbers, and its distance must equal the standard edge length, 85.60 or 53.98 mm, or the job is refused before it starts). The scale method is then `card`, `scale.reference` names the edge, and the uncertainty is the click error plus the card's size tolerance (0.15 %) plus an alignment allowance (2 %, an engineering assumption to be validated); `ridge-case extract --card long|short X1 Y1 X2 Y2` supplies the standard length itself. Reports before 2026-10-24 have no `reference` and are reproduced as ruler scales. An impossible scale gives `"export": {"produced": false, "reason": …}` without failing the job; `--no-export` gives `null`. NFIQ 2 that is not configured or fails gives `{"computed": false, "reason": …}`.
 
 **Limits of use (PRD §12 item 8, `src/ridge/case/limits.py`).** The Forensic Quality Manager can place `limits-of-use.json` (schema `ridge.limits-of-use/1`) in the store. It holds:
 
@@ -409,7 +411,7 @@ All timestamps are ISO 8601 UTC with a `Z` suffix. The report is canonicalised w
 - a ridge period range in pixels;
 - a maximum export scale uncertainty;
 - a minimum NFIQ 2 score;
-- whether a ruler is required, and whether a located finger is required.
+- whether a ruler is required, whether any scale reference in the photo (a ruler or a card) is required, and whether a located finger is required.
 
 Unknown fields, wrong types and inconsistent ranges are refused, and the file is limited to 64 KiB. Ridge ships no limits.
 
