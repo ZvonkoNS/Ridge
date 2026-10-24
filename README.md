@@ -215,6 +215,8 @@ comparison scores to a CSV with `genuine` (1 or 0) and `score` columns, plus an 
 
 ```bash
 ridge-validate scores.csv --fmr 0.001 --fmr 0.0001 --ftx-attempts 400 --ftx-failures 12 -o validation.json
+ridge-validate --ranks ranks.csv --rank 1 --rank 10 -o identification.json   # 1:N searches: rank-k hit rates, CMC (FR-43)
+ridge-validate scores.csv --ranks ranks.csv -o both.json
 ```
 
 The report gives FNMR at each target FMR, with Wilson 95 % intervals and a rule-of-30
