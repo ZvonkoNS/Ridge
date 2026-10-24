@@ -2,7 +2,14 @@
 // no score here is a match score, and the quality value is labelled indicative.
 import { areaLine } from "../components/PrintArea";
 import { Hash } from "../components/ui";
-import type { ExportInfo, LimitsSection, Measurements, MinutiaeSummary, Quality } from "../ipc/types";
+import type {
+  ExportInfo,
+  LimitsSection,
+  Measurements,
+  MinutiaeSummary,
+  Quality,
+  SubmissionRecord,
+} from "../ipc/types";
 
 interface Props {
   result: {
@@ -12,7 +19,18 @@ interface Props {
     quality: Quality | null;
     minutiae?: MinutiaeSummary | null | undefined;
     limits_of_use?: LimitsSection | null | undefined;
+    submission?: SubmissionRecord | null | undefined;
   };
+}
+
+/** The submission record as one line (FR-38); absent in reports made before it. */
+export function submissionLine(record: SubmissionRecord | null | undefined): string | null {
+  if (!record) {
+    return null;
+  }
+  const agency = record.source_agency ?? "not stated";
+  const device = record.capture_device ?? "none named in the file";
+  return `finger position ${String(record.finger_position)} (${record.finger}); source agency ${agency}; capture device ${device} (${record.capture_device_note})`;
 }
 
 /** The limits-of-use outcome of a job (PRD §12 item 8); warnings stand out, nothing is refused. */
@@ -109,6 +127,12 @@ export function JobSummary({ result }: Props) {
         <dd>{m ? (m.found_finger ? "yes, by skin colour" : "no: the whole frame was used") : "-"}</dd>
         <dt>Print area</dt>
         <dd>{m ? areaLine(m.print_area) : "-"}</dd>
+        {result.submission ? (
+          <>
+            <dt>Submission</dt>
+            <dd>{submissionLine(result.submission)}</dd>
+          </>
+        ) : null}
         <dt>Comparison export</dt>
         <dd>{exportLine(result.export)}</dd>
         <dt>NFIQ 2</dt>

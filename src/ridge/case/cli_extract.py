@@ -83,6 +83,8 @@ def _job_params(args: argparse.Namespace) -> JobParams:
         export,
         args.minutiae,
         tuple(args.roi) if args.roi else None,
+        finger_position=args.finger_position,
+        source_agency=args.source_agency,
     )
 
 
@@ -165,6 +167,14 @@ def add_commands(sub: Any) -> None:
         help="process only this rectangle of the photo (pixels), e.g. one finger of several",
     )
     p.add_argument("--minutiae", action="store_true", help="also store automatic minutiae (unvalidated, M3)")
+    p.add_argument(
+        "--finger-position",
+        type=int,
+        default=0,
+        metavar="CODE",
+        help="finger the photo shows, ANSI/NIST-ITL code 0 (unknown) to 10, recorded as your statement (FR-38)",
+    )
+    p.add_argument("--source-agency", metavar="TEXT", help="submitting agency, recorded as your statement (FR-38)")
     p.add_argument("--nfiq2", type=Path, help="absolute path of the NIST NFIQ 2 executable (indicative score)")
     p.add_argument("--nfiq2-arg", action="append", default=[], help="extra argument for the NFIQ 2 command")
     p.set_defaults(func=cmd_extract)

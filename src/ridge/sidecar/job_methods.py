@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import cast
 
 from ridge.case.compare import SHEET_PPI, export_sheet
+from ridge.case.cover_sheet import export_cover_sheet
 from ridge.case.custody import select_entries
 from ridge.case.custody_head import export_head
 from ridge.case.export_step import ExportOptions
@@ -64,10 +65,13 @@ def run_job(session: Session, params: dict[str, Json]) -> Json:
         export=export,
         minutiae=params.get("minutiae", False),
         roi=_roi(params.get("roi")),
+        finger_position=params.get("finger_position", 0),
+        source_agency=params.get("source_agency"),
     )
     outcome = run_extraction_job(case, params["evidence"], signer, job)
     report = outcome.report
-    summary = {key: report.get(key) for key in ("measurements", "export", "quality", "minutiae", "limits_of_use")}
+    keys = ("measurements", "export", "quality", "minutiae", "limits_of_use", "submission")
+    summary = {key: report.get(key) for key in keys}
     return {"job_id": outcome.job_id, "outputs": [item_json(o) for o in outcome.outputs], **summary}
 
 
@@ -115,6 +119,16 @@ def report_export_html(session: Session, params: dict[str, Json]) -> Json:
     case, _ = session.require()
     dest = absolute(params["dest"], "dest")
     signed = export_report_html(
+        case, session.require_store(), params["job_id"], dest, overwrite=params.get("overwrite", False)
+    )
+    return {"exported": str(dest), "job_id": signed.job_id}
+
+
+def cover_export(session: Session, params: dict[str, Json]) -> Json:
+    """Write the AFIS submission cover sheet of a verified report to a native-dialog path (logged; not signed)."""
+    case, _ = session.require()
+    dest = absolute(params["dest"], "dest")
+    signed = export_cover_sheet(
         case, session.require_store(), params["job_id"], dest, overwrite=params.get("overwrite", False)
     )
     return {"exported": str(dest), "job_id": signed.job_id}

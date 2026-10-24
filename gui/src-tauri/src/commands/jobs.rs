@@ -34,6 +34,8 @@ pub struct JobRequest {
     reference: String,
     minutiae: bool,
     roi: Option<[u32; 4]>,
+    finger_position: u8,
+    source_agency: Option<String>,
 }
 
 impl JobRequest {
@@ -81,6 +83,20 @@ impl JobRequest {
         params.insert(
             "reference".into(),
             json!(checked_reference(&self.reference)?),
+        );
+        if self.finger_position > 10 {
+            return Err(IpcError::invalid(
+                "the finger position must be a code from 0 (unknown) to 10",
+            ));
+        }
+        params.insert("finger_position".into(), json!(self.finger_position));
+        params.insert(
+            "source_agency".into(),
+            json!(validate::optional_text(
+                self.source_agency.as_deref(),
+                "source agency",
+                200
+            )?),
         );
         if let Some(roi) = self.roi {
             params.insert("roi".into(), checked_roi(roi)?);
@@ -290,7 +306,7 @@ mod tests {
         let mut base = json!({
             "evidence": "a".repeat(64), "period": null, "min_quality": 0.25, "flip": false, "crop": true,
             "debug": false, "export": true, "mirror": true, "ppi": 500.0, "ruler": null, "reference": "ruler",
-            "minutiae": false, "roi": null
+            "minutiae": false, "roi": null, "finger_position": 0, "source_agency": null
         });
         if let (Some(base), Some(extra)) = (base.as_object_mut(), extra.as_object()) {
             base.extend(extra.clone());
@@ -314,6 +330,13 @@ mod tests {
             .params()
             .unwrap();
         assert_eq!(card["reference"], json!("id1-long"));
+        let stated = request(json!({"finger_position": 7, "source_agency": "  Lab A "}))
+            .unwrap()
+            .params()
+            .unwrap();
+        assert_eq!(stated["finger_position"], json!(7));
+        assert_eq!(stated["source_agency"], json!("Lab A"));
+        assert_eq!(params["source_agency"], json!(null));
     }
 
     #[test]
@@ -335,6 +358,8 @@ mod tests {
             json!({"ruler": [5.0, 5.0, 5.5, 5.0, 10.0]}),
             json!({"ruler": [0.0, 0.0, 100.0, 0.0, 0.0]}),
             json!({"reference": "coin"}),
+            json!({"finger_position": 11}),
+            json!({"source_agency": "x".repeat(201)}),
         ] {
             assert!(request(extra.clone()).unwrap().params().is_err(), "{extra}");
         }

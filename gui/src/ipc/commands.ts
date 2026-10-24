@@ -133,6 +133,8 @@ export const ipc = {
     call<CustodyPage>("custody_log", { offset, limit, action, text }),
   exportReportHtml: (jobId: string) =>
     call<{ exported: string; job_id: string }>("export_report_html", { job_id: jobId }),
+  exportCover: (jobId: string) =>
+    call<{ exported: string; job_id: string }>("export_cover", { job_id: jobId }),
   importEvidence: (source: string | null) => call<ImportBatch>("import_evidence", { source }),
   importReference: (source: string) => call<Item>("import_reference", { source }),
   verifyCase: () => call<Verification>("verify_case"),

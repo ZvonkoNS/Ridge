@@ -38,6 +38,7 @@ from ridge.case.reports import (
     signature_path,
 )
 from ridge.case.store import OpenCase
+from ridge.case.submission import submission_line
 from ridge.errors import OutputExistsError
 from ridge.image_io import publish, read_bounded
 
@@ -181,6 +182,7 @@ def _result_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
         ("Ridge spacing", _text(f"{meas.get('ridge_period_px', 0):.2f} px") if meas else ""),
         ("Finger located", _text("yes" if meas.get("found_finger") else "no") if meas else ""),
         ("Print area", _text(_value(print_area_line(meas.get("print_area"))))),
+        ("Submission", _text(_value(submission_line(report.get("submission"))))),
         ("Export", _text(_value(export_line(report.get("export"))).replace("+-", "±"))),
         ("Scale notice", _text(_value(scale_notice_line(report.get("export"))).replace("+-", "±"))),
         ("Resolution", _text(_value(resolution_note_line(report.get("export"))))),

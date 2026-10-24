@@ -20,7 +20,15 @@ describe("job options", () => {
       reference: "ruler",
       minutiae: false,
       roi: null,
+      finger_position: 0,
+      source_agency: null,
     });
+  });
+
+  it("records the finger position and a trimmed source agency as stated", () => {
+    const options = toOptions(SHA, { ...DEFAULT_PARAMS, fingerPosition: 7, sourceAgency: "  Lab A  " });
+    expect(options).toMatchObject({ finger_position: 7, source_agency: "Lab A" });
+    expect(toOptions(SHA, { ...DEFAULT_PARAMS, sourceAgency: "x".repeat(201) })).toMatch(/200 characters/);
   });
 
   it("sends the standard edge length for a card reference", () => {

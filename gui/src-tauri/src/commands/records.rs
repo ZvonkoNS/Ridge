@@ -84,6 +84,22 @@ pub async fn export_report_html(
     call(&app, "report.export_html", params, RECORD_IO).await
 }
 
+/// Write the AFIS submission cover sheet of a verified report (FR-38; logged, not signed).
+#[tauri::command]
+pub async fn export_cover(
+    app: AppHandle,
+    window: WebviewWindow,
+    request: ReportRef,
+) -> Result<Value, IpcError> {
+    require(&window, MAIN_LABEL)?;
+    let job_id = validate::uuid(&request.job_id, "job")?;
+    let suggested = Some(format!("ridge_job_{}_submission_cover.html", &job_id[..8]));
+    let title = "Save the submission cover sheet";
+    let dest = path_text(&dialogs::save_file(&app, title, suggested, HTML_FILE).await?)?;
+    let params = json!({"job_id": job_id, "dest": dest, "overwrite": false});
+    call(&app, "cover.export", params, RECORD_IO).await
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CheckRequest {
