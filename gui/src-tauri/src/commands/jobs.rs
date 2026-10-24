@@ -23,6 +23,7 @@ const PNG: (&str, &[&str]) = ("PNG image", &["png"]);
 pub struct MethodOptionsRequest {
     channel: String,
     specular_mask: bool,
+    upright: bool,
 }
 
 const CHANNELS: [&str; 5] = ["green", "red", "blue", "luma", "auto"];
@@ -106,7 +107,11 @@ impl JobRequest {
         }
         params.insert(
             "options".into(),
-            json!({"channel": self.options.channel, "specular_mask": self.options.specular_mask}),
+            json!({
+                "channel": self.options.channel,
+                "specular_mask": self.options.specular_mask,
+                "upright": self.options.upright
+            }),
         );
         params.insert(
             "source_agency".into(),
@@ -325,7 +330,7 @@ mod tests {
             "evidence": "a".repeat(64), "period": null, "min_quality": 0.25, "flip": false, "crop": true,
             "debug": false, "export": true, "mirror": true, "ppi": 500.0, "ruler": null, "reference": "ruler",
             "minutiae": false, "roi": null, "finger_position": 0, "source_agency": null,
-            "options": {"channel": "green", "specular_mask": false}
+            "options": {"channel": "green", "specular_mask": false, "upright": false}
         });
         if let (Some(base), Some(extra)) = (base.as_object_mut(), extra.as_object()) {
             base.extend(extra.clone());
@@ -358,7 +363,7 @@ mod tests {
         assert_eq!(params["source_agency"], json!(null));
         assert_eq!(
             params["options"],
-            json!({"channel": "green", "specular_mask": false})
+            json!({"channel": "green", "specular_mask": false, "upright": false})
         );
     }
 
@@ -383,7 +388,7 @@ mod tests {
             json!({"reference": "coin"}),
             json!({"finger_position": 11}),
             json!({"source_agency": "x".repeat(201)}),
-            json!({"options": {"channel": "cyan", "specular_mask": false}}),
+            json!({"options": {"channel": "cyan", "specular_mask": false, "upright": false}}),
         ] {
             assert!(request(extra.clone()).unwrap().params().is_err(), "{extra}");
         }

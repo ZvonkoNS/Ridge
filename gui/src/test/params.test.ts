@@ -22,13 +22,13 @@ describe("job options", () => {
       roi: null,
       finger_position: 0,
       source_agency: null,
-      options: { channel: "green", specular_mask: false },
+      options: { channel: "green", specular_mask: false, upright: false },
     });
   });
 
   it("sends the method variants the examiner turned on", () => {
-    const options = toOptions(SHA, { ...DEFAULT_PARAMS, channel: "auto", specularMask: true });
-    expect(options).toMatchObject({ options: { channel: "auto", specular_mask: true } });
+    const options = toOptions(SHA, { ...DEFAULT_PARAMS, channel: "auto", specularMask: true, upright: true });
+    expect(options).toMatchObject({ options: { channel: "auto", specular_mask: true, upright: true } });
   });
 
   it("records the finger position and a trimmed source agency as stated", () => {

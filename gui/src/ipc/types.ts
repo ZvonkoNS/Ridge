@@ -82,6 +82,9 @@ export interface PrintArea {
   box_px: [number, number, number, number];
   outline_px: [number, number][][];
   parts: number;
+  /** When the job rotated the finger upright (ADR-014): the tilted frame's corners and the rotation applied. */
+  frame_px?: [number, number][];
+  rotation_deg?: number | null;
 }
 
 /**
@@ -169,6 +172,8 @@ export interface Measurements {
   channel_used?: string;
   /** Share of the finger area removed as highlights when the specular mask was on; null when off. */
   specular_fraction?: number | null;
+  /** Rotation applied to put the finger upright when that variant was on; null when off or not located. */
+  upright_rotation_deg?: number | null;
 }
 
 export type ScaleMethod = "ruler" | "card" | "ridge-period" | "manual";
@@ -303,6 +308,7 @@ export type Channel = "green" | "red" | "blue" | "luma" | "auto";
 export interface MethodOptions {
   channel: Channel;
   specular_mask: boolean;
+  upright: boolean;
 }
 
 /** Options sent with `run_job`; every field is explicit, nothing is defaulted on the way. */

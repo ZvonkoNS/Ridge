@@ -104,6 +104,24 @@ export function exportLine(exp: ExportInfo | null): string {
   return `${exp.ppi} ppi, scale from ${method}${where}, ±${exp.scale.uncertainty_pct.toFixed(exp.scale.uncertainty_pct < 1 ? 2 : 0)} %; ${exp.transforms.join(", ")}${twin}`;
 }
 
+/** The method variants a job used, from its measurements (ADR-014); null when none was on. */
+export function variantsLine(m: Measurements | null): string | null {
+  if (!m) {
+    return null;
+  }
+  const parts: string[] = [];
+  if (m.channel_used !== undefined && m.channel_used !== "green") {
+    parts.push(`plane ${m.channel_used}`);
+  }
+  if (m.specular_fraction != null) {
+    parts.push(`specular mask removed ${(100 * m.specular_fraction).toFixed(1)} % of the finger`);
+  }
+  if (m.upright_rotation_deg != null) {
+    parts.push(`rotated ${m.upright_rotation_deg.toFixed(1)}° to upright`);
+  }
+  return parts.length > 0 ? `${parts.join("; ")} (unvalidated variants, ADR-014)` : null;
+}
+
 export function JobSummary({ result }: Props) {
   const m = result.measurements;
   const nfiq = result.quality?.nfiq2;
@@ -125,18 +143,10 @@ export function JobSummary({ result }: Props) {
         <dd>{m ? `${m.ridge_period_px.toFixed(2)} px` : "-"}</dd>
         <dt>Finger located</dt>
         <dd>{m ? (m.found_finger ? "yes, by skin colour" : "no: the whole frame was used") : "-"}</dd>
-        {m && (m.channel_used !== undefined || m.specular_fraction != null) ? (
+        {variantsLine(m) ? (
           <>
             <dt>Variants</dt>
-            <dd>
-              {m.channel_used !== undefined ? `plane ${m.channel_used}` : ""}
-              {m.specular_fraction != null
-                ? `${m.channel_used !== undefined ? "; " : ""}specular mask removed ${(100 * m.specular_fraction).toFixed(1)} % of the finger`
-                : ""}
-              {m.channel_used !== "green" || m.specular_fraction != null
-                ? " (unvalidated variant, ADR-014)"
-                : ""}
-            </dd>
+            <dd>{variantsLine(m)}</dd>
           </>
         ) : null}
         <dt>Print area</dt>

@@ -15,7 +15,7 @@ from ridge.errors import ParameterError
 
 type Channel = Literal["green", "red", "blue", "luma", "auto"]
 CHANNELS: Final[tuple[Channel, ...]] = ("green", "red", "blue", "luma", "auto")
-_FLAGS: Final = ("specular_mask",)
+_FLAGS: Final = ("specular_mask", "upright")
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,11 +24,13 @@ class MethodOptions:
 
     ``green`` is the characterised default; ``auto`` picks, among green, red, blue and
     luminance, the plane with the strongest measured ridge signal (deterministic, ties in that
-    order). ``specular_mask`` excludes specular highlights from the finger area.
+    order). ``specular_mask`` excludes specular highlights from the finger area. ``upright``
+    rotates the finger so that its axis is vertical with the tip up before extraction.
     """
 
     channel: Channel = "green"
     specular_mask: bool = False
+    upright: bool = False
 
     def __post_init__(self) -> None:
         if self.channel not in CHANNELS:

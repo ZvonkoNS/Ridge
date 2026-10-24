@@ -49,7 +49,14 @@ export function PrintAreaShape({ area, size }: { area: PrintArea; size: Size | n
       {size ? (
         <path className="ov-area-dim" fillRule="evenodd" d={`M0 0H${size.width}V${size.height}H0Z${holes}`} />
       ) : null}
-      <rect className="ov-area-frame" x={x} y={y} width={width} height={height} />
+      {area.frame_px?.length === 4 ? (
+        <polygon
+          className="ov-area-frame"
+          points={area.frame_px.map(([fx, fy]) => `${fx},${fy}`).join(" ")}
+        />
+      ) : (
+        <rect className="ov-area-frame" x={x} y={y} width={width} height={height} />
+      )}
       {polys.map((p, i) => (
         <g key={i}>
           <polygon className="ov-area-halo" points={p.join(" ")} />
@@ -79,7 +86,8 @@ export function PrintAreaNote({ overlay }: { overlay: AreaOverlay }) {
       </label>
       {overlay.on ? (
         <span className="area-legend">
-          Solid line: the area kept as the print. Dashed box: the frame of the print image.
+          Solid line: the area kept as the print. Dashed box: the frame of the print image
+          {overlay.area.frame_px ? " (tilted: the job rotated the finger upright)" : ""}.
           {overlay.mirrored ? " The comparison export shows this area mirrored." : ""}
         </span>
       ) : null}
@@ -94,5 +102,7 @@ export function areaLine(area: PrintArea | null | undefined): string {
   }
   const [x, y, w, h] = area.box_px;
   const parts = area.parts === 1 ? "" : `; ${area.parts} kept areas`;
-  return `x ${x}, y ${y}, ${w} × ${h} px of the photo${parts}`;
+  const turned =
+    area.rotation_deg != null ? `; the finger was rotated ${area.rotation_deg.toFixed(1)}° to upright` : "";
+  return `x ${x}, y ${y}, ${w} × ${h} px of the photo${parts}${turned}`;
 }

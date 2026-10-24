@@ -36,7 +36,7 @@ def test_options_validate_and_round_trip() -> None:
     assert CHANNELS == ("green", "red", "blue", "luma", "auto")
     assert not MethodOptions().any
     assert MethodOptions(channel="auto").any
-    assert MethodOptions(specular_mask=True).to_json() == {"channel": "green", "specular_mask": True}
+    assert MethodOptions(specular_mask=True).to_json() == {"channel": "green", "specular_mask": True, "upright": False}
     assert MethodOptions.from_json(None) == MethodOptions()
     assert MethodOptions.from_json({}) == MethodOptions()
     assert MethodOptions.from_json({"channel": "luma"}) == MethodOptions(channel="luma")
@@ -139,7 +139,7 @@ def test_jobs_record_the_variants_and_reproduce_them(case_dir: tuple[Path, Memor
         params = JobParams(options=MethodOptions(channel="auto", specular_mask=True))
         outcome = run_extraction_job(case, evidence.sha256, signer, params)
         report = outcome.report
-        assert report["parameters"]["options"] == {"channel": "auto", "specular_mask": True}
+        assert report["parameters"]["options"] == {"channel": "auto", "specular_mask": True, "upright": False}
         assert report["measurements"]["channel_used"] in ("green", "red", "blue", "luma")
         assert report["measurements"]["specular_fraction"] > 0
         assert params_from_report(report["parameters"]) == params
@@ -150,7 +150,7 @@ def test_jobs_record_the_variants_and_reproduce_them(case_dir: tuple[Path, Memor
         assert "specular mask (" in text
         assert "unvalidated" in text
         plain = run_extraction_job(case, evidence.sha256, signer, JobParams())
-        assert plain.report["parameters"]["options"] == {"channel": "green", "specular_mask": False}
+        assert plain.report["parameters"]["options"] == {"channel": "green", "specular_mask": False, "upright": False}
         assert plain.report["measurements"]["channel_used"] == "green"
         assert plain.report["measurements"]["specular_fraction"] is None
         assert "Variants" not in render_report(plain.report, signer.key_id)
