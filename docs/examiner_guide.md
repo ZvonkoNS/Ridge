@@ -80,8 +80,9 @@ If the laboratory has set limits of use, each report says whether the job stayed
 
 Decrypted files leave the case only through the export buttons, and every export is written to the custody log with its destination. An exported image, comparison sheet, signed report or readable copy is logged with its SHA-256. An exported processing record, custody head or package is logged with its case or package. Its own export entry is covered by its signature, so it cannot name its own hash: that signature protects its content instead.
 
-- **Export shown image** saves the image on screen.
-- **Export all N comparison exports...** / **processed prints...** write every item of that kind into a new folder, with an `EXPORTS.csv` index of names, hashes, jobs and labels.
+- **Export shown image** saves the image on screen. For a comparison export the save dialog offers PNG (as stored), uncompressed TIFF and BMP; TIFF and BMP carry the same pixels and the recorded resolution and nothing else, for AFIS import tools that do not take PNG. The custody log records the format and the SHA-256 of the file written.
+- **Export all N grayscale exports...** / **comparison exports...** / **processed prints...** write every item of that kind into a new folder, with an `EXPORTS.csv` index of names, hashes, jobs, labels, the format and the written file's hash. **File format for image exports** chooses PNG, TIFF or BMP for the whole folder. Prints have no recorded resolution and always stay PNG.
+- A job summary or report line "Resolution" means the export was enlarged to reach its resolution (for example 1000 ppi from a modest photo): more pixels, no more detail.
 
 ## Records
 

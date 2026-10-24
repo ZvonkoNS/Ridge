@@ -17,12 +17,14 @@ from ridge.case.case_model import StoredItem
 from ridge.case.case_status import case_status
 from ridge.case.compare import PLAUSIBLE_PPI, file_ppi
 from ridge.case.export_all import INDEX, export_role
+from ridge.case.export_file import export_item as export_stored_item
 from ridge.case.export_step import MINUTIAE_LABEL
 from ridge.case.notes import add_note, list_notes
 from ridge.case.photo_metadata import read_photo_metadata
 from ridge.case.store import OpenCase
 from ridge.case.verify import verify_case
 from ridge.errors import ParameterError
+from ridge.export.formats import check_format
 from ridge.image_io import ReadLimits, decode_image, encode_image
 from ridge.sidecar.protocol import Json
 from ridge.sidecar.session import Session, absolute, item_json
@@ -81,8 +83,11 @@ def notes(session: Session, params: dict[str, Json]) -> Json:
 def export_all(session: Session, params: dict[str, Json]) -> Json:
     """Export every item of one role into a new native-dialog folder (each export logged)."""
     case, _ = session.require()
-    written = export_role(case, params["role"], absolute(params["dest"], "dest"))
-    return {"exported": params["dest"], "files": len(written), "index": INDEX}
+    fmt = params.get("format")
+    written = export_role(
+        case, params["role"], absolute(params["dest"], "dest"), fmt=None if fmt is None else check_format(fmt)
+    )
+    return {"exported": params["dest"], "files": len(written), "index": INDEX, "format": fmt}
 
 
 def items(session: Session, params: dict[str, Json]) -> Json:
@@ -113,8 +118,10 @@ def verify(session: Session, params: dict[str, Json]) -> Json:
 def export_item(session: Session, params: dict[str, Json]) -> Json:
     """Export one item to a path chosen in a native save dialog (logged)."""
     case, _ = session.require()
-    dest = case.export(params["sha256"], absolute(params["dest"], "dest"), overwrite=params.get("overwrite", False))
-    return {"exported": str(dest)}
+    done = export_stored_item(
+        case, params["sha256"], absolute(params["dest"], "dest"), overwrite=params.get("overwrite", False)
+    )
+    return {"exported": str(done.path), "format": done.format, "sha256": done.sha256}
 
 
 def photo_metadata(session: Session, params: dict[str, Json]) -> Json:

@@ -102,10 +102,23 @@ pub async fn save_file(
     suggested: Option<String>,
     filter: (&'static str, &'static [&'static str]),
 ) -> Result<PathBuf, IpcError> {
+    save_file_any(app, title, suggested, vec![filter]).await
+}
+
+/// Like `save_file`, offering several file types; the extension of the chosen name decides.
+pub async fn save_file_any(
+    app: &AppHandle,
+    title: &'static str,
+    suggested: Option<String>,
+    filters: Vec<(&'static str, &'static [&'static str])>,
+) -> Result<PathBuf, IpcError> {
     let app = app.clone();
     let name = suggested.map(|s| file_name(&s)).filter(|s| !s.is_empty());
     blocking(move || {
-        let mut dialog = builder(&app, title).add_filter(filter.0, filter.1);
+        let mut dialog = builder(&app, title);
+        for (label, extensions) in filters {
+            dialog = dialog.add_filter(label, extensions);
+        }
         if let Some(name) = name {
             dialog = dialog.set_file_name(name);
         }

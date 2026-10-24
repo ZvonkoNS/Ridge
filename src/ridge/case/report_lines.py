@@ -26,6 +26,12 @@ def export_line(export: dict[str, Any] | None) -> str:
     )
 
 
+def resolution_note_line(export: dict[str, Any] | None) -> str:
+    """Return the note of an export that was enlarged beyond the photo's resolution (empty otherwise)."""
+    note = (export or {}).get("resolution_note")
+    return f"Resolution    {note}" if note else ""
+
+
 def scale_notice_line(export: dict[str, Any] | None) -> str:
     """Return the notice of an export scaled without a reference object in the photo (empty otherwise)."""
     notice = ((export or {}).get("scale") or {}).get("notice")

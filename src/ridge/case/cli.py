@@ -43,6 +43,7 @@ from ridge.case import (
 )
 from ridge.case.dispose import REASONS, dispose_case
 from ridge.case.export_all import INDEX, ROLES, export_role
+from ridge.case.export_file import export_item
 from ridge.case.identity import create_identity, public_identity, unlock_identity
 from ridge.case.keys import b64
 from ridge.case.listing import list_cases
@@ -50,6 +51,7 @@ from ridge.case.reports import printable
 from ridge.case.store import create_case, open_case
 from ridge.case.verify import verify_case
 from ridge.errors import RidgeError
+from ridge.export.formats import FORMATS
 
 
 def cmd_identity(args: argparse.Namespace) -> None:
@@ -111,16 +113,19 @@ def cmd_list(args: argparse.Namespace) -> None:
 
 
 def cmd_export(args: argparse.Namespace) -> None:
-    """Export one item in plaintext to an examiner-chosen path."""
+    """Export one item in plaintext to an examiner-chosen path (a .tif/.tiff or .bmp name converts an image)."""
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
-        dest = case.export(args.sha, args.to, overwrite=args.overwrite)
-        common.say(f"exported to {dest}")
+        done = export_item(case, args.sha, args.to, overwrite=args.overwrite)
+    if done.format:
+        common.say(f"exported to {done.path} as {done.format} (sha256 of the file {done.sha256})")
+    else:
+        common.say(f"exported to {done.path}")
 
 
 def cmd_export_all(args: argparse.Namespace) -> None:
     """Export every stored item of one role into a new folder (each export logged)."""
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
-        written = export_role(case, args.role, args.to)
+        written = export_role(case, args.role, args.to, fmt=args.format)
     common.say(
         f"{len(written)} {args.role} file(s) exported to {args.to}, listed in {INDEX}; each is in the custody log"
     )
@@ -208,6 +213,11 @@ def _add_case_commands(sub: Any) -> None:
     p.add_argument("case", type=Path)
     p.add_argument("--to", type=Path, required=True, help="a folder that does not exist yet")
     p.add_argument("--role", choices=ROLES, default="export", help="which items (default: comparison exports)")
+    p.add_argument(
+        "--format",
+        choices=FORMATS,
+        help="convert image outputs to uncompressed tiff or bmp with their resolution (default: as stored, png)",
+    )
     p.set_defaults(func=cmd_export_all)
     p = sub.add_parser("verify", help="verify the case")
     p.add_argument("case", type=Path)
@@ -221,7 +231,9 @@ def _add_case_commands(sub: Any) -> None:
     p = sub.add_parser("export", help="export one item in plaintext")
     p.add_argument("case", type=Path)
     p.add_argument("sha")
-    p.add_argument("--to", type=Path, required=True)
+    p.add_argument(
+        "--to", type=Path, required=True, help="destination; .tif/.tiff or .bmp converts an image output (FR-32)"
+    )
     p.add_argument("--overwrite", action="store_true")
     p.set_defaults(func=cmd_export)
     p = sub.add_parser("hold", help="place or lift a legal hold")

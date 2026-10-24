@@ -19,7 +19,14 @@ from ridge.case.crypto import sha256_hex
 from ridge.case.limits import render_lines as render_limits
 from ridge.case.metadata_render import metadata_html
 from ridge.case.notes import Note, list_notes
-from ridge.case.report_lines import export_line, minutiae_line, nfiq2_line, print_area_line, scale_notice_line
+from ridge.case.report_lines import (
+    export_line,
+    minutiae_line,
+    nfiq2_line,
+    print_area_line,
+    resolution_note_line,
+    scale_notice_line,
+)
 from ridge.case.reports import (
     MAX_REPORT_BYTES,
     MAX_SIGNATURE_BYTES,
@@ -176,6 +183,7 @@ def _result_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
         ("Print area", _text(_value(print_area_line(meas.get("print_area"))))),
         ("Export", _text(_value(export_line(report.get("export"))).replace("+-", "±"))),
         ("Scale notice", _text(_value(scale_notice_line(report.get("export"))).replace("+-", "±"))),
+        ("Resolution", _text(_value(resolution_note_line(report.get("export"))))),
         ("NFIQ 2", _text(_value(nfiq2_line((report.get("quality") or {}).get("nfiq2"))))),
         ("Minutiae", _text(_value(minutiae_line(report.get("minutiae"))))),
         ("Limits of use", _limits(report.get("limits_of_use"))),

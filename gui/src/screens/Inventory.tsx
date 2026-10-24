@@ -6,7 +6,13 @@ import { CopyButton } from "../components/CopyButton";
 import { roleName } from "../components/ExhibitLabel";
 import { Button, Hash } from "../components/ui";
 import { ipc } from "../ipc/commands";
-import type { Item, LimitsStatus } from "../ipc/types";
+import type { ExportFormat, Item, LimitsStatus } from "../ipc/types";
+
+const FORMAT_LABELS: Record<ExportFormat, string> = {
+  png: "PNG (as stored)",
+  tiff: "TIFF, uncompressed",
+  bmp: "BMP",
+};
 
 interface Props {
   items: Item[];
@@ -66,6 +72,7 @@ export function LimitsCard({ limits }: { limits: LimitsStatus | null }) {
 
 export function Inventory({ items, onFailure, notify, onExported }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [format, setFormat] = useState<ExportFormat>("png");
   const exportOne = async (item: Item) => {
     setBusy(item.sha256);
     try {
@@ -83,9 +90,10 @@ export function Inventory({ items, onFailure, notify, onExported }: Props) {
   const exportAll = async (role: string) => {
     setBusy(`all-${role}`);
     try {
-      const done = await ipc.exportAll(role);
+      const done = await ipc.exportAll(role, format);
+      const how = done.format && done.format !== "png" ? ` as ${done.format.toUpperCase()}` : "";
       notify(
-        `${String(done.files)} file(s) exported, listed in ${done.index}; each export is in the custody log.`,
+        `${String(done.files)} file(s) exported${how}, listed in ${done.index}; each export is in the custody log.`,
       );
       onExported?.();
     } catch (error) {
@@ -102,6 +110,24 @@ export function Inventory({ items, onFailure, notify, onExported }: Props) {
       <h2 id="inventory-title">Stored items</h2>
       {exports > 1 || grays > 1 || prints > 1 ? (
         <div className="store-actions">
+          <label className="field field-inline">
+            <span>File format for image exports</span>
+            <select
+              value={format}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value in FORMAT_LABELS) {
+                  setFormat(value as ExportFormat);
+                }
+              }}
+            >
+              {(Object.keys(FORMAT_LABELS) as ExportFormat[]).map((f) => (
+                <option key={f} value={f}>
+                  {FORMAT_LABELS[f]}
+                </option>
+              ))}
+            </select>
+          </label>
           {grays > 1 ? (
             <Button onClick={() => void exportAll("export-gray")} busy={busy === "all-export-gray"}>
               Export all {grays} grayscale exports...

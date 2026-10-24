@@ -298,3 +298,22 @@ def test_cli_card_reference_and_scale_notice(cli_case: Path, capsys: pytest.Capt
     assert "long or short" in capsys.readouterr().err
     assert main([*card, "--ruler", "0", "0", "1", "0", "1"]) == 1
     assert "not both" in capsys.readouterr().err
+
+
+def test_an_enlarged_export_carries_a_resolution_note(case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path) -> None:
+    photo = photo_file(tmp_path / "in")
+    outcome, _ = run_job(case_dir, keystore, photo, export=ExportOptions(target_ppi=1000.0))
+    export = outcome.report["export"]
+    assert export["factor"] > 1.05
+    assert "enlarged" in export["resolution_note"]
+    assert "1000 ppi" in export["resolution_note"]
+    plain, _ = run_job(case_dir, keystore, photo_file(tmp_path / "in2", "arch_default", "arch.png"))
+    assert plain.report["export"]["factor"] < 1.0
+    assert "resolution_note" not in plain.report["export"]
+
+
+def test_cli_prints_the_resolution_note(cli_case: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    with open_case(cli_case, PASSPHRASE, cli_common.KEYSTORE_FACTORY()) as case:
+        sha = case.items()[0].sha256
+    assert main(["extract", str(cli_case), "--evidence", sha, "--ppi", "1000"]) == 0
+    assert "resolution note: The export was enlarged" in capsys.readouterr().out
