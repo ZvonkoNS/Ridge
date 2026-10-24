@@ -66,7 +66,8 @@ export function exportLine(exp: ExportInfo | null): string {
     return `not produced: ${exp.reason}`;
   }
   const method = METHOD[exp.scale.method] ?? exp.scale.method;
-  return `${exp.ppi} ppi, scale from ${method}, ±${exp.scale.uncertainty_pct.toFixed(exp.scale.uncertainty_pct < 1 ? 2 : 0)} %; ${exp.transforms.join(", ")}`;
+  const twin = exp.grayscale ? `; grayscale twin ${exp.grayscale.sha256.slice(0, 12)}` : "";
+  return `${exp.ppi} ppi, scale from ${method}, ±${exp.scale.uncertainty_pct.toFixed(exp.scale.uncertainty_pct < 1 ? 2 : 0)} %; ${exp.transforms.join(", ")}${twin}`;
 }
 
 export function JobSummary({ result }: Props) {
@@ -92,7 +93,7 @@ export function JobSummary({ result }: Props) {
         <dd>
           {nfiq
             ? nfiq.computed
-              ? `${nfiq.score} (${nfiq.label})`
+              ? `${nfiq.score} (${nfiq.label})${nfiq.image ? ` on the ${nfiq.image} image` : ""}`
               : `not computed: ${nfiq.reason}`
             : "not computed"}
         </dd>

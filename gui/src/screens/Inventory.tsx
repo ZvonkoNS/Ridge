@@ -95,12 +95,18 @@ export function Inventory({ items, onFailure, notify, onExported }: Props) {
     }
   };
   const exports = items.filter((i) => i.role === "export").length;
+  const grays = items.filter((i) => i.role === "export-gray").length;
   const prints = items.filter((i) => i.role === "print").length;
   return (
     <section className="card card-wide" aria-labelledby="inventory-title">
       <h2 id="inventory-title">Stored items</h2>
-      {exports > 1 || prints > 1 ? (
+      {exports > 1 || grays > 1 || prints > 1 ? (
         <div className="store-actions">
+          {grays > 1 ? (
+            <Button onClick={() => void exportAll("export-gray")} busy={busy === "all-export-gray"}>
+              Export all {grays} grayscale exports...
+            </Button>
+          ) : null}
           {exports > 1 ? (
             <Button onClick={() => void exportAll("export")} busy={busy === "all-export"}>
               Export all {exports} comparison exports...

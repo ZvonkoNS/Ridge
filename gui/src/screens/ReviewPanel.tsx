@@ -60,7 +60,7 @@ export function outputScale(
   if (!exp) {
     return null;
   }
-  if (item.role === "export") {
+  if (item.role === "export" || item.role === "export-gray") {
     return { pxPerMm: exp.ppi / 25.4, method: exp.scale.method, uncertaintyPct: exp.scale.uncertainty_pct };
   }
   if (item.role === "print" && result.measurements) {
@@ -141,7 +141,9 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
       setResult(done);
       measure.reset(); // points belong to the previous output
       const preferred =
-        done.outputs.find((o) => o.role === "export") ?? done.outputs.find((o) => o.role === "print");
+        done.outputs.find((o) => o.role === "export-gray") ??
+        done.outputs.find((o) => o.role === "export") ??
+        done.outputs.find((o) => o.role === "print");
       setSelected(preferred?.sha256 ?? null);
       onJobDone();
     } catch (error) {

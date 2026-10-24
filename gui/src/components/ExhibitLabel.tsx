@@ -11,6 +11,7 @@ const ROLE_NAMES: Record<Role, string> = {
   print: "Extracted print",
   debug: "Debug image",
   export: "Comparison export",
+  "export-gray": "Grayscale comparison export",
   minutiae: "Minutiae",
 };
 
@@ -27,7 +28,7 @@ interface Props {
 }
 
 export function ExhibitLabel({ role, sha256, detail, scale, zoom }: Props) {
-  const processed = role === "print" || role === "debug" || role === "export";
+  const processed = role === "print" || role === "debug" || role === "export" || role === "export-gray";
   return (
     <div className="exhibit">
       <div className="exhibit-row">

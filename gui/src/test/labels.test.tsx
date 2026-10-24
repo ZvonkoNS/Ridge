@@ -8,7 +8,7 @@ const SHA = "3f9a1c2e".padEnd(64, "0");
 
 describe("exhibit labels", () => {
   it("marks every processed image as not an identification", () => {
-    for (const role of ["print", "export", "debug"] as const) {
+    for (const role of ["print", "export", "export-gray", "debug"] as const) {
       const { unmount } = render(<ExhibitLabel role={role} sha256={SHA} zoom={1} />);
       expect(screen.getByText(PROCESSED_LABEL)).toBeInTheDocument();
       unmount();

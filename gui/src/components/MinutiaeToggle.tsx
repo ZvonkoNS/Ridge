@@ -21,7 +21,7 @@ export function useMinutiaeOverlay(
   onError: (error: unknown) => void,
 ): Overlay {
   const [on, setOn] = useState(false);
-  const available = minutiaeSha !== null && (role === "print" || role === "export");
+  const available = minutiaeSha !== null && (role === "print" || role === "export" || role === "export-gray");
   const view = useMinutiae(on && available ? minutiaeSha : null, onError);
   const marks = on && available ? marksFor(view, role, shown) : null;
   return { available, on, setOn, marks };

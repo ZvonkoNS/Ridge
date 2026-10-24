@@ -186,3 +186,17 @@ def test_one_blob_has_one_role(case_dir: Path, keystore: MemoryKeyStore, tmp_pat
         assert [i.role for i in case.items()] == ["evidence"]
         case.import_evidence(photo)  # the same role again is a logged duplicate, not an error
         assert case.entries[-1]["result"] == "duplicate"
+
+
+def test_the_grayscale_export_goes_on_a_sheet_too(case_dir: Path, keystore: MemoryKeyStore, tmp_path: Path) -> None:
+    signer = unlock_identity(case_dir.parent, PASSPHRASE, keystore)
+    with open_case(case_dir, PASSPHRASE, keystore) as case:
+        evidence = case.import_evidence(photo_file(tmp_path / "in"))
+        outcome = run_extraction_job(case, evidence.sha256, signer, JobParams())
+        gray = next(o.sha256 for o in outcome.outputs if o.role == "export-gray")
+        candidate = reference_png(tmp_path / "candidate.png", dpi=(500, 500))
+        reference = case.import_reference(candidate, "NAFIS candidate 3").sha256
+        sheet = build_sheet(case, gray, reference)
+        assert (sheet.export_sha256, sheet.ppi) == (gray, 500.0)
+        with pytest.raises(ParameterError, match="not a comparison export"):
+            build_sheet(case, evidence.sha256, reference)

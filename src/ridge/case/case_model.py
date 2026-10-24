@@ -26,6 +26,7 @@ ROLES = {
     "print": "artefacts",
     "debug": "artefacts",
     "export": "artefacts",
+    "export-gray": "artefacts",  # the grayscale twin of the comparison export (FR-37, added 2026-10-24)
     "minutiae": "artefacts",
 }
 IMPORT_ACTIONS = {"evidence": "evidence.import", "reference": "reference.import"}  # stored from outside a job

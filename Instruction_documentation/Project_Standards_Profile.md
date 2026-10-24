@@ -1,6 +1,6 @@
 # Ridge Project Standards Profile
 
-Last verified: 2026-10-23
+Last verified: 2026-10-24
 Derived from `Project_Standards_Profile_Template.md`. Review triggers are in section 10. Product requirements: `docs/prd.md`. Design: `docs/architecture.md` (ADR table in section 13; `docs/adr/` when created).
 
 ## 1. Project identification
@@ -88,7 +88,7 @@ Editions marked "verified" were checked on 2026-10-16 against the source in `ref
 | ISO 21043 parts 1-5 | Yes | 21043-1:2025, -2:2018 (to be revised), -3:2025, -4:2025, -5:2025 (verified) | Forensic process, records, reporting | Mapping in forensic standards file | Forensic Quality Manager |
 | ENFSI Best Practice Manual for Fingerprint Examination | Yes (lab practice) | Edition not verified - confirm | ACE-V, documentation | Lab procedure reference | Forensic Quality Manager |
 | ISO/IEC 27037 / 27041 / 27042 / 27043 | Yes | 27037:2012, 27041:2015, 27042:2015, 27043:2015 (verified) | Evidence preservation, method suitability, analysis | Custody, hashing, validation evidence | Forensic Quality Manager |
-| ISO/IEC 29794-4 and NFIQ 2 | Yes (M2) | 29794-4:2024; NFIQ 2.3.0 (verified) | Quality indication, indicative only on photo-derived images | Validation results | Forensic Quality Manager |
+| ISO/IEC 29794-4 and NFIQ 2 | Yes (M2) | 29794-4:2024; NFIQ 2.3.0 (verified) | Quality indication, indicative only on photo-derived images; computed on the grayscale comparison export (FR-37) since 2026-10-24 | Validation results | Forensic Quality Manager |
 | ISO/IEC 39794-4 / 39794-2 | Candidate export formats (M3) | 39794-4:2019 + Amd 1:2023 (under review); 39794-2:2023 (verified) | Exports | Conformance tests | Product Owner |
 | ISO/IEC 19794-4 / 19794-2 | Candidate legacy formats | 19794-4:2011 + Amd 1:2013 + Amd 2:2015, confirmed 2024 (verified); 19794-2 not verified | Exports if the AFIS requires them | Conformance tests | Product Owner |
 | ANSI/NIST-ITL 1 | Candidate export format (M3) | ANSI/NIST-ITL 1-2025 (SP 500-290e4) is current (verified); the AFIS vendor may require 1-2011 Update 2015 - open question | Exports | Conformance tests against vendor spec | Product Owner |

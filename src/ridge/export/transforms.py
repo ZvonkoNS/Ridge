@@ -30,6 +30,8 @@ from ridge.pipeline.extract import ExtractionResult
 
 type ScaleMethod = Literal["ruler", "ridge-period", "manual"]
 SCALE_METHODS: Final[tuple[ScaleMethod, ...]] = ("ruler", "ridge-period", "manual")
+type Tone = Literal["binary", "grayscale"]  # which print an export is made from (FR-30, FR-37)
+TONES: Final[tuple[Tone, ...]] = ("binary", "grayscale")
 
 MM_PER_INCH: Final = 25.4
 DEFAULT_PPI: Final = 500.0  # usual AFIS resolution, and the one NFIQ 2 is defined for
@@ -45,6 +47,7 @@ ASSUMED_RIDGE_PERIOD_MM: Final = 0.47
 RIDGE_PERIOD_UNCERTAINTY_PCT: Final = 15.0
 CLICK_ERROR_PX: Final = 1.0  # assumed error of each ruler point placed by the examiner
 
+TONE_GRAYSCALE: Final = "tone:grayscale"  # first transform of a grayscale export
 POLARITY_DARK_RIDGES: Final = "polarity:dark-ridges"
 MIRROR_HORIZONTAL: Final = "mirror:horizontal"
 
@@ -81,7 +84,7 @@ class ExportResult:
     size is rounded to whole pixels). ``factor`` is the resampling factor applied to the
     extraction output (export pixels per extraction-output pixel). ``transforms`` lists the
     applied steps in order, e.g. ``("polarity:dark-ridges", "mirror:horizontal",
-    "scale:500ppi:ruler")``.
+    "scale:500ppi:ruler")``; a grayscale export starts with ``"tone:grayscale"``.
     """
 
     image: ImageU8
@@ -187,21 +190,37 @@ def to_ppi(
     return cast(ImageU8, np.clip(np.rint(resized), 0, 255).astype(np.uint8)), factor
 
 
+def _source(result: ExtractionResult, tone: object) -> tuple[ImageU8, list[str]]:
+    """Return the print an export starts from and the transform names that say so."""
+    if tone == "binary":
+        return result.image, []
+    if tone == "grayscale":
+        if result.gray is None:
+            raise ParameterError("this extraction result has no grayscale print to export")
+        return result.gray, [TONE_GRAYSCALE]
+    raise ParameterError(f"tone must be one of {', '.join(TONES)}")
+
+
 def make_comparison_export(
     result: ExtractionResult,
     photo_scale: ScaleEstimate,
     *,
     mirror_image: bool = True,
     target_ppi: float = DEFAULT_PPI,
+    tone: Tone = "binary",
 ) -> ExportResult:
     """Turn an extraction result into a comparison export: polarity, mirror, then scale.
 
+    `tone` chooses the source: ``"binary"`` is the print (``result.image``, FR-30 to FR-32),
+    ``"grayscale"`` its un-thresholded twin (``result.gray``, FR-37), whose transforms start with
+    ``"tone:grayscale"``. Both get the same geometry, so they overlay exactly.
     `mirror_image=False` skips the left-right flip (for example when the photo already shows
     a mirrored impression); the transforms list then omits it. The export is a processed
     image derived from the photo, for examiner comparison only.
     """
-    image = to_comparison(result.image)
-    steps = [POLARITY_DARK_RIDGES]
+    source, steps = _source(result, tone)
+    image = to_comparison(source)
+    steps.append(POLARITY_DARK_RIDGES)
     if mirror_image:
         image = mirror(image)
         steps.append(MIRROR_HORIZONTAL)

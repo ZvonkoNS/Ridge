@@ -46,7 +46,7 @@ export interface CaseCreated {
   session: SessionInfo | null;
 }
 
-export type Role = "evidence" | "reference" | "print" | "debug" | "export" | "minutiae";
+export type Role = "evidence" | "reference" | "print" | "debug" | "export" | "export-gray" | "minutiae";
 
 export interface Item {
   sha256: string;
@@ -169,11 +169,15 @@ export type ExportInfo =
       factor: number;
       transforms: string[];
       scale: ScaleInfo;
+      /** The grayscale twin of the export (FR-37); absent in reports made before it. */
+      grayscale?: { sha256: string; transforms: string[] };
     }
   | { produced: false; reason: string };
 
+/** `image` names the stored role the tool scored (FR-37); absent in reports made before it. */
 export type Nfiq2 =
-  { computed: true; score: number; version: string; label: string } | { computed: false; reason: string };
+  | { computed: true; score: number; version: string; label: string; image?: string }
+  | { computed: false; reason: string; image?: string };
 
 export interface Quality {
   nfiq2: Nfiq2;

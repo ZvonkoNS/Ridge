@@ -21,7 +21,7 @@ from ridge.case.store import OpenCase
 from ridge.errors import OutputError, OutputExistsError, ParameterError, RidgeError
 from ridge.image_io import publish
 
-ROLES = ("export", "print", "minutiae", "evidence", "reference")
+ROLES = ("export", "export-gray", "print", "minutiae", "evidence", "reference")
 INDEX = "EXPORTS.csv"
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 
