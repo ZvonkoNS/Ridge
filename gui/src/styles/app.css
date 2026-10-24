@@ -1558,3 +1558,59 @@ kbd {
   padding-left: var(--space-5);
   font-size: var(--step--1);
 }
+
+/* Examiner marks (FR-56): a third kind, labels, and the examiner's own colour over the automatic marks. */
+.ov-mark polygon {
+  fill: none;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.ov-other polygon,
+.ov-other line {
+  stroke: #ffd400;
+}
+
+.ov-examiner circle,
+.ov-examiner rect,
+.ov-examiner polygon,
+.ov-examiner line {
+  stroke: #ff6a00;
+  stroke-width: 3px;
+}
+
+.ov-mark text {
+  fill: #ff6a00;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: #000000;
+  stroke-width: 0.35px;
+}
+
+.marking-panel .marking-head,
+.marking-panel .marking-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.marking-kind {
+  display: flex;
+  gap: 0.5rem;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.draft-marks {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.draft-marks li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}

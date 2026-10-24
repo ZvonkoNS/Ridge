@@ -13,8 +13,11 @@ export const MINUTIAE_NOTE =
 export interface Mark {
   x: number;
   y: number;
-  kind: "ending" | "bifurcation";
-  angle: number;
+  kind: "ending" | "bifurcation" | "other";
+  /** Direction in degrees counter-clockwise from +x, or null for a mark without one (examiner's marks). */
+  angle: number | null;
+  /** Text drawn beside the mark (the examiner's mark number). */
+  label?: string;
 }
 
 export interface Marks {
