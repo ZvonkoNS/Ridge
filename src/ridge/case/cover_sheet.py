@@ -83,8 +83,12 @@ def _file_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
     rows.append(("Scale notice", _text(_value(scale_notice_line(export)).replace("+-", "±"))))
     rows.append(("Resolution", _text(_value(resolution_note_line(export)))))
     rows.append(("NFIQ 2", _text(_value(nfiq2_line((report.get("quality") or {}).get("nfiq2")))) or "not computed"))
-    limits = report.get("limits_of_use") or {}
-    if limits.get("configured"):
+    limits = report.get("limits_of_use")
+    if limits is None:  # a report made before limits of use were recorded (FR-38 asks for the outcome)
+        rows.append(("Limits of use", _text("not recorded in this report")))
+    elif not limits.get("configured"):
+        rows.append(("Limits of use", _text("none configured in this store: the job was not assessed against limits")))
+    else:
         rows.append(_limits_row(limits))
     return rows
 

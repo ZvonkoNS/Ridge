@@ -12,6 +12,7 @@ the metadata reader already made safe.
 from __future__ import annotations
 
 import io
+import re
 from typing import Any, Final
 
 from PIL import Image, UnidentifiedImageError
@@ -77,15 +78,25 @@ def _summary_value(meta: dict[str, Any], name: str) -> str | None:
     return None
 
 
+def _exif_unreadable(meta: dict[str, Any]) -> bool:
+    """Return True when the metadata reader found an EXIF block it could not parse (reported in its warnings)."""
+    return any("EXIF block could not be read" in str(w) for w in meta.get("warnings") or [])
+
+
 def _has_exif(meta: dict[str, Any]) -> bool:
-    return any(str(g.get("id", "")).startswith("exif-") for g in meta.get("groups") or [] if isinstance(g, dict))
+    """Return True when an EXIF block is there, readable or not (an unreadable block is not an absent one)."""
+    groups = any(str(g.get("id", "")).startswith("exif-") for g in meta.get("groups") or [] if isinstance(g, dict))
+    return groups or _exif_unreadable(meta)
+
+
+_HISTORY = re.compile(r"^[^:/\[]+:History(\[|$)")  # xmpMM:History under whatever prefix the packet declared
 
 
 def _history_entries(meta: dict[str, Any]) -> int:
     count = 0
     for group in meta.get("groups") or []:
         if isinstance(group, dict) and group.get("id") == "xmp":
-            count += sum(1 for e in group.get("entries") or [] if str(e.get("name", "")).startswith("xmpMM:History"))
+            count += sum(1 for e in group.get("entries") or [] if _HISTORY.match(str(e.get("name", ""))))
     return count
 
 
@@ -94,6 +105,12 @@ def provenance_hints(data: bytes, meta: dict[str, Any] | None) -> dict[str, Any]
     meta = meta if isinstance(meta, dict) else {}
     fmt, size, tables = _header(data)
     hints: list[Hint] = []
+    if _exif_unreadable(meta):
+        hints.append(
+            _hint(
+                "exif-unreadable", "The EXIF block could not be read, so whether the camera's data is there is unknown."
+            )
+        )
     exif = _has_exif(meta)
     if not exif:
         hints.append(

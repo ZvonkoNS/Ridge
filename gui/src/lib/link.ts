@@ -26,6 +26,7 @@ export interface LinkedView {
   zoom: number;
 }
 
+/** The link between the photo and an output, or null when the job has no print area or the output is not loaded. */
 export function outputLink(
   area: PrintArea | null | undefined,
   output: Size | null,

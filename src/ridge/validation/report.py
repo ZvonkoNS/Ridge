@@ -132,6 +132,10 @@ def read_ranks(path: Path) -> Ranks:
         grouped = "group" in reader.fieldnames
         groups: Ranks = defaultdict(list)
         for line, row in enumerate(reader, start=2):
+            if (
+                row.get("rank") is None or None in row
+            ):  # csv fills a short row with None and keeps extra fields under None
+                raise ParameterError(f"line {line}: the row does not have the header's fields")
             if not (row.get("probe") or "").strip():
                 raise ParameterError(f"line {line}: probe is empty")
             text = (row.get("rank") or "").strip()

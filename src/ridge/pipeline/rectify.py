@@ -48,11 +48,12 @@ class Rectification:
     half_width: Profile
     size: tuple[int, int]
     middle: float
+    rows: NDArray[np.bool_]  # the source rows that hold finger (the others carry the nearest row's geometry)
 
     @property
     def half_width_px(self) -> float:
-        """The median half-width of the rows that hold finger, for the report."""
-        return float(np.median(self.half_width[self.half_width > MIN_HALF_WIDTH]))
+        """The median half-width over the rows that hold finger, for the report (background rows do not count)."""
+        return float(np.median(self.half_width[self.rows]))
 
 
 def _smoothed(values: Profile, sigma: float) -> Profile:
@@ -63,8 +64,8 @@ def _smoothed(values: Profile, sigma: float) -> Profile:
     return cast(Profile, np.convolve(padded, kernel / kernel.sum(), mode="valid"))
 
 
-def width_profile(mask: Mask) -> tuple[Profile, Profile] | None:
-    """Return the finger's centre line and half-width per row, smoothed; None when the finger is too short."""
+def width_profile(mask: Mask) -> tuple[Profile, Profile, NDArray[np.bool_]] | None:
+    """Return the centre line and half-width per row (smoothed) and the rows that hold finger; None when too short."""
     filled = mask.any(axis=1)
     rows = np.flatnonzero(filled)
     if rows.size < MIN_ROWS:
@@ -80,7 +81,7 @@ def width_profile(mask: Mask) -> tuple[Profile, Profile] | None:
     centre = np.interp(index, index[good], centre[good])  # rows without a usable width take the nearest one's
     half = np.interp(index, index[good], half[good])
     sigma = max(1.0, SMOOTH_SHARE * rows.size)
-    return _smoothed(centre, sigma), _smoothed(half, sigma)
+    return _smoothed(centre, sigma), _smoothed(half, sigma), filled
 
 
 def rectification(mask: Mask) -> Rectification | None:
@@ -88,12 +89,12 @@ def rectification(mask: Mask) -> Rectification | None:
     profile = width_profile(mask)
     if profile is None:
         return None
-    centre, half = profile
+    centre, half, filled = profile
     middle = float(math.ceil(float(half.max()) * MAX_ANGLE) + 1)
     width, height = int(2 * middle), mask.shape[0]
     if width * height > MAX_RECTIFIED_PIXELS:
         raise WorkAreaTooLargeError("the finger is too large to rectify; crop the photo to the finger")
-    return Rectification(centre, half, (width, height), middle)
+    return Rectification(centre, half, (width, height), middle, filled)
 
 
 def _maps(r: Rectification) -> tuple[NDArray[np.float32], NDArray[np.float32]]:

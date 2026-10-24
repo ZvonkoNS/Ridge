@@ -34,7 +34,7 @@ MIN_CLARITY: Final = 0.02  # median spectral peak share of the finger's patches 
 # (provisional: synthetic sharp fingers read about 0.05, fingers blurred by 5 px about 0.005; the pilot adjusts it)
 MAX_GLARE_SHARE: Final = 0.05  # more of the finger than this under specular highlights: glare
 LOW_JPEG_QUALITY: Final = 80  # a JPEG saved below this IJG quality was probably recompressed on the way
-COPY_HINTS: Final = frozenset({"software", "xmp-history", "copy-size", "not-camera-format", "png"})
+COPY_HINTS: Final = frozenset({"xmp-history", "copy-size", "not-camera-format", "png"})  # "software" alone is not one
 NOTICE: Final = (
     "This check only says whether photographing the finger again would help. It is not a quality score of a "
     "print and says nothing about identification."
@@ -188,6 +188,15 @@ def _provenance_findings(data: bytes) -> list[Finding]:
                 "note",
                 f"The JPEG was saved at an estimated quality of {quality:.0f}: it was probably recompressed on the "
                 "way (messaging apps do this). Transfer the original.",
+            )
+        )
+    if "software" in found and not found.keys() & COPY_HINTS:
+        findings.append(
+            Finding(
+                "software",
+                "note",
+                "The file names the software that saved it; a camera's own firmware does that too, so this alone "
+                "is not a sign of editing.",
             )
         )
     if "no-exif" in found or "no-camera" in found:

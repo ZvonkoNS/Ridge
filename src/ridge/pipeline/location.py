@@ -22,6 +22,7 @@ from ridge.pipeline.upright import Rotation, to_photo
 MAX_OUTLINE_POINTS = 256  # bounds the report; the outline is smooth at the scale of a ridge spacing anyway
 MAX_SIMPLIFY_STEPS = 12  # each step doubles the tolerance
 FRAME_STEPS = 16  # points along each side of the frame when the frame's edges curve (rectified finger)
+EDGE_STEP_PX = 8.0  # an outline edge is subdivided this finely before a row-wise (nonlinear) mapping
 
 type Box = tuple[int, int, int, int]  # x, y, width, height in photo pixels
 type Polygon = tuple[tuple[int, int], ...]
@@ -67,13 +68,11 @@ class PrintLocation:
         points = tuple((int(px), int(py)) for px, py in frame.tolist())
         xs, ys = [p[0] for p in points], [p[1] for p in points]
         box = (min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
-        outline = tuple(
-            tuple(
-                (int(px), int(py))
-                for px, py in np.rint(to_source(np.array(poly, dtype=np.float64), rectification)).tolist()
-            )
-            for poly in self.outline
-        )
+        # A straight outline edge is not straight after the row-wise unrolling: map points along it, not only its ends.
+        mapped = [
+            np.rint(to_source(_densified(np.array(poly, dtype=np.float64)), rectification)) for poly in self.outline
+        ]
+        outline = tuple(tuple((int(px), int(py)) for px, py in poly.tolist()) for poly in _bounded(mapped))
         return PrintLocation(box, outline, self.parts, points, self.rotation_deg)
 
     def in_photo(self, rotation: Rotation, size: tuple[int, int]) -> PrintLocation:
@@ -110,6 +109,31 @@ class PrintLocation:
             area["frame_px"] = [list(p) for p in self.frame]
             area["rotation_deg"] = self.rotation_deg
         return area
+
+
+def _densified(poly: np.ndarray, step: float = EDGE_STEP_PX) -> np.ndarray:
+    """Insert points along every edge of a closed polygon (N x 2) so that no segment is longer than `step`."""
+    if len(poly) < 2:
+        return poly
+    out: list[np.ndarray] = []
+    for a, b in zip(poly, np.roll(poly, -1, axis=0), strict=True):
+        pieces = max(1, int(np.ceil(float(np.hypot(*(b - a))) / step)))
+        out.extend(a + (b - a) * (k / pieces) for k in range(pieces))
+    return np.array(out, dtype=np.float64)
+
+
+def _bounded(polys: list[np.ndarray], limit: int = MAX_OUTLINE_POINTS) -> list[np.ndarray]:
+    """Simplify closed polygons with a growing tolerance until they hold at most `limit` points in all."""
+    tolerance = 0.5
+    for _ in range(MAX_SIMPLIFY_STEPS):
+        if sum(len(p) for p in polys) <= limit:
+            return polys
+        polys = [
+            cv2.approxPolyDP(p.astype(np.float32).reshape(-1, 1, 2), tolerance, True).reshape(-1, 2).astype(np.float64)
+            for p in polys
+        ]
+        tolerance *= 2
+    return polys
 
 
 def _photo_box(window: Box, scale: float, bounds: Box) -> Box:

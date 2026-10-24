@@ -2,6 +2,7 @@ import { Check } from "../components/Check";
 import type { Channel } from "../ipc/types";
 import type { Params } from "./ParametersForm";
 
+/** The colour planes the ridge signal can be taken from (ADR-014), as shown in the select. */
 export const CHANNELS: Record<Channel, string> = {
   green: "green (default)",
   red: "red",
@@ -10,6 +11,7 @@ export const CHANNELS: Record<Channel, string> = {
   auto: "auto: the plane with the strongest ridge signal",
 };
 
+/** The fieldset's standing warning: variants change pixels and are not validated. */
 export const VARIANTS_NOTE =
   "Method variants change the output pixels and are not covered by the validation (ADR-014). Off by default; every report records them.";
 

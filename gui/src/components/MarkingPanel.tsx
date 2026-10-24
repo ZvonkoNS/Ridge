@@ -1,7 +1,7 @@
 // Marking minutiae on a job's output (FR-56): the examiner clicks on the output viewer to place
 // numbered marks, removes or labels them, and saves the set, which the sidecar records as a signed
 // custody entry (FR-55). Saved marks of the latest set are drawn too. Nothing here interprets a mark.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ipc } from "../ipc/commands";
 import type { Annotation, AnnotationMark, Role } from "../ipc/types";
@@ -11,12 +11,15 @@ import { ANNOTATIONS_NOTE } from "./AnnotationsPanel";
 import { Button } from "./ui";
 
 export type MarkKind = AnnotationMark["kind"];
+/** The kinds an examiner can mark, as shown in the radio group. */
 export const KIND_LABELS: Record<MarkKind, string> = {
   ending: "Ending",
   bifurcation: "Bifurcation",
   other: "Other",
 };
+/** Only the job's own output images can be annotated (FR-55); references and evidence cannot. */
 export const MARKABLE_ROLES: readonly Role[] = ["print", "export", "export-gray"];
+/** The sidecar's limit for a mark's label. */
 export const MAX_LABEL_CHARS = 40;
 
 export interface DraftMark {
@@ -44,6 +47,10 @@ interface Image {
   role: Role;
 }
 
+/**
+ * Marking state for one output image: the mark tool's switch, the kind and label of the next mark, the unsaved
+ * marks, the note, the latest saved set, and the save through FR-55. Everything stays in memory until saved.
+ */
 export function useMarking(
   jobId: string | null,
   image: Image | null,
@@ -61,6 +68,10 @@ export function useMarking(
   const [showSaved, setShowSaved] = useState(true);
   const [saving, setSaving] = useState(false);
   const sha256 = image?.sha256 ?? null;
+  const onScreen = useRef(sha256); // the image on screen, for a save that completes after a switch
+  useEffect(() => {
+    onScreen.current = sha256;
+  }, [sha256]);
 
   // A different image gets its own draft and saved set (the pattern ImageViewer uses for a new url).
   const [forImage, setForImage] = useState(sha256);
@@ -107,8 +118,10 @@ export function useMarking(
       return;
     }
     setSaving(true);
+    const target = sha256;
+    const snapshot = draft;
     try {
-      const marks = draft.map(({ x, y, kind: k, label: l }) => ({ x, y, kind: k, label: l }));
+      const marks = snapshot.map(({ x, y, kind: k, label: l }) => ({ x, y, kind: k, label: l }));
       const trimmed = note.trim();
       const recorded = await ipc.addAnnotation(
         jobId,
@@ -117,9 +130,11 @@ export function useMarking(
         trimmed === "" ? null : trimmed,
         saved?.seq ?? null,
       );
-      setSaved(recorded);
-      setDraft([]);
-      setNote("");
+      if (onScreen.current === target) {
+        setSaved(recorded);
+        setDraft((d) => d.filter((m) => !snapshot.includes(m))); // marks placed meanwhile stay unsaved
+        setNote("");
+      }
       notify?.(
         `Annotation set #${recorded.seq} recorded with ${recorded.marks.length} marks and signed by entry #${recorded.signed_seq ?? "?"}.`,
       );
@@ -164,6 +179,7 @@ export function useMarking(
 
 export type Marking = ReturnType<typeof useMarking>;
 
+/** The controls under the output viewer for `useMarking`. Renders nothing for an image that cannot be annotated. */
 export function MarkingPanel({ m }: { m: Marking }) {
   if (!m.enabled) {
     return null;

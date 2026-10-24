@@ -53,7 +53,8 @@ def ellipse_mask(height: int, width: int, a: float, b: float) -> Mask:
 def test_the_width_profile_follows_the_finger() -> None:
     profile = width_profile(ellipse_mask(HEIGHT, WIDTH, HALF, LONG))
     assert profile is not None
-    centre, half = profile
+    centre, half, rows = profile
+    assert rows.sum() == 481  # the ellipse's rows
     assert centre.shape == half.shape == (HEIGHT,)
     assert np.allclose(centre[60:540], WIDTH / 2.0, atol=1.0)
     assert half[300] == pytest.approx(HALF, rel=0.03)
@@ -70,7 +71,7 @@ def test_unrolling_inverts_exactly_and_is_bounded(monkeypatch: pytest.MonkeyPatc
     reach = math.radians(MAX_ANGLE_DEG)
     assert r.size[1] == HEIGHT
     assert r.size[0] == pytest.approx(2 * HALF * reach, abs=8)
-    assert r.half_width_px == pytest.approx(100, rel=0.05)  # the median half-width over the finger's rows
+    assert r.half_width_px == pytest.approx(HALF * 0.866, rel=0.05)  # the median half-width over the finger's rows
     points = np.array([[200.0, 300.0], [300.0, 300.0], [110.0, 200.0], [290.0, 450.0]])
     assert np.abs(to_source(to_canvas(points, r), r) - points).max() < 1e-6
     w, c = r.half_width[300], r.centre[300]
@@ -99,7 +100,7 @@ def test_default_options_are_unchanged_and_the_variant_evens_out_a_curved_pad() 
     assert plain.location is not None
     assert plain.location.frame is None
     rect = extract_fingerprint(photo, options=MethodOptions(rectify=True), debug=True)
-    assert rect.rectified_half_width_px == pytest.approx(100, rel=0.08)
+    assert rect.rectified_half_width_px == pytest.approx(HALF * 0.866, rel=0.08)
     assert rect.rotation_deg is not None
     assert abs(rect.rotation_deg) < 1.0  # already upright: the implied rotation is tiny
     assert rect.period == pytest.approx(9.0, rel=0.05)  # the unrolled spacing is the pattern's
@@ -156,7 +157,7 @@ def test_jobs_record_the_rectification(case_dir: tuple[Path, MemoryKeyStore], tm
         outcome = run_extraction_job(case, evidence.sha256, signer, JobParams(options=MethodOptions(rectify=True)))
         meas = outcome.report["measurements"]
         assert meas["rectification"]["max_angle_deg"] == MAX_ANGLE_DEG
-        assert meas["rectification"]["half_width_px"] == pytest.approx(100, rel=0.08)
+        assert meas["rectification"]["half_width_px"] == pytest.approx(HALF * 0.866, rel=0.08)
         assert len(meas["print_area"]["frame_px"]) > 4
         text = render_report(load_report(case, store, outcome.job_id).report, signer.key_id)
         assert "rectified (pad half-width" in text

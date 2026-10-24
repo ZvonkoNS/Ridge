@@ -139,8 +139,12 @@ def export_and_score(
         "scale": _scale_info(scale),
         "grayscale": {"sha256": gray_item.sha256, "transforms": list(gray.transforms)},
     }
-    if binary.factor > UPSAMPLING_TOLERANCE:
-        export_info["resolution_note"] = RESOLUTION_NOTE.format(factor=binary.factor, ppi=binary.ppi)
+    # The pipeline already enlarges a low-resolution photo's print (output_scale > 1), so the export's
+    # pixels per photo pixel are the two factors together; that is what says whether detail was invented.
+    enlargement = binary.factor * result.output_scale
+    export_info["pixels_per_photo_pixel"] = enlargement
+    if enlargement > UPSAMPLING_TOLERANCE:
+        export_info["resolution_note"] = RESOLUTION_NOTE.format(factor=enlargement, ppi=binary.ppi)
     quality = {"nfiq2": nfiq2_score(case, gray_png, gray.ppi, nfiq2_command, image=GRAY_ROLE)}
     return [item, gray_item], {"export": export_info, "quality": quality}
 

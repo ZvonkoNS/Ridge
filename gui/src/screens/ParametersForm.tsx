@@ -137,7 +137,9 @@ export function toOptions(evidence: string, p: Params, photo?: Size | null): Job
     mirror: p.mirror,
     ppi: p.ppi,
     ruler,
-    reference: p.reference,
+    // No points: the engine estimates the scale, and it refuses a card kind without points (also what
+    // "Run on all photos" sends, since the points belong to one photo).
+    reference: ruler === null ? "ruler" : p.reference,
     minutiae: p.minutiae,
     roi: p.roi ? [p.roi.x, p.roi.y, p.roi.width, p.roi.height] : null,
     finger_position: p.fingerPosition,
