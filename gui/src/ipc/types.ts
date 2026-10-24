@@ -138,10 +138,25 @@ export interface PhotoMetadata {
   truncated: boolean;
 }
 
+/** One provenance hint (FR-42): a sign the photo may be a copy or an edit, never a verified fact. */
+export interface ProvenanceHint {
+  id: string;
+  text: string;
+}
+
+export interface ProvenanceHints {
+  schema: string;
+  hints: ProvenanceHint[];
+  jpeg_quality_estimate: number | null;
+  notice: string;
+}
+
 export interface PhotoMetadataView {
   sha256: string;
   role: "evidence" | "reference";
   metadata: PhotoMetadata;
+  /** Absent from engines before FR-42. */
+  provenance?: ProvenanceHints | null;
 }
 
 export interface Measurements {
@@ -343,6 +358,8 @@ export interface JobReport {
     source?: string | null;
     /** Absent in reports made before Ridge recorded the photo's metadata. */
     metadata?: PhotoMetadata | null;
+    /** Absent in reports made before FR-42. */
+    provenance?: ProvenanceHints | null;
   };
   parameters: Record<string, unknown>;
   measurements: Measurements | null;

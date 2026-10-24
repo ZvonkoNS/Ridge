@@ -15,23 +15,24 @@ from typing import Any
 
 from ridge.case import cli_common as common
 from ridge.case.metadata_render import metadata_text
-from ridge.case.photo_metadata import read_photo_metadata
+from ridge.case.photo_metadata import read_photo_record
 from ridge.case.reports import printable
 from ridge.case.store import open_case
+from ridge.metadata.provenance import provenance_text
 from ridge.metadata.values import text
 
 
 def cmd_metadata(args: argparse.Namespace) -> None:
     """Print an imported photo's metadata, read from its verified stored bytes (the read is logged)."""
     with open_case(args.case, common.read_passphrase(), common.KEYSTORE_FACTORY()) as case:
-        item, meta = read_photo_metadata(case, args.sha)  # other roles refused before the read
+        item, meta, hints = read_photo_record(case, args.sha)  # other roles refused before the read
     if args.json:
         # The values are attacker-controlled; ASCII-only JSON cannot carry a terminal escape (CWE-150).
         common.say(json.dumps(meta, ensure_ascii=True, indent=2), lines=True)
         return
     # The label is the source file's name: shown like a metadata value, so bidirectional marks are visible.
     common.say(printable(f"{item.role} {item.sha256}  {text(item.label)}"))
-    for line in metadata_text(meta):
+    for line in [*metadata_text(meta), *provenance_text(hints)]:
         common.say(printable(line))
 
 

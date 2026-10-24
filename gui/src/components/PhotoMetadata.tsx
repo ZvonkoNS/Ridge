@@ -5,7 +5,13 @@
 import { motion } from "motion/react";
 import { useId, useState } from "react";
 
-import type { MetadataEntry, MetadataGroup, PhotoLocation, PhotoMetadata } from "../ipc/types";
+import type {
+  MetadataEntry,
+  MetadataGroup,
+  PhotoLocation,
+  PhotoMetadata,
+  ProvenanceHints,
+} from "../ipc/types";
 import { usePhotoMetadata } from "../lib/usePhotoMetadata";
 import { CopyButton } from "./CopyButton";
 
@@ -126,6 +132,32 @@ interface PanelProps {
   failed?: boolean;
   /** Where the metadata comes from, for the heading ("photo" or "signed report"). */
   from?: "photo" | "report";
+  /** Provenance hints (FR-42); absent for engines and reports before them. */
+  provenance?: ProvenanceHints | null | undefined;
+}
+
+/** Signs that the photo may be a copy or an edit, as the trusted core states them; never verified. */
+export function ProvenanceHintsList({ hints }: { hints: ProvenanceHints | null | undefined }) {
+  if (!hints) {
+    return null;
+  }
+  return (
+    <section className="meta-provenance" aria-label="Provenance hints">
+      <h4>Provenance hints</h4>
+      <p className="meta-notice">{hints.notice}</p>
+      {hints.hints.length > 0 ? (
+        <ul className="meta-list">
+          {hints.hints.map((h) => (
+            <li key={h.id}>{h.text}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="meta-none">
+          No hint: nothing in the file suggests a copy or an edit (which proves nothing).
+        </p>
+      )}
+    </section>
+  );
 }
 
 export function PhotoMetadataPanel({
@@ -133,6 +165,7 @@ export function PhotoMetadataPanel({
   loading = false,
   failed = false,
   from = "photo",
+  provenance,
 }: PanelProps) {
   const headingId = useId();
   const [find, setFind] = useState("");
@@ -204,6 +237,7 @@ export function PhotoMetadataPanel({
             </ul>
           </>
         ) : null}
+        <ProvenanceHintsList hints={provenance} />
       </>
     );
   }
@@ -230,5 +264,12 @@ export function StoredPhotoMetadata({
   onFailure: (error: unknown) => void;
 }) {
   const loaded = usePhotoMetadata(sha256, onFailure);
-  return <PhotoMetadataPanel metadata={loaded.metadata} loading={loaded.loading} failed={loaded.failed} />;
+  return (
+    <PhotoMetadataPanel
+      metadata={loaded.metadata}
+      provenance={loaded.provenance}
+      loading={loaded.loading}
+      failed={loaded.failed}
+    />
+  );
 }

@@ -41,6 +41,7 @@ from ridge.case.store import OpenCase
 from ridge.case.submission import submission_line
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
 from ridge.image_io import read_bounded
+from ridge.metadata.provenance import provenance_text
 
 SIGNATURE_SUFFIX = ".sig"
 MAX_REPORT_BYTES = 1024 * 1024  # reports hold summaries only; real ones are a few KiB
@@ -284,6 +285,7 @@ def render_report(report: dict[str, Any], key_id: str) -> str:
         ),
         f"Custody head  {report.get('custody_head')}",
         *metadata_text(source.get("metadata")),
+        *provenance_text(source.get("provenance")),
         str(report.get("disclaimer", "")),
     ]
     return "\n".join(printable(line) for line in lines if line)
