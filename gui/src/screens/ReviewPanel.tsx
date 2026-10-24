@@ -18,7 +18,15 @@ import { pngUrl } from "../ipc/images";
 import type { Item, JobResult } from "../ipc/types";
 import { usePreview } from "../lib/usePreview";
 import { distance, type Rect } from "../lib/viewport";
-import { DEFAULT_PARAMS, ParametersForm, referenceMm, toOptions, type Params } from "./ParametersForm";
+import { RESEARCH_NOTE } from "./MethodVariants";
+import {
+  DEFAULT_PARAMS,
+  ParametersForm,
+  referenceMm,
+  toOptions,
+  withoutVariants,
+  type Params,
+} from "./ParametersForm";
 import { JobSummary } from "./JobSummary";
 
 // As ridge.export.transforms: the click error per point, the ID-1 size tolerance and the alignment allowance.
@@ -82,6 +90,7 @@ export function outputScale(
 
 export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, notify }: Props) {
   const [params, setParams] = useState<Params>(DEFAULT_PARAMS);
+  const [research, setResearch] = useState(false);
   const [tool, setTool] = useState<Tool>("pan");
   const [result, setResult] = useState<JobResult | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -302,7 +311,23 @@ export function ReviewPanel({ evidence, allEvidence = [], onFailure, onJobDone, 
         </div>
       </div>
       <StoredPhotoMetadata sha256={evidence.sha256} onFailure={onFailure} />
-      <ParametersForm value={params} onChange={setParams} disabled={running}>
+      <label className="check research-mode">
+        <input
+          type="checkbox"
+          checked={research}
+          disabled={running}
+          onChange={(e) => {
+            const on = e.target.checked;
+            setResearch(on);
+            if (!on) {
+              setParams((p) => withoutVariants(p));
+            }
+          }}
+        />
+        <span>Research mode</span>
+        <small>{RESEARCH_NOTE}</small>
+      </label>
+      <ParametersForm value={params} onChange={setParams} disabled={running} research={research}>
         <div className="params-actions">
           {problem ? (
             <p className="field-error" role="alert">

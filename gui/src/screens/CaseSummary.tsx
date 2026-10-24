@@ -10,7 +10,8 @@ const ROLE: Record<string, string> = {
   evidence: "evidence photo(s)",
   reference: "reference image(s)",
   print: "processed print(s)",
-  export: "comparison export(s)",
+  export: "binary comparison export(s)",
+  "export-gray": "grayscale comparison export(s)",
   minutiae: "minutiae file(s)",
   debug: "debug image(s)",
 };

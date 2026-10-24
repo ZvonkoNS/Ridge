@@ -100,7 +100,7 @@ ridge-case check-photo --case D:/ridge-store/<case-id> <sha>   # the same on a s
 ridge-case import-reference D:/ridge-store/<case-id> candidate.png --source "NAFIS candidate 3"
 ridge-case compare D:/ridge-store/<case-id> <export-sha> <reference-sha> --to sheet.png   # equal scale, view only
 ridge-case export D:/ridge-store/<case-id> <sha> --to print.png   # the only way plaintext leaves the store (logged)
-ridge-case export-all D:/ridge-store/<case-id> --to D:/for-afis   # every binary comparison export, one logged export each, with EXPORTS.csv
+ridge-case export-all D:/ridge-store/<case-id> --to D:/for-afis   # every binary comparison export, one logged export each, with EXPORTS.csv   # grayscale comparison exports by default; --role export for the binary ones
 ridge-case export-all D:/ridge-store/<case-id> --to D:/for-afis-gray --role export-gray   # the grayscale exports (FR-37)
 ridge-case export-all D:/ridge-store/<case-id> --to D:/for-afis-tiff --role export-gray --format tiff   # converted to uncompressed TIFF (FR-32)
 ridge-case export D:/ridge-store/<case-id> <sha> --to D:/out/finger.bmp   # one image output converted to BMP; .png copies the stored bytes
