@@ -132,7 +132,7 @@ export function useMarking(
       );
       if (onScreen.current === target) {
         setSaved(recorded);
-        setDraft((d) => d.filter((m) => !snapshot.includes(m))); // marks placed meanwhile stay unsaved
+        setDraft((d) => renumber(d.filter((m) => !snapshot.includes(m)))); // marks placed meanwhile stay, renumbered
         setNote("");
       }
       notify?.(

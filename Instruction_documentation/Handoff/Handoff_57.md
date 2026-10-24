@@ -28,6 +28,7 @@ Completed work:
   - #49 the linked views mirror only for comparison exports; a save that completes after the examiner moved to another image installs nothing there and keeps that image's unsaved marks.
 - **README** rewritten as a full manual: what Ridge does, installation (installers, Python package, first-case setup), the desktop application, `ridge`, `ridge-case` by task, outputs and records, scale and AFIS submissions, variants and research mode, `ridge-validate`, how the extraction works, photographing a finger, security and privacy, configuration, development, building, troubleshooting, documentation index, limits and licence.
 - **Installers** under `installers/`: the Windows MSI and per-user NSIS setup of Handoff_56 with `SHA256SUMS.txt` and a README (unsigned engineering builds; macOS and Linux bundles are built on their own platforms and are not in the repository).
+- **Codex on this branch** (#51, one finding): marks retained after an in-flight save are renumbered from one, so numbers, keys and "Remove mark N" stay unambiguous; test in `markingrace.test.tsx`. Follow-up commit on the branch.
 - **Code comments**: docstrings are enforced by ruff's `D` rules on the Python side; the exported GUI functions and constants added in this run that lacked a doc comment got one, and one Rust helper too.
 
 Out of scope: the merge itself (next handoff); macOS and Linux installers.

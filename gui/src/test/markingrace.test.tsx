@@ -32,6 +32,43 @@ function Harness({ sha256 }: { sha256: string }) {
   );
 }
 
+describe("a save that completes while the examiner keeps marking the same image", () => {
+  it("keeps the mark placed meanwhile, renumbered from one", async () => {
+    let finish: (a: Annotation) => void = () => undefined;
+    const pending = new Promise<Annotation>((resolve) => {
+      finish = resolve;
+    });
+    routes({ list_annotations: () => [], add_annotation: () => pending });
+    render(<Harness sha256={A} />);
+    await userEvent.click(screen.getByRole("button", { name: "place" })); // turns marking on
+    await userEvent.click(screen.getByRole("button", { name: "place" })); // mark 1
+    await userEvent.click(screen.getByRole("button", { name: "Save 1 mark" }));
+    await userEvent.click(screen.getByRole("button", { name: "place" })); // mark 2, placed while the save is pending
+    expect(screen.getByLabelText("Unsaved marks").textContent).toContain("2: Ending at (10, 10)");
+    await act(async () => {
+      finish({
+        seq: 80,
+        ts_utc: "2026-10-25T00:00:00Z",
+        actor: "examiner",
+        job_id: JOB,
+        sha256: A,
+        role: "print",
+        image: { width: 400, height: 500 },
+        marks: [{ n: 1, x: 10, y: 10, kind: "ending", label: null }],
+        note: null,
+        replaces: null,
+        signed_seq: 81,
+      });
+      await Promise.resolve();
+    });
+    const list = screen.getByLabelText("Unsaved marks");
+    expect(list.textContent).toContain("1: Ending at (10, 10)"); // the retained mark is number 1 again
+    expect(list.textContent).not.toContain("2:");
+    await userEvent.click(screen.getByRole("button", { name: "Remove mark 1" }));
+    expect(screen.queryByLabelText("Unsaved marks")).toBeNull();
+  });
+});
+
 describe("a save that completes after the examiner switched images", () => {
   it("does not install the earlier image's set or clear the later image's marks", async () => {
     let finish: (a: Annotation) => void = () => undefined;
