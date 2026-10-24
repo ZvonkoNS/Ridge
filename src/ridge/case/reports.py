@@ -29,7 +29,7 @@ from ridge.case.identity import key_id_for, public_identity, verify_signature
 from ridge.case.jobs import REPORT_SCHEMA
 from ridge.case.limits import render_lines as render_limits
 from ridge.case.metadata_render import metadata_text
-from ridge.case.report_lines import export_line, minutiae_line, nfiq2_line, print_area_line
+from ridge.case.report_lines import export_line, minutiae_line, nfiq2_line, print_area_line, scale_notice_line
 from ridge.case.store import OpenCase
 from ridge.errors import IntegrityError, OutputExistsError, ParameterError
 from ridge.image_io import read_bounded
@@ -263,6 +263,7 @@ def render_report(report: dict[str, Any], key_id: str) -> str:
         f"finger found {_yes(meas.get('found_finger'))}, output scale {meas.get('output_scale')}",
         print_area_line(meas.get("print_area")),
         export_line(report.get("export")),
+        scale_notice_line(report.get("export")),
         nfiq2_line((report.get("quality") or {}).get("nfiq2")),
         minutiae_line(report.get("minutiae")),
         *render_limits(report.get("limits_of_use")),

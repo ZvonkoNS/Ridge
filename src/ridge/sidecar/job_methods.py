@@ -15,6 +15,7 @@ from ridge.case.report_html import export_report_html
 from ridge.case.reports import export_report, list_jobs, load_report, signature_path
 from ridge.case.reproduce import reproduce_job
 from ridge.errors import ParameterError
+from ridge.export import REFERENCE_OBJECTS, ReferenceKind
 from ridge.sidecar.protocol import Json
 from ridge.sidecar.session import Session, absolute, item_json
 
@@ -38,6 +39,12 @@ def _ruler(value: Json) -> tuple[float, float, float, float, float] | None:
     return cast(tuple[float, float, float, float, float], tuple(float(v) for v in value))
 
 
+def _reference(value: Json) -> ReferenceKind:
+    if value not in REFERENCE_OBJECTS:
+        raise ParameterError(f"reference must be one of {', '.join(REFERENCE_OBJECTS)}")
+    return cast(ReferenceKind, value)
+
+
 def run_job(session: Session, params: dict[str, Json]) -> Json:
     """Run one extraction job; returns the outputs and the report's summary fields."""
     case, signer = session.require()
@@ -46,6 +53,7 @@ def run_job(session: Session, params: dict[str, Json]) -> Json:
         mirror=params.get("mirror", True),
         target_ppi=float(params.get("ppi", 500.0)),
         ruler=_ruler(params.get("ruler")),
+        reference=_reference(params.get("reference", "ruler")),
     )
     job = JobParams(
         period=params.get("period"),

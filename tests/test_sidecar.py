@@ -290,3 +290,17 @@ def test_job_run_checks_roi_and_records_source(session: Session, case_dir: Path,
     assert (evidence["role"], evidence["source"]) == ("evidence", "Exhibit 3")
     for bad in ([0, 0, 64], [0, 0, 64.5, 64], [0, 0, 8, 8], [True, 0, 64, 64]):
         assert error_code(call(session, "job.run", {"evidence": evidence["sha256"], "roi": bad})) == APPLICATION_ERROR
+
+
+def test_job_run_takes_a_card_reference_and_carries_the_scale_notice(
+    session: Session, case_dir: Path, tmp_path: Path
+) -> None:
+    call(session, "session.unlock", {"store": str(case_dir.parent), "case_id": case_dir.name, "passphrase": PASSPHRASE})
+    evidence = call(session, "case.import", {"path": str(photo_file(tmp_path / "in").resolve())})["result"]
+    params = {"evidence": evidence["sha256"], "ruler": [0, 0, 342.4, 0, 85.6], "reference": "id1-long"}
+    job = call(session, "job.run", params)["result"]
+    assert job["export"]["scale"]["method"] == "card"
+    assert "notice" not in job["export"]["scale"]
+    assert error_code(call(session, "job.run", {**params, "reference": "coin"})) == APPLICATION_ERROR
+    plain = call(session, "job.run", {"evidence": evidence["sha256"]})["result"]
+    assert "ruler or an ISO/IEC 7810 ID-1 card" in plain["export"]["scale"]["notice"]

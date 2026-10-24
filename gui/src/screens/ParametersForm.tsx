@@ -3,8 +3,26 @@
 // WCAG 2.2 SC 2.5.7).
 import type { ChangeEvent, ReactNode } from "react";
 
-import type { JobOptions } from "../ipc/types";
+import type { JobOptions, ReferenceKind } from "../ipc/types";
 import { distance, type Point, type Rect, type Size } from "../lib/viewport";
+
+/** Edge lengths of an ISO/IEC 7810 ID-1 card (bank, ID and driving-licence cards), as ridge.export.transforms. */
+export const REFERENCE_MM: Record<ReferenceKind, number | null> = {
+  ruler: null,
+  "id1-long": 85.6,
+  "id1-short": 53.98,
+};
+
+export const REFERENCE_LABELS: Record<ReferenceKind, string> = {
+  ruler: "Ruler or scale (type the distance)",
+  "id1-long": "ID-1 card, long edge: 85.60 mm",
+  "id1-short": "ID-1 card, short edge: 53.98 mm",
+};
+
+/** Shown before a job while no two reference points are placed (FR-31; product owner, 2026-10-24). */
+export const NO_REFERENCE_HINT =
+  "No scale reference: the export scale will be estimated from the ridge spacing (±15 %). If possible, add a " +
+  "ruler or an ID-1 (bank-size) card in the plane of the finger pad and mark two points on it; otherwise proceed as is.";
 
 export interface Params {
   period: string;
@@ -19,6 +37,12 @@ export interface Params {
   roi: Rect | null;
   ruler: Point[];
   rulerMm: string;
+  reference: ReferenceKind;
+}
+
+/** The distance the form sends: the typed millimetres for a ruler, the standard edge length for a card. */
+export function referenceMm(p: Pick<Params, "reference" | "rulerMm">): number {
+  return REFERENCE_MM[p.reference] ?? Number(p.rulerMm);
 }
 
 export const DEFAULT_PARAMS: Params = {
@@ -34,6 +58,7 @@ export const DEFAULT_PARAMS: Params = {
   roi: null,
   ruler: [],
   rulerMm: "10",
+  reference: "ruler",
 };
 
 /** Turn the form into job options, or explain what to fix. */
@@ -45,7 +70,7 @@ export function toOptions(evidence: string, p: Params, photo?: Size | null): Job
   let ruler: JobOptions["ruler"] = null;
   if (p.ruler.length > 0) {
     const [a, b] = p.ruler;
-    const mm = Number(p.rulerMm);
+    const mm = referenceMm(p);
     if (!a || !b) {
       return "Place both ruler points, or clear the ruler.";
     }
@@ -77,6 +102,7 @@ export function toOptions(evidence: string, p: Params, photo?: Size | null): Job
     mirror: p.mirror,
     ppi: p.ppi,
     ruler,
+    reference: p.reference,
     minutiae: p.minutiae,
     roi: p.roi ? [p.roi.x, p.roi.y, p.roi.width, p.roi.height] : null,
   };
@@ -249,7 +275,25 @@ export function ParametersForm({ value: p, onChange, disabled, children }: Props
           </button>
         </fieldset>
         <fieldset className="subset">
-          <legend>Ruler (two points on a scale in the photo)</legend>
+          <legend>Scale reference (two points on a ruler or an ID-1 card in the photo)</legend>
+          <label className="field">
+            <span>Object</span>
+            <select
+              value={p.reference}
+              onChange={(e) => {
+                const kind = e.target.value;
+                if (kind in REFERENCE_MM) {
+                  set({ reference: kind as ReferenceKind });
+                }
+              }}
+            >
+              {(Object.keys(REFERENCE_LABELS) as ReferenceKind[]).map((k) => (
+                <option key={k} value={k}>
+                  {REFERENCE_LABELS[k]}
+                </option>
+              ))}
+            </select>
+          </label>
           {([0, 1] as const).map((i) =>
             (["x", "y"] as const).map((axis) => (
               <label key={`${i}${axis}`} className="field field-narrow">
@@ -271,7 +315,8 @@ export function ParametersForm({ value: p, onChange, disabled, children }: Props
             <span>mm</span>
             <input
               inputMode="decimal"
-              value={p.rulerMm}
+              value={p.reference === "ruler" ? p.rulerMm : String(REFERENCE_MM[p.reference])}
+              disabled={p.reference !== "ruler"}
               onChange={(e) => {
                 set({ rulerMm: e.target.value });
               }}
@@ -285,10 +330,15 @@ export function ParametersForm({ value: p, onChange, disabled, children }: Props
             }}
             disabled={p.ruler.length === 0}
           >
-            No ruler
+            Clear points
           </button>
         </fieldset>
       </div>
+      {p.ruler.length < 2 ? (
+        <p className="muted" role="note">
+          {NO_REFERENCE_HINT}
+        </p>
+      ) : null}
       {children}
     </fieldset>
   );

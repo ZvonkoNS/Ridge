@@ -147,7 +147,11 @@ stores a **grayscale comparison export** of the same geometry (role `export-gray
 the filtered ridge signal through a soft contrast curve instead of a threshold, zero wherever
 the print's region ends, so it keeps ridge strength for AFIS feature extractors without
 showing any ridge the print does not. With `--nfiq2` an **indicative** NFIQ 2 score of the
-grayscale export is recorded (NFIQ 2 is defined for contact prints).
+grayscale export is recorded (NFIQ 2 is defined for contact prints). Instead of `--ruler`,
+`--card long X1 Y1 X2 Y2` (or `short`) takes two points across an ISO/IEC 7810 ID-1 card
+(bank-card size) and supplies its standard edge length. Without either, the job still runs and
+the report, the command output and the GUI carry a notice asking for a ruler or a card in the
+plane of the finger pad where one can still be added.
 
 **Limits of use.** When the laboratory's validation report defines limits of use, the
 Forensic Quality Manager places them in the store as `limits-of-use.json`. Every job report

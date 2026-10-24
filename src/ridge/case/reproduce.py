@@ -60,6 +60,7 @@ def params_from_report(parameters: dict[str, Any]) -> JobParams:
                 mirror=export["mirror"],
                 target_ppi=export["target_ppi"],
                 ruler=None if ruler is None else (ruler[0], ruler[1], ruler[2], ruler[3], ruler[4]),
+                reference=export.get("reference", "ruler"),  # reports before cards were accepted have none
             ),
             minutiae=parameters.get("minutiae", False),
             roi=None if parameters.get("roi") is None else tuple(parameters["roi"]),  # older reports: none

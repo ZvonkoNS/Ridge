@@ -152,13 +152,20 @@ export interface Measurements {
   print_area?: PrintArea | null;
 }
 
-export type ScaleMethod = "ruler" | "ridge-period" | "manual";
+export type ScaleMethod = "ruler" | "card" | "ridge-period" | "manual";
+
+/** What the two scale points lie on (FR-31 a): a ruler, or an edge of an ISO/IEC 7810 ID-1 card. */
+export type ReferenceKind = "ruler" | "id1-long" | "id1-short";
 
 export interface ScaleInfo {
   method: ScaleMethod;
   px_per_mm: number;
   uncertainty_pct: number;
   assumed_ridge_period_mm?: number;
+  /** The reference object the points lay on (ruler and card scales; absent in older reports). */
+  reference?: string;
+  /** Present when no scale reference was given: what the investigator can do about it. */
+  notice?: string;
 }
 
 export type ExportInfo =
@@ -278,6 +285,7 @@ export interface JobOptions {
   mirror: boolean;
   ppi: number;
   ruler: [number, number, number, number, number] | null;
+  reference: ReferenceKind;
   minutiae: boolean;
   roi: [number, number, number, number] | null;
 }

@@ -158,3 +158,22 @@ def test_a_malformed_limits_file_stops_jobs_before_they_start(
         with pytest.raises(ParameterError, match="limits of use"):
             run_extraction_job(case, evidence.sha256, signer, JobParams())
         assert len(case.entries) == before  # nothing was started or logged
+
+
+def test_a_scale_reference_requirement_accepts_a_card_but_a_ruler_requirement_does_not() -> None:
+    card = {**GOOD, "export": {"produced": True, "scale": {"method": "card", "uncertainty_pct": 2.4}}}
+    estimate = {**GOOD, "export": {"produced": True, "scale": {"method": "ridge-period", "uncertainty_pct": 15}}}
+    reference = parse_limits(limits_bytes(require_scale_reference=True))
+    assert reference.to_json() == {"require_scale_reference": True}
+    assert deviations(reference, card, machine="AMD64") == []
+    assert deviations(reference, GOOD, machine="AMD64") == []
+    assert deviations(reference, estimate, machine="AMD64") == [
+        "the export scale comes from ridge-period; the limits require a scale reference in the photo "
+        "(a ruler or a card)"
+    ]
+    ruler_only = parse_limits(limits_bytes(require_ruler=True))
+    assert deviations(ruler_only, card, machine="AMD64") == [
+        "the export scale comes from card; the limits require a ruler in the photo"
+    ]
+    with pytest.raises(ParameterError, match="true or false"):
+        parse_limits(limits_bytes(require_scale_reference="yes"))

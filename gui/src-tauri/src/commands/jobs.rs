@@ -31,6 +31,7 @@ pub struct JobRequest {
     mirror: bool,
     ppi: f64,
     ruler: Option<[f64; 5]>,
+    reference: String,
     minutiae: bool,
     roi: Option<[u32; 4]>,
 }
@@ -77,6 +78,10 @@ impl JobRequest {
         if let Some(ruler) = self.ruler {
             params.insert("ruler".into(), checked_ruler(ruler)?);
         }
+        params.insert(
+            "reference".into(),
+            json!(checked_reference(&self.reference)?),
+        );
         if let Some(roi) = self.roi {
             params.insert("roi".into(), checked_roi(roi)?);
         }
@@ -94,6 +99,14 @@ fn checked_ruler([x1, y1, x2, y2, mm]: [f64; 5]) -> Result<Value, IpcError> {
         return Err(IpcError::invalid("the two ruler points must be apart"));
     }
     Ok(json!([x1, y1, x2, y2, mm]))
+}
+
+/// What the two scale points lie on (FR-31 a): a ruler, or an edge of an ISO/IEC 7810 ID-1 card.
+fn checked_reference(kind: &str) -> Result<&str, IpcError> {
+    match kind {
+        "ruler" | "id1-long" | "id1-short" => Ok(kind),
+        _ => Err(IpcError::invalid("not a known scale reference")),
+    }
 }
 
 /// x, y, width and height in photo pixels; the sidecar checks that it lies on the photo.
@@ -276,7 +289,8 @@ mod tests {
     fn request(extra: Value) -> Result<JobRequest, serde_json::Error> {
         let mut base = json!({
             "evidence": "a".repeat(64), "period": null, "min_quality": 0.25, "flip": false, "crop": true,
-            "debug": false, "export": true, "mirror": true, "ppi": 500.0, "ruler": null, "minutiae": false, "roi": null
+            "debug": false, "export": true, "mirror": true, "ppi": 500.0, "ruler": null, "reference": "ruler",
+            "minutiae": false, "roi": null
         });
         if let (Some(base), Some(extra)) = (base.as_object_mut(), extra.as_object()) {
             base.extend(extra.clone());
@@ -293,7 +307,13 @@ mod tests {
                 .unwrap();
         assert_eq!(params["roi"], json!([10, 20, 300, 400]));
         assert_eq!(params["ruler"], json!([0.0, 0.0, 200.0, 0.0, 10.0]));
+        assert_eq!(params["reference"], json!("ruler"));
         assert!(!params.contains_key("period"));
+        let card = request(json!({"reference": "id1-long", "ruler": [0.0, 0.0, 856.0, 0.0, 85.6]}))
+            .unwrap()
+            .params()
+            .unwrap();
+        assert_eq!(card["reference"], json!("id1-long"));
     }
 
     #[test]
@@ -314,6 +334,7 @@ mod tests {
             json!({"roi": [0, 0, 8, 8]}),
             json!({"ruler": [5.0, 5.0, 5.5, 5.0, 10.0]}),
             json!({"ruler": [0.0, 0.0, 100.0, 0.0, 0.0]}),
+            json!({"reference": "coin"}),
         ] {
             assert!(request(extra.clone()).unwrap().params().is_err(), "{extra}");
         }

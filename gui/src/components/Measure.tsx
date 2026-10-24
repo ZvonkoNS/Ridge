@@ -8,6 +8,7 @@ import type { ScaleSource } from "./ScaleBar";
 
 const METHOD: Record<string, string> = {
   ruler: "ruler in the photo",
+  card: "card edge in the photo",
   "ridge-period": "ridge-period estimate",
   manual: "examiner value",
   file: "resolution in the file",

@@ -18,10 +18,13 @@ import { pngUrl } from "../ipc/images";
 import type { Item, JobResult } from "../ipc/types";
 import { usePreview } from "../lib/usePreview";
 import { distance, type Rect } from "../lib/viewport";
-import { DEFAULT_PARAMS, ParametersForm, toOptions, type Params } from "./ParametersForm";
+import { DEFAULT_PARAMS, ParametersForm, referenceMm, toOptions, type Params } from "./ParametersForm";
 import { JobSummary } from "./JobSummary";
 
-const CLICK_ERROR_PX = 1; // as ridge.export.transforms.CLICK_ERROR_PX
+// As ridge.export.transforms: the click error per point, the ID-1 size tolerance and the alignment allowance.
+const CLICK_ERROR_PX = 1;
+const CARD_EDGE_TOLERANCE_PCT = 0.15;
+const CARD_ALIGNMENT_PCT = 2;
 
 interface Props {
   evidence: Item;
@@ -40,10 +43,17 @@ const TOOLS: { id: Tool; label: string }[] = [
 
 export function photoScale(params: Params, result: JobResult | null): ScaleSource | null {
   const [a, b] = params.ruler;
-  const mm = Number(params.rulerMm);
+  const mm = referenceMm(params);
   if (a && b && mm > 0 && distance(a, b) >= 2) {
     const px = distance(a, b);
-    return { pxPerMm: px / mm, method: "ruler", uncertaintyPct: ((2 * CLICK_ERROR_PX) / px) * 100 };
+    const click = ((2 * CLICK_ERROR_PX) / px) * 100;
+    return params.reference === "ruler"
+      ? { pxPerMm: px / mm, method: "ruler", uncertaintyPct: click }
+      : {
+          pxPerMm: px / mm,
+          method: "card",
+          uncertaintyPct: click + CARD_EDGE_TOLERANCE_PCT + CARD_ALIGNMENT_PCT,
+        };
   }
   if (result?.export?.produced) {
     const s = result.export.scale;

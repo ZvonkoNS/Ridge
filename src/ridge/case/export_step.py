@@ -28,11 +28,13 @@ from ridge.case.store import OpenCase
 from ridge.errors import ExportError, ExtractionError, ParameterError
 from ridge.export import (
     ASSUMED_RIDGE_PERIOD_MM,
+    REFERENCE_OBJECTS,
+    ReferenceKind,
     ScaleEstimate,
     encode_png,
     make_comparison_export,
+    scale_from_reference,
     scale_from_ridge_period,
-    scale_from_ruler,
 )
 from ridge.export.validate import ppi_value
 from ridge.minutiae import extract_minutiae, to_export_space
@@ -43,6 +45,13 @@ NFIQ2_LABEL = "indicative only: NFIQ 2 is defined for contact prints, this image
 MINUTIAE_LABEL = "unvalidated automatic minutiae for examiner review; not used for any matching"
 NFIQ2_PPI = 500.0
 GRAY_ROLE = "export-gray"  # stored role of the grayscale comparison export (FR-37)
+# Recorded with every export scaled without a reference object (FR-31; product owner, 2026-10-24).
+SCALE_NOTICE = (
+    "No scale reference was given: the export scale is estimated from the ridge spacing and an assumed "
+    "ridge distance (+-15 %). If possible, photograph the finger again with a ruler or an ISO/IEC 7810 ID-1 "
+    "card (bank-card size) in the plane of the finger pad and mark two points on it, or mark one that is "
+    "already in the photo. Otherwise proceed with this estimate and state it wherever the export is used."
+)
 
 
 @dataclass(frozen=True)
@@ -53,6 +62,7 @@ class ExportOptions:
     mirror: bool = True
     target_ppi: float = 500.0
     ruler: tuple[float, float, float, float, float] | None = None  # x1, y1, x2, y2 (photo px), distance mm
+    reference: ReferenceKind = "ruler"  # what the two points lie on: a ruler or an ID-1 card edge (FR-31 a)
 
     def to_json(self) -> dict[str, Any]:
         """JSON-friendly form (lists, not tuples)."""
@@ -65,20 +75,24 @@ def validate_job_settings(options: ExportOptions, nfiq2_command: Sequence[str] |
     """Refuse invalid export or NFIQ 2 settings before a job starts (raises ParameterError)."""
     if options.enabled:
         ppi_value(options.target_ppi, "target_ppi")
+        if options.reference not in REFERENCE_OBJECTS:
+            raise ParameterError(f"the scale reference must be one of {', '.join(REFERENCE_OBJECTS)}")
         if options.ruler is not None:
             if len(options.ruler) != 5:
                 raise ParameterError("ruler needs x1, y1, x2, y2 and the distance in mm")
             x1, y1, x2, y2, mm = options.ruler
-            scale_from_ruler((x1, y1), (x2, y2), mm)
+            scale_from_reference((x1, y1), (x2, y2), mm, options.reference)
+        elif options.reference != "ruler":
+            raise ParameterError(f"the scale reference {options.reference} needs its two points (ruler)")
     if nfiq2_command is not None:
         check_command(nfiq2_command)
 
 
 def photo_scale(result: ExtractionResult, options: ExportOptions) -> ScaleEstimate:
-    """Ruler calibration when given (FR-31 a), else the ridge-period assumption (FR-31 b)."""
+    """Reference-object calibration when points are given (FR-31 a), else the ridge-period assumption (FR-31 b)."""
     if options.ruler is not None:
         x1, y1, x2, y2, mm = options.ruler
-        return scale_from_ruler((x1, y1), (x2, y2), mm)
+        return scale_from_reference((x1, y1), (x2, y2), mm, options.reference)
     return scale_from_ridge_period(result.period)
 
 
@@ -129,8 +143,11 @@ def _scale_info(scale: ScaleEstimate) -> dict[str, Any]:
         "px_per_mm": scale.px_per_mm,
         "uncertainty_pct": scale.uncertainty_pct,
     }
+    if scale.reference is not None:
+        info["reference"] = scale.reference
     if scale.method == "ridge-period":
         info["assumed_ridge_period_mm"] = ASSUMED_RIDGE_PERIOD_MM
+        info["notice"] = SCALE_NOTICE
     return info
 
 

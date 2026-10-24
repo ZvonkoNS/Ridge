@@ -54,9 +54,24 @@ export function LimitsOutcome({ section }: { section: LimitsSection | null | und
 
 const METHOD: Record<string, string> = {
   ruler: "ruler in the photo",
+  card: "card edge in the photo",
   "ridge-period": "ridge-period estimate (assumed ridge distance)",
   manual: "examiner value",
 };
+
+/** The notice of an export scaled without a reference object (FR-31); the job went ahead regardless. */
+export function ScaleNotice({ exp }: { exp: ExportInfo | null | undefined }) {
+  if (!exp?.produced || !exp.scale.notice) {
+    return null;
+  }
+  return (
+    <div className="notice notice-caution" role="status">
+      <div className="notice-body">
+        <strong>No scale reference.</strong> {exp.scale.notice}
+      </div>
+    </div>
+  );
+}
 
 export function exportLine(exp: ExportInfo | null): string {
   if (exp === null) {
@@ -66,8 +81,9 @@ export function exportLine(exp: ExportInfo | null): string {
     return `not produced: ${exp.reason}`;
   }
   const method = METHOD[exp.scale.method] ?? exp.scale.method;
+  const where = exp.scale.reference ? ` (${exp.scale.reference})` : "";
   const twin = exp.grayscale ? `; grayscale twin ${exp.grayscale.sha256.slice(0, 12)}` : "";
-  return `${exp.ppi} ppi, scale from ${method}, ±${exp.scale.uncertainty_pct.toFixed(exp.scale.uncertainty_pct < 1 ? 2 : 0)} %; ${exp.transforms.join(", ")}${twin}`;
+  return `${exp.ppi} ppi, scale from ${method}${where}, ±${exp.scale.uncertainty_pct.toFixed(exp.scale.uncertainty_pct < 1 ? 2 : 0)} %; ${exp.transforms.join(", ")}${twin}`;
 }
 
 export function JobSummary({ result }: Props) {
@@ -80,6 +96,7 @@ export function JobSummary({ result }: Props) {
         Job <Hash value={result.job_id} length={8} />
       </h3>
       <LimitsOutcome section={result.limits_of_use} />
+      <ScaleNotice exp={result.export} />
       <dl>
         <dt>Ridge period</dt>
         <dd>{m ? `${m.ridge_period_px.toFixed(2)} px` : "-"}</dd>

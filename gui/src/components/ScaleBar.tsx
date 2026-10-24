@@ -21,6 +21,7 @@ export function barLength(screenPxPerMm: number): number {
 
 const METHOD_NAMES: Record<string, string> = {
   ruler: "ruler",
+  card: "card edge",
   "ridge-period": "ridge-period estimate",
   manual: "examiner value",
   file: "resolution in the file",

@@ -39,7 +39,8 @@ MAX_BYTES = 64 * 1024
 MAX_SIGNATURE_BYTES = 4096
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 _NUMBERS = ("min_ridge_period_px", "max_ridge_period_px", "max_scale_uncertainty_pct", "min_nfiq2")
-_FLAGS = ("require_ruler", "require_finger_found")
+_FLAGS = ("require_ruler", "require_scale_reference", "require_finger_found")
+MEASURED_SCALE_METHODS = ("ruler", "card")  # scale from a reference object in the photo (FR-31 a)
 _KEYS = {"schema", "source", "architectures", *_NUMBERS, *_FLAGS}
 
 
@@ -55,6 +56,7 @@ class LimitsOfUse:
     max_scale_uncertainty_pct: float | None = None
     min_nfiq2: float | None = None
     require_ruler: bool = False
+    require_scale_reference: bool = False  # a ruler or a card (added 2026-10-24)
     require_finger_found: bool = False
     signed_by: dict[str, str] | None = None  # key_id and public_key of a verified FQM signature
 
@@ -94,7 +96,7 @@ def parse_limits(data: bytes) -> LimitsOfUse:
     numbers = {k: _number(doc.get(k), k) for k in _NUMBERS}
     flags = {k: doc.get(k, False) for k in _FLAGS}
     if not all(isinstance(v, bool) for v in flags.values()):
-        raise ParameterError("limits of use: require_ruler and require_finger_found must be true or false")
+        raise ParameterError(f"limits of use: {', '.join(_FLAGS)} must be true or false")
     archs = doc.get("architectures", [])
     if not isinstance(archs, list) or len(archs) > 16:
         raise ParameterError("limits of use: architectures must be a list of at most 16 names")
@@ -110,6 +112,7 @@ def parse_limits(data: bytes) -> LimitsOfUse:
         max_scale_uncertainty_pct=numbers["max_scale_uncertainty_pct"],
         min_nfiq2=numbers["min_nfiq2"],
         require_ruler=flags["require_ruler"],
+        require_scale_reference=flags["require_scale_reference"],
         require_finger_found=flags["require_finger_found"],
     )
 
@@ -179,7 +182,8 @@ def deviations(limits: LimitsOfUse, fields: dict[str, Any], machine: str | None 
 
 
 def _export_deviations(limits: LimitsOfUse, export: dict[str, Any] | None) -> list[str]:
-    if not (limits.require_ruler or limits.max_scale_uncertainty_pct is not None):
+    wanted = limits.require_ruler or limits.require_scale_reference or limits.max_scale_uncertainty_pct is not None
+    if not wanted:
         return []
     if not export or not export.get("produced"):
         return ["no comparison export was produced, so its scale could not be checked against the limits"]
@@ -187,6 +191,11 @@ def _export_deviations(limits: LimitsOfUse, export: dict[str, Any] | None) -> li
     found = []
     if limits.require_ruler and scale.get("method") != "ruler":
         found.append(f"the export scale comes from {scale.get('method')}; the limits require a ruler in the photo")
+    if limits.require_scale_reference and scale.get("method") not in MEASURED_SCALE_METHODS:
+        found.append(
+            f"the export scale comes from {scale.get('method')}; the limits require a scale reference in the photo "
+            "(a ruler or a card)"
+        )
     uncertainty = scale.get("uncertainty_pct")
     maximum = limits.max_scale_uncertainty_pct
     if maximum is not None and isinstance(uncertainty, int | float) and uncertainty > maximum:

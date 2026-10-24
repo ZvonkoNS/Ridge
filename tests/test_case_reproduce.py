@@ -107,6 +107,11 @@ def test_parameters_round_trip() -> None:
     assert params_from_report(params.to_json()) == params
     ruler = JobParams(export=ExportOptions(ruler=(1.0, 2.0, 3.0, 4.0, 5.0)))
     assert params_from_report(ruler.to_json()) == ruler
+    card = JobParams(export=ExportOptions(ruler=(0.0, 0.0, 856.0, 0.0, 85.6), reference="id1-long"))
+    assert params_from_report(card.to_json()) == card
+    older = ruler.to_json()
+    del older["export"]["reference"]  # reports from before cards were accepted
+    assert params_from_report(older).export.reference == "ruler"
     legacy = {k: v for k, v in params.to_json().items() if k != "minutiae"}  # reports from before M3
     assert params_from_report(legacy).minutiae is False
     with pytest.raises(IntegrityError, match="incomplete"):

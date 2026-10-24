@@ -19,10 +19,17 @@ def export_line(export: dict[str, Any] | None) -> str:
     transforms = ", ".join(export.get("transforms") or []) or "none"
     gray = export.get("grayscale") or {}  # reports made before FR-37 have no grayscale twin
     twin = f"; grayscale twin sha256 {str(gray.get('sha256'))[:12]}" if gray.get("sha256") else ""
+    where = f" ({scale['reference']})" if scale.get("reference") else ""  # older reports name no object
     return (
-        f"Export        {export.get('ppi'):g} ppi, scale from {scale.get('method')} "
+        f"Export        {export.get('ppi'):g} ppi, scale from {scale.get('method')}{where} "
         f"(+-{scale.get('uncertainty_pct', 0):.1f} %), transforms: {transforms}{twin}"
     )
+
+
+def scale_notice_line(export: dict[str, Any] | None) -> str:
+    """Return the notice of an export scaled without a reference object in the photo (empty otherwise)."""
+    notice = ((export or {}).get("scale") or {}).get("notice")
+    return f"Scale notice  {notice}" if notice else ""
 
 
 def nfiq2_line(nfiq2: dict[str, Any] | None) -> str:
