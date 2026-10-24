@@ -16,6 +16,9 @@ fingerprint examiners.
 | [docs/examiner_guide.md](docs/examiner_guide.md) | For examiners: working a case in the desktop application, task by task |
 | [docs/screen_reader_test.md](docs/screen_reader_test.md) | Manual NVDA test script, run before each GUI release |
 | [docs/verification_guide.md](docs/verification_guide.md) | For reviewers, the DPO and the FQM: checking exported reports, records, packages and keys offline |
+| [docs/capture_guidance.md](docs/capture_guidance.md) | For investigators: photographing a finger so that Ridge has something to work with (scale reference, framing, light, handling the original) |
+| [docs/pilot_protocol.md](docs/pilot_protocol.md) | Template for a pilot that searches Ridge prints in an AFIS and measures rank-k hit rates; roles, data decision, arms, recording, analysis |
+| [docs/afis_integration_questionnaire.md](docs/afis_integration_questionnaire.md) | Questions for the AFIS team (OQ-4): accepted formats, records, scale, candidate lists, transfer, pilot |
 | [AGENTS.md](AGENTS.md) and [Instruction_documentation/](Instruction_documentation/README.md) | Engineering rules, standards profile, quality gates, handoffs |
 
 ## Install
