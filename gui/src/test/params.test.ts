@@ -22,7 +22,13 @@ describe("job options", () => {
       roi: null,
       finger_position: 0,
       source_agency: null,
-      options: { channel: "green", specular_mask: false, upright: false, local_frequency: false },
+      options: {
+        channel: "green",
+        specular_mask: false,
+        upright: false,
+        local_frequency: false,
+        rectify: false,
+      },
     });
   });
 
@@ -33,9 +39,10 @@ describe("job options", () => {
       specularMask: true,
       upright: true,
       localFrequency: true,
+      rectify: true,
     });
     expect(options).toMatchObject({
-      options: { channel: "auto", specular_mask: true, upright: true, local_frequency: true },
+      options: { channel: "auto", specular_mask: true, upright: true, local_frequency: true, rectify: true },
     });
   });
 

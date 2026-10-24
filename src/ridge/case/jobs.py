@@ -39,6 +39,7 @@ from ridge.image_io import ALLOWED_FORMATS, ReadLimits, decode_image, encode_ima
 from ridge.metadata import read_metadata
 from ridge.metadata.provenance import provenance_hints
 from ridge.pipeline import ExtractionResult, MethodOptions, extract_fingerprint
+from ridge.pipeline.rectify import MAX_ANGLE_DEG
 
 REPORT_SCHEMA = "ridge.job-report/1"
 MIN_ROI_SIDE = 32  # the smallest photo Ridge accepts (FR-9)
@@ -239,6 +240,9 @@ def _execute(
         "channel_used": result.channel_used,
         "specular_fraction": result.specular_fraction,
         "upright_rotation_deg": result.rotation_deg,
+        "rectification": None
+        if result.rectified_half_width_px is None
+        else {"half_width_px": result.rectified_half_width_px, "max_angle_deg": MAX_ANGLE_DEG},
         "local_period_px": None
         if result.local_period_px is None
         else dict(zip(("min", "median", "max"), result.local_period_px, strict=True)),

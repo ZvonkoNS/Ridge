@@ -84,6 +84,16 @@ def variants_line(params: dict[str, Any], meas: dict[str, Any]) -> str:
         degrees = meas.get("upright_rotation_deg")
         turned = f"rotated {degrees:.1f} deg" if isinstance(degrees, int | float) else "finger not located: not rotated"
         parts.append(f"upright ({turned})")
+    if options.get("rectify"):
+        rect = meas.get("rectification") or {}
+        if isinstance(rect.get("half_width_px"), int | float):
+            parts.append(
+                f"rectified (pad half-width {rect['half_width_px']:.0f} px, "
+                f"unrolled to {rect['max_angle_deg']:.0f} deg; "
+                "the scale holds on the centre line)"
+            )
+        else:
+            parts.append("rectify (not applied: finger not located)")
     if options.get("local_frequency"):
         spacing = meas.get("local_period_px") or {}
         if isinstance(spacing.get("min"), int | float):

@@ -16,6 +16,7 @@ from ridge.pipeline.location import PrintLocation, locate
 from ridge.pipeline.mask import finger_mask, without_specular
 from ridge.pipeline.options import MethodOptions
 from ridge.pipeline.period import estimate_period
+from ridge.pipeline.rectify import Rectification, rectification, rectify_bgr, rectify_mask
 from ridge.pipeline.render import binarize, render_gray
 from ridge.pipeline.upright import Rotation, rotate_bgr, rotate_mask, upright_rotation
 
@@ -58,6 +59,7 @@ class ExtractionResult:
     rotation_deg: float | None = None  # rotation applied to put the finger upright, when that variant was on
     # (min, median, max) ridge spacing in photo pixels used inside the print, when the local-frequency variant was on
     local_period_px: tuple[float, float, float] | None = None
+    rectified_half_width_px: float | None = None  # the pad's median half-width, when the rectify variant unrolled it
 
 
 def _check_arguments(bgr: object, period: float | None, min_quality: float) -> None:
@@ -114,14 +116,10 @@ def extract_fingerprint(
     options = options or MethodOptions()
     if not isinstance(options, MethodOptions):
         raise ParameterError("options must be a MethodOptions")
-    h, w = bgr.shape[:2]
-    photo_size = (w, h)
+    photo_size = (bgr.shape[1], bgr.shape[0])
     detected = finger_mask(bgr)
-    mask: Mask = detected if detected is not None else np.ones((h, w), bool)
-    rotation: Rotation | None = upright_rotation(mask) if options.upright and detected is not None else None
-    if rotation is not None:  # the pipeline then runs on the upright canvas; the location is mapped back below
-        bgr, mask = rotate_bgr(bgr, rotation), rotate_mask(mask, rotation)
-        h, w = bgr.shape[:2]
+    bgr, mask, canvas = _canvas(bgr, detected, options)  # the pipeline runs on the (possibly warped) canvas
+    h, w = bgr.shape[:2]
     gray, channel_used = gray_channel(bgr, options.channel, mask)  # the default is the green plane
     measured = estimate_period(gray, mask) if period is None else period
     _check_resolution(measured)
@@ -146,8 +144,7 @@ def extract_fingerprint(
         size=(w, h),
         period=WORK_PERIOD,
     )
-    if rotation is not None:
-        location = location.in_photo(rotation, photo_size)
+    location = canvas.locate_in_photo(location, photo_size)
     return ExtractionResult(
         image=result,
         period=period,
@@ -159,9 +156,41 @@ def extract_fingerprint(
         options=options,
         channel_used=channel_used,
         specular_fraction=specular_fraction,
-        rotation_deg=None if rotation is None else rotation.angle_deg,
+        rotation_deg=None if canvas.rotation is None else canvas.rotation.angle_deg,
         local_period_px=spacing_range(enhanced, area.scale),
+        rectified_half_width_px=None if canvas.rectification is None else canvas.rectification.half_width_px,
     )
+
+
+@dataclass(frozen=True)
+class _Canvas:
+    """The warps applied to the photo before extraction (ADR-014 variants), to map the location back."""
+
+    rotation: Rotation | None = None
+    rectification: Rectification | None = None
+
+    def locate_in_photo(self, location: PrintLocation, photo_size: tuple[int, int]) -> PrintLocation:
+        """Map a location on the canvas back to the photo's pixels: unroll, then un-rotate."""
+        if self.rectification is not None:
+            location = location.from_rectified(self.rectification)
+        if self.rotation is not None:
+            location = location.in_photo(self.rotation, photo_size)
+        return location
+
+
+def _canvas(bgr: ImageU8, detected: Mask | None, options: MethodOptions) -> tuple[ImageU8, Mask, _Canvas]:
+    """Rotate the finger upright and unroll its pad when those variants are on and the finger was located."""
+    h, w = bgr.shape[:2]
+    mask: Mask = detected if detected is not None else np.ones((h, w), bool)
+    if detected is None or not (options.upright or options.rectify):
+        return bgr, mask, _Canvas()
+    rotation = upright_rotation(mask)
+    if rotation is not None:
+        bgr, mask = rotate_bgr(bgr, rotation), rotate_mask(mask, rotation)
+    rect = rectification(mask) if options.rectify else None
+    if rect is not None:
+        bgr, mask = rectify_bgr(bgr, rect), rectify_mask(mask, rect)
+    return bgr, mask, _Canvas(rotation, rect)
 
 
 def _work_area(mask: Mask, period: float, h: int, w: int) -> _WorkArea:

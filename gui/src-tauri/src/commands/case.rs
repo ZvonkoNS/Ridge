@@ -1,4 +1,4 @@
-//! Commands on the unlocked case: metadata, legal hold, items, import, verify, export, previews.
+﻿//! Commands on the unlocked case: metadata, legal hold, items, import, verify, export, previews.
 
 use std::time::Duration;
 
@@ -252,7 +252,7 @@ pub async fn export_sweep(
 ) -> Result<Value, IpcError> {
     require(&window, MAIN_LABEL)?;
     let sha256 = validate::sha256(&request.sha256)?;
-    if !(3..=9).contains(&request.steps) || request.steps % 2 == 0 {
+    if !(3..=9).contains(&request.steps) || request.steps.is_multiple_of(2) {
         return Err(IpcError::invalid("steps must be an odd number from 3 to 9"));
     }
     if !EXPORT_FORMATS.contains(&request.format.as_str()) {

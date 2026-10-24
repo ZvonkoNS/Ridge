@@ -92,6 +92,7 @@ def _job_params(args: argparse.Namespace) -> JobParams:
             specular_mask=args.specular_mask,
             upright=args.upright,
             local_frequency=args.local_frequency,
+            rectify=args.rectify,
         ),
     )
 
@@ -201,6 +202,11 @@ def add_commands(sub: Any) -> None:
         "--upright",
         action="store_true",
         help="rotate the finger upright (axis vertical, tip up) before extraction (unvalidated variant, ADR-014)",
+    )
+    p.add_argument(
+        "--rectify",
+        action="store_true",
+        help="unroll the pad's curvature before extraction, rotating the finger upright first (unvalidated variant)",
     )
     p.add_argument(
         "--local-frequency",

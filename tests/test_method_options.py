@@ -41,6 +41,7 @@ def test_options_validate_and_round_trip() -> None:
         "specular_mask": True,
         "upright": False,
         "local_frequency": False,
+        "rectify": False,
     }
     assert MethodOptions.from_json(None) == MethodOptions()
     assert MethodOptions.from_json({}) == MethodOptions()
@@ -149,6 +150,7 @@ def test_jobs_record_the_variants_and_reproduce_them(case_dir: tuple[Path, Memor
             "specular_mask": True,
             "upright": False,
             "local_frequency": False,
+            "rectify": False,
         }
         assert report["measurements"]["channel_used"] in ("green", "red", "blue", "luma")
         assert report["measurements"]["specular_fraction"] > 0
@@ -165,6 +167,7 @@ def test_jobs_record_the_variants_and_reproduce_them(case_dir: tuple[Path, Memor
             "specular_mask": False,
             "upright": False,
             "local_frequency": False,
+            "rectify": False,
         }
         assert plain.report["measurements"]["channel_used"] == "green"
         assert plain.report["measurements"]["specular_fraction"] is None
