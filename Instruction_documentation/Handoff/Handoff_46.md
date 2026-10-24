@@ -97,7 +97,7 @@ Commands run:
 cd gui && npm run lint && npm run typecheck && npx prettier --check . && npm test -- --run   # 33 files, 122 tests passed
 cd gui/src-tauri && cargo fmt --check && cargo clippy --locked --all-targets -- -D warnings && cargo test --locked   # pass, 36 tests
 .venv/Scripts/python.exe tools/gate.py docs   # pass
-# Handoff_45's branch (afis-method-frequency-29, 91ea2e0) in a worktree: python tools/gate.py test   # GATE45_PENDING
+# Handoff_45's branch (afis-method-frequency-29, 91ea2e0) in a worktree: python tools/gate.py test   # result reported in Handoff_47 section 9
 ```
 
 Determinism and golden results: `tests/test_characterization.py` passed (goldens exact, live v0 identical); the rectified path tested for repeatability.
