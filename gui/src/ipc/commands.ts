@@ -43,6 +43,7 @@ import type {
   StoreCheck,
   StoreView,
   SweepExported,
+  Triage,
   VerifiedReport,
   Verification,
   RecoveryFileInfo,
@@ -153,6 +154,8 @@ export const ipc = {
   photoMetadata: (sha256: string) => call<PhotoMetadataView>("photo_metadata", { sha256 }),
   checkPhoto: () => call<CaptureCheck>("check_photo"),
   checkEvidence: (sha256: string) => call<CaptureCheck>("check_evidence", { sha256 }),
+  triageFolder: (recursive: boolean, saveIndex: boolean) =>
+    call<Triage>("triage_folder", { recursive, save_index: saveIndex }),
   addAnnotation: (
     jobId: string,
     sha256: string,

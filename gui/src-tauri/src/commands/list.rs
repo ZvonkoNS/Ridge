@@ -53,6 +53,7 @@ pub const MAIN_COMMANDS: &[&str] = &[
     "add_annotation",
     "list_annotations",
     "export_annotated",
+    "triage_folder",
 ];
 
 /// Commands of the passphrase window (capability `passphrase`).

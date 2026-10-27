@@ -44,6 +44,18 @@ Tick the key-register box to also check that your signing key is registered. The
 
 Before importing, or for any imported photo, **Check a photo** says whether photographing the finger again would help: whether a finger was located and how much of the frame it fills, how many pixels the camera spent on each ridge, how clear the ridge pattern is, how much of the finger is under glare, and whether the file looks like the camera's original. Each line is OK, Retake or Note, and the check always notes that it cannot see a ruler or card. It is indicative only: it is not a quality score of a print, a clean check does not promise a usable print, and its thresholds were set on synthetic fingers until the pilot adjusts them. Checking a file before import reads it once and never changes it; checking a stored photo is a logged read. The CLI is `ridge-case check-photo`.
 
+## Which photos first?
+
+A seized phone or a case folder may hold hundreds of photographs of which few show a finger. On the
+store screen, **Which photos first?** runs the capture check on every photo of a folder you choose
+(each read once, never changed) and lists them in a reading order: a located finger with a clear
+ridge wave first, then a clear ridge-like wave without a located finger (a finger in grey or odd
+light, or a texture), then an unclear finger, then nothing, then files that could not be read. Tick
+**Also save the index** to write the list as a CSV file outside the folder; the application shows
+the file's SHA-256. The order is for your reading only: you still look at every photo, a photo at
+the bottom is not "no print", and a photo at the top is not a usable print. Up to 300 photos at a
+time here, a few seconds each; the command line (`ridge-case triage`) takes more.
+
 ## Photo metadata
 
 Under the photos, **Photo metadata** shows what the photo's file records about itself, read from the copy in the case store:

@@ -615,6 +615,37 @@ export interface CaptureCheck {
   label?: string;
 }
 
+/** The group of a triaged file, by what the capture check measured (FR-57). */
+export type TriageGroup = "finger-ridges" | "ridges-no-finger" | "finger-unclear" | "nothing" | "refused";
+
+/** One file of a triaged folder: its capture check and group, or why it was not read. */
+export interface TriageRow {
+  order: number;
+  /** Relative to the folder, with "/" separators. */
+  file: string;
+  bytes: number;
+  group: TriageGroup;
+  check: Omit<CaptureCheck, "notice"> | null;
+  reason: string;
+}
+
+/** A folder's photos in reading order (FR-57): a reading order for the examiner, never a quality judgement. */
+export interface Triage {
+  schema: string;
+  ridge_version: string;
+  folder: string;
+  recursive: boolean;
+  photos: number;
+  other_files: number;
+  counts: Record<TriageGroup, number>;
+  groups: Record<TriageGroup, string>;
+  thresholds: Record<string, number>;
+  rows: TriageRow[];
+  notice: string;
+  /** Present when the index was saved. */
+  index?: { path: string; sha256: string };
+}
+
 /** One feature the examiner marked on an output image (FR-55): pixel position, kind, optional label. */
 export interface AnnotationMark {
   n: number;

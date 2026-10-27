@@ -129,6 +129,7 @@ pub fn run() {
             commands::annotations::add_annotation,
             commands::annotations::list_annotations,
             commands::annotations::export_annotated,
+            commands::triage::triage_folder,
             commands::prompt::passphrase_context,
             commands::prompt::passphrase_submit,
             commands::prompt::passphrase_cancel,

@@ -13,5 +13,6 @@ pub mod prompt;
 pub mod records;
 pub mod recovery;
 pub mod store;
+pub mod triage;
 
 include!("list.rs");

@@ -42,6 +42,9 @@ material in an encrypted case store with a hash-chained custody log, and signs e
   hash-chained custody log, and examiner notes and annotations live in the same log.
 - **Helps at capture time**: a capture check says whether photographing the finger again would help,
   and notices in every report say when no scale reference was in the photo.
+- **Sorts a folder of photos** so that the ones with a measurable ridge pattern come first: a read-only
+  triage of, say, a phone's camera folder, with a CSV index written elsewhere. It is a reading order for
+  the examiner, not a judgement of any print.
 - **Stays out of the way of the examiner's judgement**: no matching, no scoring, no counting of
   agreement. Even the examiner's own annotations are stored as statements, not read as a result.
 
@@ -120,7 +123,9 @@ describes every screen. In short:
 
 1. **Store screen**: choose the store, create the identity on first run, check this workstation,
    create or unlock a case. The passphrase is typed into a separate prompt window owned by the
-   trusted Rust core; the main window never sees it.
+   trusted Rust core; the main window never sees it. **Which photos first?** runs the folder triage on a
+   folder of photos before import (read-only) and lists them with a measurable ridge pattern first;
+   the index can be saved as a CSV file outside the folder.
 2. **Evidence**: import up to 50 photos at a time with a source note. Before importing, **Check a
    photo** runs the capture check on a file without touching the store. Each stored photo shows its
    metadata and provenance hints and has its own capture check and notes.
@@ -196,6 +201,7 @@ ridge-case identity init --store D:/ridge-store          # once: your Ed25519 si
 ridge-case init --store D:/ridge-store --reference KT-2026-17 --legal-basis "..." --retention 2031-12-31
 ridge-case cases --store D:/ridge-store                  # case ids and states (nothing decrypted)
 ridge-case check-photo IMG_0412.jpg                      # should the finger be photographed again? (read-only, no case)
+ridge-case triage E:/phone-A/DCIM --to D:/triage/phone-A.csv   # many photos: the ones with a ridge pattern first (read-only, no case)
 ridge-case import D:/ridge-store/<case-id> photo1.jpg photo2.heic --source "Exhibit 12, phone A"
 ridge-case extract D:/ridge-store/<case-id> --all       # print + comparison exports for every photo
 ridge-case list D:/ridge-store/<case-id>                # evidence, outputs, jobs
@@ -228,6 +234,29 @@ ridge-case check-photo --case D:/ridge-store/<case-id> <sha>   # the capture che
 ridge-case import-reference D:/ridge-store/<case-id> candidate.png --source "NAFIS candidate 3"
 ridge-case compare D:/ridge-store/<case-id> <export-sha> <reference-sha> --to sheet.png   # equal scale, view only
 ```
+
+### Many photos: which to look at first
+
+```bash
+ridge-case triage E:/phone-A/DCIM                        # reading order on the terminal; nothing written
+ridge-case triage E:/phone-A/DCIM --to D:/triage/phone-A.csv --recursive   # CSV index, a new file outside the folder
+ridge-case triage E:/phone-A/DCIM --json                 # the record (ridge.triage/1) for tooling
+```
+
+The triage runs the capture check on every photo of the folder (read once, read-only, no case needed,
+no trained model) and lists them in a reading order: `finger-ridges` (skin colour located a finger and
+its patches show a clear ridge wave), `ridges-no-finger` (a clear ridge-like wave but no finger
+located: a finger in grey or odd light, or a texture such as fabric or wood grain), `finger-unclear`
+(a finger, but a blurred or unmeasurable pattern), `nothing`, and `refused` (not an image, over a
+limit, a link, unreadable). Within a group the clearer wave comes first. The index holds one row per
+file with the measurements, the SHA-256 of each file and the reason a file was refused; nothing is
+written next to the photos, an existing index is never replaced, and a folder above `--max-files`
+(default 1000) is refused before any photo is read. It is a reading order for an examiner who still
+looks at every photo: a photo at the bottom is not "no print", and a photo at the top is not a usable
+print. The thresholds are the capture check's provisional ones, set on synthetic fingers; the pilot
+adjusts them. Expect a few seconds per photo, whatever its size. In the desktop application, the store
+screen's card **Which photos first?** does the same for up to 300 photos, with the folder and the index
+chosen in native dialogs.
 
 ### Exports
 
@@ -426,7 +455,8 @@ one-page checklist. The short version:
 - three frames: straight, slight roll left, slight roll right; keep all;
 - do not crop, rotate, filter or re-save; transfer the original file unchanged and keep its metadata.
 
-Run the capture check on the file before import: it says whether a retake would help.
+Run the capture check on the file before import: it says whether a retake would help. For a folder
+of many photos, `ridge-case triage` lists the ones with a measurable ridge pattern first.
 
 ## Security and privacy
 

@@ -1614,3 +1614,13 @@ kbd {
   justify-content: space-between;
   gap: 1rem;
 }
+
+.triage-rows {
+  max-height: 24rem;
+  overflow: auto;
+  margin-top: 0.75rem;
+}
+
+.triage-rows td:last-child {
+  word-break: break-all;
+}

@@ -53,6 +53,7 @@
     "allow-check-evidence",
     "allow-add-annotation",
     "allow-list-annotations",
-    "allow-export-annotated"
+    "allow-export-annotated",
+    "allow-triage-folder"
   ]
 }

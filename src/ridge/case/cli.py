@@ -42,6 +42,7 @@ from ridge.case import (
     cli_register,
     cli_store,
     cli_sweep,
+    cli_triage,
 )
 from ridge.case import cli_common as common
 from ridge.case.dispose import REASONS, dispose_case
@@ -192,6 +193,7 @@ def build_parser() -> argparse.ArgumentParser:
     cli_sweep.add_commands(sub)
     cli_check.add_commands(sub)
     cli_annotations.add_commands(sub)
+    cli_triage.add_commands(sub)
     return ap
 
 

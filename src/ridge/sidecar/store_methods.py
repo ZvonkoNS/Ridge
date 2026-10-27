@@ -26,6 +26,7 @@ from ridge.case.workstation import check_workstation
 from ridge.errors import ParameterError
 from ridge.sidecar.protocol import Json
 from ridge.sidecar.session import Session, absolute
+from ridge.triage import DEFAULT_MAX_FILES, run_triage
 
 PROTOCOL = "ridge.sidecar/1"
 
@@ -111,6 +112,22 @@ def backup(session: Session, params: dict[str, Json]) -> Json:
 def photo_check(session: Session, params: dict[str, Json]) -> Json:
     """Run the capture check (FR-54) on a photo chosen in a native dialog: read once, read-only, no case needed."""
     return check_file(absolute(params["path"], "path")).to_json()
+
+
+def folder_triage(session: Session, params: dict[str, Json]) -> Json:
+    """Folder triage (FR-57) of a folder chosen in a native dialog: every photo read once, read-only.
+
+    The index, when `dest` names one (a new file from a native save dialog), is written outside the
+    folder and reported with its SHA-256. A reading order for the examiner, never a quality judgement.
+    """
+    dest = params.get("dest")
+    triage, written = run_triage(
+        absolute(params["path"], "path"),
+        recursive=bool(params.get("recursive", False)),
+        max_files=int(params.get("max_files", DEFAULT_MAX_FILES)),
+        dest=absolute(dest, "dest") if dest else None,
+    )
+    return triage.to_json(index=written)
 
 
 def files_check(session: Session, params: dict[str, Json]) -> Json:

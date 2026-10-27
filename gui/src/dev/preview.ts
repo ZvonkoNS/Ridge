@@ -323,6 +323,69 @@ function previewCheck(sha256: string, role: string | null) {
   };
 }
 
+/** A synthetic folder triage (FR-57): six invented file names in reading order, no image data. */
+function previewTriage(request: Record<string, unknown>) {
+  const check = (order: number, clarity: number, located: boolean) => ({
+    schema: "ridge.capture-check/1",
+    sha256: hex(20 + order),
+    width: 3024,
+    height: 4032,
+    finger_located: located,
+    finger_share: located ? 0.4 : 1,
+    ridge_spacing_px: 11.2,
+    clarity,
+    glare_share: located ? 0.01 : null,
+    verdict: located && clarity >= 0.02 ? "ok" : "retake",
+    findings: [],
+  });
+  const row = (order: number, file: string, group: string, clarity: number, located: boolean) => ({
+    order,
+    file,
+    bytes: 3_412_880 - order * 10_007,
+    group,
+    check: check(order, clarity, located),
+    reason: "",
+  });
+  const rows = [
+    row(1, "IMG_0412.jpg", "finger-ridges", 0.049, true),
+    row(2, "IMG_0407.jpg", "finger-ridges", 0.041, true),
+    row(3, "IMG_0398.jpg", "ridges-no-finger", 0.046, false),
+    row(4, "IMG_0401.jpg", "finger-unclear", 0.008, true),
+    row(5, "IMG_0380.jpg", "nothing", 0.002, false),
+    {
+      order: 6,
+      file: "VID_0381.thumb.png",
+      bytes: 12,
+      group: "refused",
+      check: null,
+      reason: "not a supported image (JPEG, PNG, TIFF, BMP, WebP, HEIF/HEIC)",
+    },
+  ];
+  return {
+    schema: "ridge.triage/1",
+    ridge_version: "0.2.0",
+    folder: "E:/phone-A/DCIM",
+    recursive: Boolean(request.recursive),
+    photos: rows.length,
+    other_files: 3,
+    counts: { "finger-ridges": 2, "ridges-no-finger": 1, "finger-unclear": 1, nothing: 1, refused: 1 },
+    groups: {
+      "finger-ridges": "a finger was located by skin colour and its patches show a clear ridge wave",
+      "ridges-no-finger":
+        "no finger was located by skin colour, but the frame shows a clear ridge-like wave (a finger in grey or odd light, or a texture)",
+      "finger-unclear":
+        "a finger was located, but its ridge pattern is unclear or its spacing could not be measured",
+      nothing: "no finger was located and no clear ridge-like wave was measured",
+      refused: "not read: not a supported image, over a limit, a link, not a regular file, or unreadable",
+    },
+    thresholds: { min_finger_share: 0.1, min_pixels_per_ridge: 6, min_clarity: 0.02, max_glare_share: 0.05 },
+    rows,
+    notice:
+      "This is a reading order for the examiner, who still looks at every photo. It says which photos show a measurable ridge pattern, not which show a usable print, and it says nothing about identification.",
+    ...(request.save_index ? { index: { path: "D:/triage/DCIM-triage.csv", sha256: hex(30) } } : {}),
+  };
+}
+
 const previewSets = [
   {
     seq: 41,
@@ -359,6 +422,7 @@ const handlers: Record<string, Handler> = {
   export_annotated: (r) => ({ exported: "annotated.png", sha256: hex(9), seq: r.seq, marks: 3 }),
   check_photo: () => previewCheck(hex(5), null),
   check_evidence: (r) => previewCheck(String(r.sha256), "evidence"),
+  triage_folder: (r) => previewTriage(r),
   app_info: () => ({ gui: "0.2.0", engine: { ridge: "0.2.0", protocol: "ridge.sidecar/1" } }),
   refresh_store: () => store,
   choose_store: () => store,
